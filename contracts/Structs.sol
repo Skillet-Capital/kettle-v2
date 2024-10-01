@@ -93,3 +93,22 @@ struct Permit {
     uint256 expiration;
     uint256 salt;
 }
+
+// ====================================
+//              ESCROW
+// ====================================
+
+struct Escrow {
+    uint256 placeholder;
+    uint256 identifier;
+    address buyer;
+    address seller;
+    address collection;
+    address currency;
+    address recipient;
+    uint256 amount;
+    uint256 fee;
+    uint256 rebate;
+    uint256 timestamp;
+    uint256 lockTime;
+}

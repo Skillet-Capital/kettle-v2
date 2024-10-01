@@ -12,9 +12,12 @@ export async function deployKettle() {
   await receipt.setSupplier(_kettle, 1)
 
   const currency = await ethers.deployContract("TestERC20", [18]);
+  const currency2 = await ethers.deployContract("TestERC20", [18]);
+
   const collection = await ethers.deployContract("TestERC721");
+  const collection2 = await ethers.deployContract("TestERC721");
 
   const kettle = Kettle__factory.connect(await _kettle.getAddress(), owner);
 
-  return { owner, accounts, recipient, kettle, receipt, currency, collection };
+  return { owner, accounts, recipient, kettle, receipt, currency, currency2, collection, collection2 };
 }

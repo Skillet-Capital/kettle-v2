@@ -36,6 +36,7 @@ export type FeeTerms = {
 export type GenericOfferTerms = {
   currency: string;
   amount: string | number | bigint;
+  rebate?: string | number | bigint;
 }
 
 export type MarketOfferTerms = {
@@ -82,10 +83,20 @@ export type LoanOffer = {
   nonce: string | number | bigint;
 }
 
+export type Permit = {
+  taker: string;
+  currency: string;
+  amount: Numberish;
+  offerHash: string;
+  expiration: Numberish;
+  salt: string;
+  nonce: Numberish;
+}
+
 export type Lien = {
   borrower: string;
   collection: string;
-  tokenId: string;
+  tokenId: Numberish;
   currency: string;
   principal: Numberish;
   rate: Numberish;
@@ -95,6 +106,21 @@ export type Lien = {
   recipient: string;
   fee: Numberish;
   startTime: Numberish;
+}
+
+export type Escrow = {
+  placeholder: string;
+  buyer: string;
+  seller: string;
+  collection: string;
+  identifier: Numberish;
+  currency: string;
+  amount: Numberish;
+  fee: Numberish;
+  recipient: string;
+  rebate: Numberish;
+  timestamp: Numberish;
+  lockTime: Numberish;
 }
 
 // ==============================================
@@ -143,6 +169,11 @@ export type OfferWithSignature = {
   signature: string;
 }
 
+export type PermitWithSignature = {
+  permit: Permit;
+  signature: string;
+}
+
 export type CurrentDebt = {
   debt: Numberish;
   interest: Numberish;
@@ -162,6 +193,12 @@ export type CreateOfferAction = {
   type: "create";
   payload: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   create: () => Promise<OfferWithSignature>;
+}
+
+export type SignPermitAction = {
+  type: "permit";
+  payload: any;
+  permit: () => Promise<PermitWithSignature>;
 }
 
 export type TakeOfferAction = {

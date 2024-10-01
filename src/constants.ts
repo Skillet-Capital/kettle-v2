@@ -66,6 +66,18 @@ export const LOAN_OFFER_TYPE = {
   LoanOfferTerms: LOAN_OFFER_TERMS_TYPE
 }
 
+export const PERMIT_TYPE = {
+  Permit: [
+    { name: "taker",          type: "address" },
+    { name: "currency",       type: "address" },
+    { name: "amount",         type: "uint256" },
+    { name: "offerHash",      type: "bytes32" },
+    { name: "expiration",     type: "uint256" },
+    { name: "salt",           type: "uint256" },
+    { name: "nonce",          type: "uint256" } 
+  ]
+}
+
 export const BASIS_POINTS_DIVISOR = 10_000n;
 export const BYTES_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 export const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000"

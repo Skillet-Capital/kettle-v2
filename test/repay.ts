@@ -29,7 +29,7 @@ describe("Repay", function () {
   let collection: TestERC721;
 
   beforeEach(async function () {
-    ({ kettle, receipt: lenderReceipt, recipient, currency, collection, accounts } = await deployKettle());
+    ({ kettle, receipt: lenderReceipt, recipient, currency, collection, accounts } = await loadFixture(deployKettle));
 
     const tokenId = 1;
     const amount = parseUnits("100", 18);

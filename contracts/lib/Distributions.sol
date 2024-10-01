@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title Kettle Loan Payment Distribution Library
@@ -9,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Distributes payments from payers to payees based on predefined tranches
  */
 library Distributions {
+    using SafeERC20 for IERC20;
     
     /**
      * @notice Distributes loan payments to lenders and recipients.
@@ -90,8 +92,6 @@ library Distributions {
         uint256 amount
     ) internal {
         if (from == to || amount == 0) return;
-
-        if (from == address(this)) IERC20(currency).transfer(to, amount);
-        else IERC20(currency).transferFrom(from, to, amount);
+        else IERC20(currency).safeTransferFrom(from, to, amount);
     }
 }

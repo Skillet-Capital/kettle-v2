@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { parseUnits } from "ethers";
 
 import { Criteria, Kettle, MarketOffer, OfferWithSignature, Side } from "../src";
-import { generateProof, generateRoot } from "../src/utils";
+import { generateProof, generateRoot, randomSalt } from "../src/utils";
 import { deployKettle } from "./fixture";
 
 describe("Sell (take bid)", function () {
@@ -89,6 +89,47 @@ describe("Sell (take bid)", function () {
     expect(await currency.balanceOf(taker)).to.equal(amount - fee);
   });
 
+  it("should reject bid offer (INVALID TOKEN)", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const tokenId = 1;
+    const amount = parseUnits("100", 18);
+
+    const [maker, taker] = accounts;
+
+    await currency.mint(maker, amount);
+    await collection.mint(taker, tokenId);
+
+    const _makerKettle = new Kettle(maker, await kettle.getAddress());
+    const makeSteps = await _makerKettle.createMarketOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    await expect(kettle.sell(2, offer as MarketOffer, signature, [])).to.be.revertedWith("InvalidToken");
+  });
+
   it("should take bid offer (PROOF)", async function () {
     const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
 
@@ -151,5 +192,51 @@ describe("Sell (take bid)", function () {
     const fee = _takerKettle.mulFee(offer.terms.amount, offer.fee.rate);
     expect(await currency.balanceOf(recipient)).to.equal(fee);
     expect(await currency.balanceOf(taker)).to.equal(amount - fee);
+  });
+
+  it("should reject bid offer (INVALID PROOF)", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const tokenId = 1;
+    const amount = parseUnits("100", 18);
+
+    const [maker, taker] = accounts;
+
+    await currency.mint(maker, amount);
+    await collection.mint(taker, tokenId);
+
+    const tokens = [1,2,3,4,5];
+    const root = generateRoot(tokens);
+
+    const _makerKettle = new Kettle(maker, await kettle.getAddress());
+    const makeSteps = await _makerKettle.createMarketOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      criteria: Criteria.PROOF,
+      identifier: root,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    await expect(kettle.sell(1, offer as MarketOffer, signature, [])).to.be.revertedWith("InvalidCriteria");
+    await expect(kettle.sell(1, offer as MarketOffer, signature, [randomSalt(), randomSalt()])).to.be.revertedWith("InvalidCriteria");
   });
 });

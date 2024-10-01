@@ -10,15 +10,16 @@ import { Distributions } from "./lib/Distributions.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract Lending is ILending, Initializable {    
+contract LendingController is ILending, Initializable {    
     ILenderReceipt public LENDER_RECEIPT;
+    uint256 public lienIndex;
+    
+    mapping(uint256 => bytes32) public liens;
 
-    function __Lending_init__(address receipt) public initializer {
+    function __LendingController_init(address receipt) public initializer {
+        lienIndex = 0;
         LENDER_RECEIPT = ILenderReceipt(receipt);
     }
-
-    uint256 public nextLienId;
-    mapping(uint256 => bytes32) public liens;
 
     function _openLien(
         address lender,
@@ -51,7 +52,7 @@ contract Lending is ILending, Initializable {
         });
 
         unchecked {
-            lienId = nextLienId++;
+            lienId = lienIndex++;
         }
 
         liens[lienId] = _hashLien(lien);
@@ -98,7 +99,20 @@ contract Lending is ILending, Initializable {
     }
 
     function _hashLien(Lien memory lien) internal pure returns (bytes32) {
-        return keccak256(abi.encode(lien));
+        return keccak256(abi.encodePacked(
+            lien.borrower,
+            lien.collection,
+            lien.tokenId,
+            lien.currency,
+            lien.principal,
+            lien.rate,
+            lien.defaultRate,
+            lien.duration,
+            lien.gracePeriod,
+            lien.recipient,
+            lien.fee,
+            lien.startTime
+        ));
     }
 
     function currentLender(uint256 lienId) public view returns (address) {
@@ -109,11 +123,11 @@ contract Lending is ILending, Initializable {
         return LENDER_RECEIPT.ownerOf(lienId);
     }
 
-    function computeDebt(Lien memory lien) public view returns (uint256 debt, uint256 fee, uint256 interest) {
+    function computeDebt(Lien memory lien) external view returns (uint256 debt, uint256 fee, uint256 interest) {
         return _computeDebt(lien);
     }
 
-    function computeDebt(Lien memory lien, uint256 timestamp) public pure returns (uint256 debt, uint256 fee, uint256 interest) {
+    function computeDebtAtTimestamp(Lien memory lien, uint256 timestamp) external pure returns (uint256 debt, uint256 fee, uint256 interest) {
         return _computeDebt(lien, timestamp);
     }
 

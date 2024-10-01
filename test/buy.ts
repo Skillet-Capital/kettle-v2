@@ -3,8 +3,9 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-help
 import { expect } from "chai";
 import { parseUnits } from "ethers";
 
-import { Kettle, MarketOffer, OfferWithSignature, Side } from "../src";
+import { Kettle, MarketOffer, OfferWithSignature, PermitWithSignature, Side } from "../src";
 import { deployKettle } from "./fixture";
+import { randomSalt } from "../src/utils";
 
 describe("Buy (take ask)", function () {
   const DAY_SECONDS = 60 * 60 * 24;
@@ -88,7 +89,7 @@ describe("Buy (take ask)", function () {
     expect(await currency.balanceOf(maker)).to.equal(amount - fee);
   });
 
-  it.skip("should take ask offer (PERMIT)", async function () {
+  it("should take ask offer (PERMIT)", async function () {
     const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
 
     const tokenId = 1;
@@ -127,15 +128,32 @@ describe("Buy (take ask)", function () {
     }
 
     const _takerKettle = new Kettle(taker, await kettle.getAddress());
+
+    const permitSteps = await _takerKettle.createPermit("market", offer as MarketOffer);
+    
+    let permitOutput: PermitWithSignature | null = null;
+    for (const step of permitSteps) {
+      if (step.type === "permit") {
+        permitOutput = await step.permit();
+      }
+    }
+
+    const { permit, signature: permitSignature } = permitOutput || {};
+
+    if (!permit || !permitSignature) {
+      throw new Error("Permit not created");
+    }
+    
     const takeSteps = await _takerKettle.takeMarketOffer(tokenId, offer as MarketOffer, signature);
 
     for (const step of takeSteps) {
       if (step.type === "approval") {
         await step.approve();
-      } else if (step.type === "take") {
-        await step.take();
       }
     }
+
+    const account = accounts[accounts.length - 1];
+    await kettle.connect(account).buyWithPermit(offer as MarketOffer, permit, signature, permitSignature);
 
     expect(await collection.ownerOf(tokenId)).to.equal(taker);
 
@@ -144,5 +162,64 @@ describe("Buy (take ask)", function () {
     const fee = _takerKettle.mulFee(offer.terms.amount, offer.fee.rate);
     expect(await currency.balanceOf(recipient)).to.equal(fee);
     expect(await currency.balanceOf(maker)).to.equal(amount - fee);
+  })
+
+  it("should reject taking ask offer (INVALID PERMIT)", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const tokenId = 1;
+    const amount = parseUnits("100", 18);
+
+    const [maker, taker] = accounts;
+
+    await collection.mint(maker, tokenId);
+    await currency.mint(taker, amount);
+
+    const _makerKettle = new Kettle(maker, await kettle.getAddress());
+    const makeSteps = await _makerKettle.createMarketOffer({
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    const _takerKettle = new Kettle(taker, await kettle.getAddress());
+
+    const permitSteps = await _takerKettle.createPermit("market", offer as MarketOffer);
+    
+    let permitOutput: PermitWithSignature | null = null;
+    for (const step of permitSteps) {
+      if (step.type === "permit") {
+        permitOutput = await step.permit();
+      }
+    }
+
+    const { permit, signature: permitSignature } = permitOutput || {};
+
+    if (!permit || !permitSignature) {
+      throw new Error("Permit not created");
+    }
+
+    await expect(kettle.connect(taker).buyWithPermit(offer as MarketOffer, { ...permit, offerHash: randomSalt() }, signature, permitSignature))
+      .to.be.revertedWith("InvalidPermitOfferHash");
   })
 });

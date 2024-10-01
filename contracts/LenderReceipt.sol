@@ -4,12 +4,6 @@ pragma solidity ^0.8.19;
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC721 } from "solmate/src/tokens/ERC721.sol";
 
-interface ILenderReceipt {
-    function ownerOf(uint256 tokenId) external returns (address);
-    function mint(address to, uint256 tokenId) external;
-    function burn(uint256 tokenId) external;
-}
-
 /**
  * @title Kettle Lender Receipt
  * @author diamondjim.eth
@@ -43,7 +37,7 @@ contract LenderReceipt is ERC721 {
             return Strings.toString(tokenId);
         }
         // If both are set, concatenate the baseURI and tokenURI (via string.concat).
-        return string.concat(base, Strings.toString(tokenId));
+        return string.concat(base, "/", Strings.toString(tokenId));
     } 
 
     function _baseURI() internal view virtual returns (string memory) {

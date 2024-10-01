@@ -4,11 +4,18 @@ pragma solidity ^0.8.19;
 import { OfferController } from "../OfferController.sol";
 import { LoanOffer, MarketOffer } from "../Structs.sol";
 
-contract TestOfferController is OfferController {
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-    constructor() {
-        __OfferController_init(msg.sender);
+
+contract TestOfferController is Initializable, Ownable2StepUpgradeable, OfferController {
+
+    function initialize() public initializer {
+        __OfferController_init();
         __Signatures_init();
+
+        __Ownable2Step_init();
+        _transferOwnership(msg.sender);
     }
 
     function takeLoanOffer(

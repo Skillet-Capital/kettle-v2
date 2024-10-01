@@ -7,16 +7,18 @@ import { parseUnits, randomBytes } from "ethers";
 import { Kettle, MarketOffer, OfferWithSignature, Side } from "../src";
 import { deployKettle } from "./fixture";
 import { randomSalt } from "../src/utils";
-import { OfferController__factory, TestOfferController } from "../typechain-types";
+import { OfferController, OfferController__factory, TestOfferController } from "../typechain-types";
 
 describe("Offer Controller", function () {
-  describe("offer verification", function () {
+  // describe("offer verification", function () {
     async function deployTestOfferController() {
       const { kettle, recipient, currency, collection, owner, accounts } = await deployKettle();
   
       const OfferController = await ethers.getContractFactory("TestOfferController");
-      const offerController = await OfferController.deploy() as TestOfferController;
-  
+      const offerController = await upgrades.deployProxy(OfferController, [], { initializer: "initialize" });
+
+      // const offerController = OfferController__factory.connect(await offerControllerProxy.getAddress(), owner) as OfferController;
+
       return { kettle, recipient, currency, collection, owner, accounts, offerController };
     }
 
@@ -179,24 +181,24 @@ describe("Offer Controller", function () {
       await offerController.connect(maker).cancelOffers([offer.salt]);
       await expect(offerController.takeMarketOffer(offer as MarketOffer, signature)).to.be.revertedWith("OfferUnavailable");
     });
-  })
+  // })
 
-  describe("offer control", function () {
-    async function deployOfferController() {
-      const [owner, ...accounts] = await ethers.getSigners();
+  // describe("offer control", function () {
+  //   async function deployOfferController() {
+  //     const [owner, ...accounts] = await ethers.getSigners();
   
-      const OfferController = await ethers.getContractFactory("OfferController");
-      const offerControllerProxy = await upgrades.deployProxy(OfferController, [await owner.getAddress()], { 
-        initializer: "__OfferController_init" 
-      });
+  //     const OfferController = await ethers.getContractFactory("OfferController");
+  //     const offerControllerProxy = await upgrades.deployProxy(OfferController, [], { 
+  //       initializer: "__OfferController_init" 
+  //     });
   
-      const offerController = OfferController__factory.connect(await offerControllerProxy.getAddress(), owner);
+  //     const offerController = OfferController__factory.connect(await offerControllerProxy.getAddress(), owner);
   
-      return { owner, accounts, offerController };
-    }
+  //     return { owner, accounts, offerController };
+  //   }
 
     it("should cancel offer", async function () {
-      const { offerController, owner, accounts } = await loadFixture(deployOfferController);
+      const { offerController, owner, accounts } = await loadFixture(deployTestOfferController);
   
       const [maker] = accounts;
   
@@ -218,7 +220,7 @@ describe("Offer Controller", function () {
     })
   
     it("should cancel offer for user", async function () {
-      const { offerController, owner, accounts } = await loadFixture(deployOfferController);
+      const { offerController, owner, accounts } = await loadFixture(deployTestOfferController);
   
       const [maker] = accounts;
   
@@ -230,7 +232,7 @@ describe("Offer Controller", function () {
     });
   
     it("should increment nonce", async function () {
-      const { offerController, owner, accounts } = await loadFixture(deployOfferController);
+      const { offerController, owner, accounts } = await loadFixture(deployTestOfferController);
   
       const [maker] = accounts;
   
@@ -240,5 +242,5 @@ describe("Offer Controller", function () {
       await offerController.connect(maker).incrementNonce();
       expect(await offerController.nonces(maker)).to.equal(1);
     });
-  })
+  // })
 });

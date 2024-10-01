@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IOfferController } from "./interfaces/IOfferController.sol";
 import { Signatures } from "./Signatures.sol";
-import { MarketOffer, LoanOffer, Permit, Lien, Side } from "./Structs.sol";
+import { IOfferController } from "./interfaces/IOfferController.sol";
 
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import { MarketOffer, LoanOffer, Permit, Lien, Side } from "./Structs.sol";
 
 contract OfferController is IOfferController, Initializable, Ownable2StepUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
@@ -16,11 +17,8 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
    
     uint256[50] private _gap;
 
-    function __OfferController_init(address owner) public initializer {
+    function __OfferController_init() public initializer {
         __Signatures_init();
-        __Ownable2Step_init();
-
-        _transferOwnership(owner);
     }
 
     function amountTaken(bytes32 offerHash) external view returns (uint256) {
@@ -55,7 +53,8 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         _hash = _hashLoanOffer(offer);
         _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
 
-        if (offer.side == Side.ASK) {
+        // check if borrowing from bid
+        if (offer.side == Side.BID) {
             if (
                 amount > offer.terms.maxAmount ||
                 amount < offer.terms.minAmount
@@ -76,20 +75,20 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         }
     }
 
-    // function _verifyPermit(
-    //     Permit calldata permit,
-    //     bytes32 offerHash,
-    //     bytes calldata signature
-    // ) internal {
-    //     if (permit.offerHash != offerHash) {
-    //         revert("InvalidPermitOfferHash");
-    //     }
+    function _verifyPermit(
+        Permit calldata permit,
+        bytes32 offerHash,
+        bytes calldata signature
+    ) internal {
+        if (permit.offerHash != offerHash) {
+            revert("InvalidPermitOfferHash");
+        }
 
-    //     bytes32 _hash = _hashPermit(permit);
-    //     _validateOffer(_hash, permit.taker, permit.expiration, permit.salt, signature);
+        bytes32 _hash = _hashPermit(permit);
+        _validateOffer(_hash, permit.taker, permit.expiration, permit.salt, signature);
 
-    //     cancelledOrFulfilled[permit.taker][permit.salt] = 1;
-    // }
+        cancelledOrFulfilled[permit.taker][permit.salt] = 1;
+    }
 
     function _validateOffer(
         bytes32 offerHash,

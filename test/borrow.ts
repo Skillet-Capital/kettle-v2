@@ -10,31 +10,6 @@ import { deployKettle } from "./fixture";
 describe("Borrow (take bid)", function () {
   const DAY_SECONDS = 60 * 60 * 24;
 
-  it("should fail if offer is ask", async function () {
-    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
-
-    const [maker, taker] = accounts;
-
-    const _kettle = new Kettle(maker, await kettle.getAddress());
-
-    const offer = await _kettle._formatLoanOffer(await maker.getAddress(), {
-      side: Side.ASK,
-      collection,
-      currency,
-      identifier: 1,
-      amount: parseUnits("100", 18),
-      rate: 1000,
-      defaultRate: 2000,
-      duration: 30 * DAY_SECONDS,
-      gracePeriod: 30 * DAY_SECONDS,
-      fee: 250,
-      recipient,
-      expiration: await time.latest() + DAY_SECONDS
-    });
-
-    await expect(kettle.borrow(1, 0, offer, "0x", [])).to.be.revertedWith("RequiresBidSide");
-  })
-
   it("should borrow from loan offer (SIMPLE)", async function () {
     const { kettle, recipient, currency, collection, accounts, receipt } = await loadFixture(deployKettle);
 
@@ -160,5 +135,169 @@ describe("Borrow (take bid)", function () {
 
     expect(await currency.balanceOf(maker)).to.equal(0);
     expect(await currency.balanceOf(taker)).to.equal(amount);
+  });
+
+  it("should fail if offer is ask", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const [maker, taker] = accounts;
+
+    const _kettle = new Kettle(maker, await kettle.getAddress());
+
+    const offer = await _kettle._formatLoanOffer(await maker.getAddress(), {
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: 1,
+      amount: parseUnits("100", 18),
+      rate: 1000,
+      defaultRate: 2000,
+      duration: 30 * DAY_SECONDS,
+      gracePeriod: 30 * DAY_SECONDS,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    await expect(kettle.borrow(1, 0, offer, "0x", [])).to.be.revertedWith("RequiresBidSide");
+  });
+
+  it("should fail if amount is less than minimum", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const [maker, taker] = accounts;
+
+    const _kettle = new Kettle(maker, await kettle.getAddress());
+
+    const makeSteps = await _kettle.createLoanOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      criteria: Criteria.PROOF,
+      identifier: 1,
+      amount: parseUnits("100", 18),
+      minAmount: parseUnits("10", 18),
+      fee: 250,
+      recipient,
+      rate: 1000,
+      defaultRate: 2000,
+      duration: 30 * DAY_SECONDS,
+      gracePeriod: 30 * DAY_SECONDS,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    await expect(kettle.borrow(offer.collateral.identifier, 0, offer as LoanOffer, signature, []))
+      .to.be.revertedWith("InvalidLoanAmount");
+  });
+
+  it("should fail if amount is less than minimum", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const [maker, taker] = accounts;
+
+    const _kettle = new Kettle(maker, await kettle.getAddress());
+
+    const makeSteps = await _kettle.createLoanOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      criteria: Criteria.PROOF,
+      identifier: 1,
+      amount: parseUnits("100", 18),
+      maxAmount: parseUnits("20", 18),
+      minAmount: parseUnits("10", 18),
+      fee: 250,
+      recipient,
+      rate: 1000,
+      defaultRate: 2000,
+      duration: 30 * DAY_SECONDS,
+      gracePeriod: 30 * DAY_SECONDS,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    await expect(kettle.borrow(offer.collateral.identifier, parseUnits("30", 18), offer as LoanOffer, signature, []))
+      .to.be.revertedWith("InvalidLoanAmount");
+  });
+
+  it("should fail if amount is greater than remaining amount", async function () {
+    const { kettle, recipient, currency, collection, accounts } = await loadFixture(deployKettle);
+
+    const [maker, taker] = accounts;
+
+    const _kettle = new Kettle(maker, await kettle.getAddress());
+
+    const makeSteps = await _kettle.createLoanOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      criteria: Criteria.SIMPLE,
+      identifier: 1,
+      amount: parseUnits("100", 18),
+      fee: 250,
+      recipient,
+      rate: 1000,
+      defaultRate: 2000,
+      duration: 30 * DAY_SECONDS,
+      gracePeriod: 30 * DAY_SECONDS,
+      expiration: await time.latest() + DAY_SECONDS
+    });
+
+    let output: OfferWithSignature | null = null;
+    for (const step of makeSteps) {
+      if (step.type === "approval") {
+        await step.approve();
+      } else if (step.type === "create") {
+        output = await step.create();
+      }
+    }
+
+    const { offer, signature } = output || {};
+
+    if (!offer || !signature) {
+      throw new Error("Offer not created");
+    }
+
+    await currency.mint(maker, offer.terms.amount);
+    await collection.mint(taker, offer.collateral.identifier);
+
+    await currency.connect(maker).approve(kettle, offer.terms.amount);
+    await collection.connect(taker).approve(kettle, offer.collateral.identifier);
+
+    await kettle.connect(taker).borrow(offer.collateral.identifier, parseUnits("60", 18), offer as LoanOffer, signature, []);
+
+    const offerHash = await kettle.hashLoanOffer(offer as LoanOffer);
+    expect(await kettle.amountTaken(offerHash)).to.equal(parseUnits("60", 18));
+    await expect(kettle.connect(taker).borrow(offer.collateral.identifier, parseUnits("60", 18), offer as LoanOffer, signature, []))
+      .to.be.revertedWith("InsufficientOffer");
   });
 });

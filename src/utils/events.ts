@@ -1,11 +1,16 @@
 import { ethers } from "hardhat";
 import { Log, LogDescription, TransactionReceipt } from "ethers";
 import { Kettle__factory } from "../../typechain-types";
-import { Numberish, Lien } from "../types";
+import { Numberish, Lien, Escrow } from "../types";
 
 interface LienLog {
   lienId: Numberish;
   lien: Lien;
+}
+
+interface EscrowLog {
+  escrowId: Numberish;
+  escrow: Escrow;
 }
 
 export async function getReceipt(txnHash: string | null): Promise<TransactionReceipt> {
@@ -52,6 +57,39 @@ export function parseLienOpenedLog(receipt: TransactionReceipt): LienLog {
       recipient: lienLog.args.lien.recipient,
       fee: lienLog.args.lien.fee,
       startTime: lienLog.args.lien.startTime,
+    }
+  }
+}
+
+export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
+  const iface = Kettle__factory.createInterface();
+
+  const logs = receipt.logs
+    .map((log: Log) => iface.parseLog(log))
+    .filter((log: LogDescription | null) => log !== null) as LogDescription[];
+
+  const escrowLog = logs
+    .find((log: LogDescription) => log.name === "EscrowOpened") as LogDescription;
+
+  if (!escrowLog) {
+    throw new Error("No LienOpened log found");
+  }
+
+  return {
+    escrowId: escrowLog.args.escrowId,
+    escrow: {
+      placeholder: escrowLog.args.escrow.placeholder,
+      buyer: escrowLog.args.escrow.buyer,
+      seller: escrowLog.args.escrow.seller,
+      collection: escrowLog.args.escrow.collection,
+      identifier: escrowLog.args.escrow.identifier,
+      currency: escrowLog.args.escrow.currency,
+      amount: escrowLog.args.escrow.amount,
+      fee: escrowLog.args.escrow.fee,
+      recipient: escrowLog.args.escrow.recipient,
+      rebate: escrowLog.args.escrow.rebate,
+      timestamp: escrowLog.args.escrow.timestamp,
+      lockTime: escrowLog.args.escrow.lockTime,
     }
   }
 }
