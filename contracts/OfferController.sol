@@ -7,6 +7,8 @@ import { IOfferController } from "./interfaces/IOfferController.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+import { BidCannotBorrow, InvalidRate, InvalidLoanAmount, InsufficientOffer, InvalidPermitOfferHash, OfferExpired, OfferUnavailable } from "./Errors.sol";
+
 import { MarketOffer, LoanOffer, Permit, Lien, Side } from "./Structs.sol";
 
 contract OfferController is IOfferController, Initializable, Ownable2StepUpgradeable, Signatures {
@@ -31,7 +33,7 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
     ) internal returns (bytes32 _hash) {
         if (offer.terms.withLoan) {
             if (offer.terms.amount < offer.terms.borrowAmount) {
-                revert("BidCannotBorrow");
+                revert BidCannotBorrow();
             }
         }
 
@@ -47,7 +49,7 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         bytes calldata signature
     ) internal returns (bytes32 _hash) {
         if (offer.terms.rate > _MAX_RATE || offer.terms.defaultRate > _MAX_RATE) {
-            revert("InvalidRate");
+            revert InvalidRate();
         }
 
         _hash = _hashLoanOffer(offer);
@@ -59,12 +61,12 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
                 amount > offer.terms.maxAmount ||
                 amount < offer.terms.minAmount
             ) {
-                revert("InvalidLoanAmount");
+                revert InvalidLoanAmount();
             }
 
             uint256 __amountTaken = _amountTaken[_hash];
             if (offer.terms.amount - __amountTaken < amount) {
-                revert("InsufficientOffer");
+                revert InsufficientOffer();
             }
 
             unchecked {
@@ -81,7 +83,7 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         bytes calldata signature
     ) internal {
         if (permit.offerHash != offerHash) {
-            revert("InvalidPermitOfferHash");
+            revert InvalidPermitOfferHash();
         }
 
         bytes32 _hash = _hashPermit(permit);
@@ -100,19 +102,11 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         _verifyOfferAuthorization(offerHash, signer, signature);
 
         if (expiration < block.timestamp) {
-            revert("OfferExpired");
+            revert OfferExpired();
         }
         if (cancelledOrFulfilled[signer][salt] == 1) {
-            revert("OfferUnavailable");
+            revert OfferUnavailable();
         }
-    }
-
-    /** 
-     * @notice Cancels offer salt for caller
-     * @param salt Unique offer salt
-    */
-    function cancelOffer(uint256 salt) external override {
-        _cancelOffer(msg.sender, msg.sender, salt);
     }
 
     /**

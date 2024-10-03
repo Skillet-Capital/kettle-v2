@@ -10,16 +10,17 @@ import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721H
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
+import { KettleMath } from "./lib/KettleMath.sol";
+
 import { LendingController } from "./Lending.sol";
 import { EscrowController } from "./Escrow.sol";
 import { OfferController } from "./OfferController.sol";
 
-import { ILenderReceipt } from "./interfaces/ILenderReceipt.sol";
-import { IKettle } from "./interfaces/IKettle.sol";
+import { LienIsCurrent, TakerIsNotBorrower, MakerIsNotBorrower, InsufficientAskAmount, InvalidFee, CurrencyMismatch, CollectionMismatch, TokenMismatch, InvalidCriteria, InvalidToken, RequiresAskSide, RequiresBidSide, RequiresNakedBidSide, CannotTakeSoftOffer, CannotTakeHardOffer } from "./Errors.sol";
 
 import { LoanOffer, MarketOffer, Lien, Permit, Side, Criteria } from "./Structs.sol";
 
-contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferController, LendingController, EscrowController, ERC721Holder {
+contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, LendingController, EscrowController, ERC721Holder {
     using SafeERC20 for IERC20;
 
     uint256[] private _gap;
@@ -33,56 +34,14 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
         _transferOwnership(owner);
     }
 
-    function buy(
-        MarketOffer calldata offer,
-        bytes calldata signature
-    ) external requireAsk(offer.side) returns (uint256 netAmount) {
-
-        _takeMarketOffer(offer, signature);
-
-        netAmount = _market(
-            msg.sender,
-            offer.maker,
-            offer.terms.currency,
-            offer.terms.amount,
-            offer.collateral.collection,
-            offer.collateral.identifier,
-            offer.fee.recipient,
-            offer.fee.rate
-        );
-    }
-
-    function buyWithPermit(
-        MarketOffer calldata offer,
-        Permit calldata permit,
-        bytes calldata signature,
-        bytes calldata permitSignature
-    ) external requireAsk(offer.side) returns (uint256 netAmount) {
-
-        bytes32 offerHash = _takeMarketOffer(offer, signature);
-        _verifyPermit(permit, offerHash, permitSignature);
-
-        netAmount = _market(
-            permit.taker,
-            offer.maker,
-            offer.terms.currency,
-            offer.terms.amount,
-            offer.collateral.collection,
-            offer.collateral.identifier,
-            offer.fee.recipient,
-            offer.fee.rate
-        );
-    }
-
-    function sell(
+    function fulfillMarketOffer(
         uint256 tokenId,
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireNakedBid(offer.side, offer.terms.withLoan) returns (uint256 netAmount) {
-
+    ) external requireSoft(false, offer.soft) returns (uint256 netAmount) {
         _takeMarketOffer(offer, signature);
-        
+
         _verifyCollateral(
             offer.collateral.criteria, 
             offer.collateral.identifier, 
@@ -90,77 +49,37 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
             proof
         );
 
-        netAmount = _market(
-            offer.maker,
-            msg.sender,
-            offer.terms.currency,
-            offer.terms.amount,
-            offer.collateral.collection,
-            tokenId,
-            offer.fee.recipient,
-            offer.fee.rate
-        );
-    }
-
-    function lend(
-        LoanOffer calldata offer,
-        bytes calldata signature
-    ) external requireAsk(offer.side) returns (uint256 lienId) 
-    {
-        _takeLoanOffer(offer, 0, signature);
-
-        lienId = _lend(
-            msg.sender, 
-            offer.maker, 
-            offer.collateral.collection, 
-            offer.collateral.identifier,
+        netAmount = _transferFees(
             offer.terms.currency, 
-            offer.terms.amount,
-            offer.terms.rate, 
-            offer.terms.defaultRate, 
-            offer.terms.duration, 
-            offer.terms.gracePeriod, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
             offer.fee.recipient, 
+            offer.terms.amount, 
             offer.fee.rate
+        );
+
+        IERC20(offer.terms.currency).safeTransferFrom(
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            netAmount
+        );
+
+        IERC721(offer.collateral.collection).safeTransferFrom(
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            tokenId
         );
     }
 
-    function lendWithPermit(
-        LoanOffer calldata offer,
-        Permit calldata permit,
-        bytes calldata signature,
-        bytes calldata permitSignature
-    ) public virtual requireAsk(offer.side) returns (uint256 lienId) {
-
-        bytes32 offerHash = _takeLoanOffer(offer, 0, signature);
-        _verifyPermit(permit, offerHash, permitSignature);
-
-        lienId = _lend(
-            permit.taker, 
-            offer.maker, 
-            offer.collateral.collection, 
-            offer.collateral.identifier,
-            offer.terms.currency, 
-            offer.terms.amount,
-            offer.terms.rate, 
-            offer.terms.defaultRate, 
-            offer.terms.duration, 
-            offer.terms.gracePeriod, 
-            offer.fee.recipient, 
-            offer.fee.rate
-        );
-    }
-
-    function borrow(
+    function fulfillLoanOffer(
         uint256 tokenId,
         uint256 amount,
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireBid(offer.side) returns (uint256 lienId) {
+    ) external requireSoft(false, offer.soft) returns (uint256 lienId) {
+        uint256 _amount = offer.side == Side.BID ? amount : offer.terms.amount;
+        _takeLoanOffer(offer, _amount, signature);
 
-        _takeLoanOffer(offer, amount, signature);
-        
         _verifyCollateral(
             offer.collateral.criteria, 
             offer.collateral.identifier, 
@@ -168,13 +87,25 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
             proof
         );
 
-        lienId = _lend(
-            offer.maker,
-            msg.sender, 
+        IERC20(offer.terms.currency).safeTransferFrom(
+            offer.side == Side.BID ? offer.maker : msg.sender,
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            _amount
+        );
+
+        IERC721(offer.collateral.collection).safeTransferFrom(
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            address(this), 
+            tokenId
+        );
+
+        lienId = _openLien(
+            offer.side == Side.BID ? offer.maker : msg.sender,
+            offer.side == Side.BID ? msg.sender : offer.maker,
             offer.collateral.collection, 
             tokenId,
             offer.terms.currency, 
-            amount, 
+            _amount, 
             offer.terms.rate, 
             offer.terms.defaultRate, 
             offer.terms.duration, 
@@ -184,167 +115,22 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
         );
     }
 
-    function _market(
-        address buyer,
-        address seller,
-        address currency,
-        uint256 amount,
-        address collection,
-        uint256 tokenId,
-        address recipient,
-        uint256 fee
-    ) internal returns (uint256 netAmount) {
-
-        netAmount = _transferFees(
-            currency, 
-            buyer, 
-            recipient, 
-            amount,
-            fee
-        );
-
-        IERC20(currency).safeTransferFrom(
-            buyer, 
-            seller, 
-            netAmount
-        );
-
-        IERC721(collection).safeTransferFrom(
-            seller, 
-            buyer, 
-            tokenId
-        );
-    }
-
-    function _lend(
-        address lender,
-        address borrower,
-        address collection,
-        uint256 tokenId,
-        address currency,
-        uint256 amount,
-        uint256 rate,
-        uint256 defaultRate,
-        uint256 duration,
-        uint256 gracePeriod,
-        address recipient,
-        uint256 fee
-    ) internal returns (uint256 lienId) {
-
-        lienId = _openLien(
-            lender,
-            borrower,
-            collection, 
-            tokenId,
-            currency, 
-            amount, 
-            rate, 
-            defaultRate, 
-            duration, 
-            gracePeriod, 
-            recipient, 
-            fee
-        );
-
-        IERC20(currency).safeTransferFrom(
-            lender, 
-            borrower,
-            amount
-        );
-
-        IERC721(collection).safeTransferFrom(
-            borrower, 
-            address(this), 
-            tokenId
-        );
-    }
-
-    function repay(
+    function fulfillMarketOfferInLien(
         uint256 lienId,
-        Lien calldata lien
-    ) 
-        external 
-        lienIsValid(lienId, lien) 
-        lienIsCurrent(lien) 
-        returns (uint256) 
-    {
-        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-
-        IERC20(lien.currency).safeTransferFrom(
-            msg.sender, 
-            _currentLender(lienId),
-            lien.principal + interest
-        );
-
-        IERC20(lien.currency).safeTransferFrom(
-            msg.sender, 
-            lien.recipient,
-            fee
-        );
-
-        IERC721(lien.collection).safeTransferFrom(
-            address(this), 
-            lien.borrower, 
-            lien.tokenId
-        );
-
-        _closeLien(lienId);
-
-        return debt;
-    }
-
-    function claim(
-        uint256 lienId,
-        Lien calldata lien
-    ) 
-        external 
-        lienIsValid(lienId, lien)
-        returns (uint256)
-    {
-        if (!_lienIsDefaulted(lien)) {
-            revert("LienIsCurrent");
-        }
-
-        IERC721(lien.collection).safeTransferFrom(
-            address(this), 
-            _currentLender(lienId), 
-            lien.tokenId
-        );
-
-        _closeLien(lienId);
-
-        return lienId;
-    }
-
-    function refinance(
-        uint256 lienId,
-        uint256 amount,
         Lien calldata lien,
-        LoanOffer calldata offer,
+        MarketOffer calldata offer,
         bytes calldata signature,
-        bytes32[] calldata proof
-    ) 
-        external 
-        requireBid(offer.side) 
-        lienIsValid(lienId, lien) 
-        lienIsCurrent(lien) 
-        returns (uint256 newLienId) 
-    {
-
-        if (msg.sender != lien.borrower) {
-            revert("TakerIsNotBorrower");
+        bytes32[] calldata proof  
+    ) external requireSoft(false, offer.soft) lienIsValid(lienId, lien) lienIsCurrent(lien) returns (uint256 netAmount) {
+        if (offer.side == Side.BID && lien.borrower != msg.sender) {
+            revert TakerIsNotBorrower();
         }
 
-        _matchTerms(
-            lien.currency,
-            offer.terms.currency,
-            lien.collection,
-            offer.collateral.collection,
-            lien.tokenId,
-            offer.collateral.identifier
-        );
+        if (offer.side == Side.ASK && lien.borrower != offer.maker) {
+            revert MakerIsNotBorrower();
+        }
 
-        _takeLoanOffer(offer, amount, signature);
+        _takeMarketOffer(offer, signature);
 
         _verifyCollateral(
             offer.collateral.criteria, 
@@ -352,119 +138,6 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
             lien.tokenId, 
             proof
         );
-
-        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-
-        _transferPayments(
-            lien.currency, 
-            amount, 
-            debt, 
-            lien.principal + interest,
-            fee,
-            _currentLender(lienId), 
-            lien.recipient, 
-            offer.maker,
-            msg.sender,
-            msg.sender
-        );
-
-        _closeLien(lienId);
-
-        newLienId = _openLien(
-            offer.maker, 
-            lien.borrower, 
-            lien.collection, 
-            lien.tokenId,
-            lien.currency,
-            amount,
-            offer.terms.rate,
-            offer.terms.defaultRate, 
-            offer.terms.duration, 
-            offer.terms.gracePeriod, 
-            offer.fee.recipient, 
-            offer.fee.rate
-        );
-    }
-
-    function buyInLien(
-        uint256 lienId,
-        Lien calldata lien,
-        MarketOffer calldata offer,
-        bytes calldata signature
-    ) 
-        external 
-        requireAsk(offer.side) 
-        lienIsValid(lienId, lien) 
-        lienIsCurrent(lien) 
-        returns (uint256 netAmount) 
-    {        
-        if (lien.borrower != offer.maker) {
-            revert("AskMakerIsNotBorrower");
-        }
-
-        _matchTerms(
-            lien.currency, 
-            offer.terms.currency, 
-            lien.collection, 
-            offer.collateral.collection, 
-            lien.tokenId, 
-            offer.collateral.identifier
-        );
-
-        _takeMarketOffer(offer, signature);
-
-        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-
-        netAmount = _transferFees(
-            offer.terms.currency, 
-            msg.sender, 
-            offer.fee.recipient, 
-            offer.terms.amount, 
-            offer.fee.rate
-        );
-
-        if (debt > netAmount) {
-            revert("InsufficientAskAmount");
-        }
-
-        _transferPayments(
-            lien.currency, 
-            netAmount, 
-            debt, 
-            lien.principal + interest, 
-            fee, 
-            _currentLender(lienId), 
-            lien.recipient, 
-            msg.sender, 
-            msg.sender, 
-            offer.maker
-        );
-
-        IERC721(lien.collection).safeTransferFrom(
-            address(this), 
-            msg.sender, 
-            lien.tokenId
-        );
-
-        _closeLien(lienId);
-    }
-
-    function sellInLien(
-        uint256 lienId,
-        Lien calldata lien,
-        MarketOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) 
-        external
-        requireNakedBid(offer.side, offer.terms.withLoan) 
-        lienIsValid(lienId, lien) 
-        lienIsCurrent(lien) 
-        returns (uint256 netAmount) 
-    {
-        if (lien.borrower != msg.sender) {
-            revert("TakerIsNotBorrower");
-        }
 
         _matchTerms(
             lien.currency, 
@@ -475,7 +148,118 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
             0
         );
 
-        _takeMarketOffer(offer, signature);
+        // (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
+        // uint256 marketFee = KettleMath.safeMulFee(offer.terms.amount, offer.fee.rate);
+        // netAmount = offer.terms.amount - marketFee;
+
+        // if (offer.side == Side.ASK && debt > netAmount) {
+        //     revert InsufficientAskAmount();
+        // }
+
+        // address currentLender = _currentLender(lienId);
+
+        // bool buyerIsLender = (offer.side == Side.BID && offer.maker == currentLender) || (offer.side == Side.ASK && msg.sender == currentLender);
+
+        // // transfer amount in from buyer
+        // if (!buyerIsLender) {
+        //     IERC20(offer.terms.currency).safeTransferFrom(
+        //         offer.side == Side.BID ? offer.maker : msg.sender, 
+        //         address(this), 
+        //         offer.terms.amount
+        //     );
+        // }
+
+        // if (offer.side == Side.BID && netAmount < debt) {
+        //     IERC20(offer.terms.currency).safeTransferFrom(
+        //         msg.sender,
+        //         address(this), 
+        //         debt - netAmount
+        //     );
+        // }
+
+        // // transfer market fee to market fee recipient
+        // IERC20(offer.terms.currency).transfer(
+        //     offer.fee.recipient, 
+        //     marketFee
+        // );
+
+        // // transfer lending fee to lien recipient
+        // IERC20(lien.currency).transfer(
+        //     lien.recipient, 
+        //     fee
+        // );
+
+        // // transfer amount owed to lender
+        // IERC20(lien.currency).transfer(
+        //     _currentLender(lienId), 
+        //     lien.principal + interest
+        // );
+
+        // if (netAmount > debt) {
+        //     // transfer excess amount to seller
+        //     IERC20(offer.terms.currency).transfer(
+        //         lien.borrower, 
+        //         netAmount - debt
+        //     );
+        // }
+
+        // transfer the net amount to the seller
+        
+        netAmount = _transferFees(
+            offer.terms.currency, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.fee.recipient, 
+            offer.terms.amount, 
+            offer.fee.rate
+        );
+
+        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
+
+        if (offer.side == Side.ASK && debt > netAmount) {
+            revert InsufficientAskAmount();
+        }
+
+        _transferPayments(
+            lien.currency, 
+            netAmount, 
+            debt, 
+            lien.principal + interest, 
+            fee, 
+            _currentLender(lienId),
+            lien.recipient, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            offer.side == Side.BID ? msg.sender : offer.maker
+        );
+
+        IERC721(lien.collection).safeTransferFrom(
+            address(this), 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            lien.tokenId
+        );
+
+        _closeLien(lienId);
+    }
+
+    function fulfillLoanOfferInLien(
+        uint256 lienId,
+        uint256 amount,
+        Lien calldata lien,
+        LoanOffer calldata offer,
+        bytes calldata signature,
+        bytes32[] calldata proof
+    ) external requireSoft(false, offer.soft) lienIsValid(lienId, lien) lienIsCurrent(lien) returns (uint256 newLienId) {
+        uint256 _amount = offer.side == Side.BID ? amount : offer.terms.amount;
+
+        if (offer.side == Side.BID && lien.borrower != msg.sender) {
+            revert TakerIsNotBorrower();
+        }
+
+        if (offer.side == Side.ASK && lien.borrower != offer.maker) {
+            revert MakerIsNotBorrower();
+        }
+
+        _takeLoanOffer(offer, amount, signature);
 
         _verifyCollateral(
             offer.collateral.criteria, 
@@ -484,116 +268,90 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
             proof
         );
 
-        netAmount = _transferFees(
+        _matchTerms(
+            lien.currency, 
             offer.terms.currency, 
-            offer.maker, 
-            offer.fee.recipient, 
-            offer.terms.amount, 
-            offer.fee.rate
+            lien.collection, 
+            offer.collateral.collection, 
+            0,  // tokenId matched in _verifyCollateral
+            0
         );
 
         (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
 
+        if (offer.side == Side.ASK && debt > _amount) {
+            revert InsufficientAskAmount();
+        }
+
         _transferPayments(
             lien.currency, 
-            netAmount, 
+            _amount, 
             debt, 
             lien.principal + interest, 
             fee, 
             _currentLender(lienId), 
             lien.recipient, 
-            offer.maker, 
-            msg.sender, 
-            msg.sender
-        );
-
-        IERC721(lien.collection).safeTransferFrom(
-            address(this), 
-            offer.maker, 
-            lien.tokenId
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            offer.side == Side.BID ? msg.sender : offer.maker
         );
 
         _closeLien(lienId);
-    }
 
-    function escrowBuy(
-        MarketOffer calldata offer,
-        bytes calldata signature
-    ) external returns (uint256 escrowId) {
-
-        _takeMarketOffer(offer, signature);
-
-        uint256 rebate = _calculateRebate(
-            offer.terms.amount, 
-            offer.terms.rebate
-        );
-
-        escrowId = _openEscrow(
-            offer.collateral.identifier,
-            msg.sender,
-            offer.maker,
-            offer.collateral.collection,
-            offer.collateral.identifier,
-            offer.terms.currency,
-            offer.terms.amount,
-            offer.fee.recipient,
-            offer.fee.rate,
-            rebate
-        );
-
-        if (rebate > 0) {
-            IERC20(offer.terms.currency).safeTransferFrom(
-                offer.maker,
-                address(this),
-                rebate
-            );
-        }
-
-        IERC20(offer.terms.currency).safeTransferFrom(
-            msg.sender,
-            address(this),
-            offer.terms.amount
+        newLienId = _openLien(
+            offer.maker, 
+            lien.borrower, 
+            lien.collection, 
+            lien.tokenId,
+            lien.currency, 
+            amount, 
+            offer.terms.rate, 
+            offer.terms.defaultRate, 
+            offer.terms.duration, 
+            offer.terms.gracePeriod, 
+            offer.fee.recipient, 
+            offer.fee.rate
         );
     }
 
-    // function escrowSell(
-    //     uint256 placeholder,
+    // function escrowMarketOffer(
     //     MarketOffer calldata offer,
     //     bytes calldata signature
-    // ) external returns (uint256 escrowId) {
+    // ) external requireSoft(true, offer.soft) returns (uint256 escrowId) {
+    //     if (offer.side == Side.BID) {
+    //         revert RequiresAskSide();
+    //     }
 
     //     _takeMarketOffer(offer, signature);
 
-    //     uint256 rebate = _calculateRebate(
-    //         offer.terms.amount, 
-    //         offer.terms.rebate
+    //     uint256 rebate = 0;
+    //     if (rebate > 0) {
+    //         rebate = KettleMath.safeMulFee(offer.terms.amount, offer.terms.rebate);
+    //         IERC20(offer.terms.currency).safeTransferFrom(
+    //             offer.side == Side.BID ? msg.sender : offer.maker, 
+    //             address(this), 
+    //             rebate
+    //         );
+    //     }
+
+    //     IERC20(offer.terms.currency).safeTransferFrom(
+    //         offer.side == Side.BID ? offer.maker : msg.sender,
+    //         address(this),
+    //         offer.terms.amount
     //     );
 
     //     escrowId = _openEscrow(
-    //         placeholder,
-    //         offer.maker,
-    //         msg.sender,
+    //         offer.side,
+    //         offer.collateral.identifier, // only for ask side
+    //         offer.side == Side.BID ? offer.maker : msg.sender,
+    //         offer.side == Side.BID ? msg.sender : offer.maker,
     //         offer.collateral.collection,
     //         offer.collateral.identifier,
     //         offer.terms.currency,
     //         offer.terms.amount,
     //         offer.fee.recipient,
     //         offer.fee.rate,
-    //         rebate
-    //     );
-
-    //     if (rebate > 0) {
-    //         IERC20(offer.terms.currency).safeTransferFrom(
-    //             msg.sender,
-    //             address(this),
-    //             rebate
-    //         );
-    //     }
-
-    //     IERC20(offer.terms.currency).safeTransferFrom(
-    //         offer.maker,
-    //         address(this),
-    //         offer.terms.amount
+    //         offer.terms.rebate
     //     );
     // }
 
@@ -604,8 +362,8 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
         uint256 amount,
         uint256 fee
     ) internal returns (uint256 netAmount) {
-        uint256 feeAmount = (amount * fee) / 10_000;
-        if (feeAmount > amount) revert("InvalidFee");
+        uint256 feeAmount = KettleMath.safeMulFee(amount, fee);
+        if (feeAmount > amount) revert InvalidFee();
 
         IERC20(currency).safeTransferFrom(payer, recipient, feeAmount);
         netAmount = amount - feeAmount;
@@ -620,15 +378,15 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
         uint256 tokenId2
     ) internal pure {
         if (currency1 != currency2) {
-            revert("CurrencyMismatch");
+            revert CurrencyMismatch();
         }
 
         if (collection1 != collection2) {
-            revert("CollectionMismatch");
+            revert CollectionMismatch();
         }
 
         if (tokenId1 != tokenId2) {
-            revert("TokenMismatch");
+            revert TokenMismatch();
         }
     }
 
@@ -646,32 +404,22 @@ contract Kettle is IKettle, Initializable, Ownable2StepUpgradeable, OfferControl
                     keccak256(abi.encode(bytes32(tokenId)))
                 )
             ) {
-                revert("InvalidCriteria");
+                revert InvalidCriteria();
             }
         } else {
             if (!(tokenId == identifier)) {
-                revert("InvalidToken");
+                revert InvalidToken();
             }
         }
     }
 
-    modifier requireBid(Side side) {
-        if (side != Side.BID) {
-            revert("RequiresBidSide");
-        }
-        _;
-    }
-
-    modifier requireNakedBid(Side side, bool withLoan) {
-        if (side != Side.BID || withLoan) {
-            revert("RequiresNakedBid");
-        }
-        _;
-    }
-
-    modifier requireAsk(Side side) {
-        if (side != Side.ASK) {
-            revert("RequiresAskSide");
+    modifier requireSoft(bool required, bool soft) {
+        if (required != soft) {
+            if (required) {
+                revert CannotTakeHardOffer();
+            } else {
+                revert CannotTakeSoftOffer();
+            }
         }
         _;
     }

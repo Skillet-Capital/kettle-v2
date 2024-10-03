@@ -15,7 +15,6 @@ interface IOfferController {
     );
 
     function incrementNonce() external;
-    function cancelOffer(uint256 salt) external;
     function cancelOffers(uint256[] calldata salts) external;
     function cancelOffersForUser(address user, uint256[] calldata salts) external;
 }

@@ -2,8 +2,9 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-gas-reporter";
+import "hardhat-contract-sizer";
+import 'hardhat-ignore-warnings';
 import "hardhat-tracer";
-
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -14,7 +15,7 @@ const config: HardhatUserConfig = {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 100,
             details: {
               yulDetails: {
                 optimizerSteps: "u",
@@ -25,6 +26,7 @@ const config: HardhatUserConfig = {
       },
     ]
   },
+  warnings: "off",
   networks: {
     hardhat: {
       allowBlocksWithSameTimestamp: true,
@@ -33,7 +35,16 @@ const config: HardhatUserConfig = {
   },
   gasReporter: {
     enabled: false
-  }
+  },
+  contractSizer: {
+    only: [
+      ":Kettle$",
+      ":Signatures$",
+      ":OfferController$",
+      ":LendingController$",
+      ":EscrowController$",
+    ]
+  },
 };
 
 export default config;

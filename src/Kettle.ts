@@ -53,7 +53,8 @@ import {
   collateralApprovals,
   currencyBalance,
   currencyAllowance,
-  collateralBalance
+  collateralBalance,
+  equalAddresses
 } from "./utils";
 import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
@@ -113,12 +114,17 @@ export class Kettle {
 
     const offer = await this._formatMarketOffer(maker, input);
 
-    const approvalActions = await this._getCreateApprovalActions(
-      input.side,
-      maker,
-      offer.terms,
-      offer.collateral
-    );
+    const approvalActions: ApprovalAction[] = [];
+    if (!(offer.side === Side.ASK && input.lien && equalAddresses(input.lien.borrower, maker))) {
+      const _approvalActions = await this._getCreateApprovalActions(
+        input.side,
+        maker,
+        offer.terms,
+        offer.collateral
+      );
+
+      approvalActions.push(..._approvalActions);
+    }
 
     const createOfferAction: CreateOfferAction = {
       type: "create",
@@ -169,50 +175,6 @@ export class Kettle {
     return [...approvalActions, createOfferAction];
   }
 
-  public async createPermit(
-    type: "market" | "loan",
-    offer: MarketOffer | LoanOffer,
-    accountAddress?: string
-  ): Promise<SignPermitAction[]> {
-
-    const signer = await this._getSigner(accountAddress);
-    const taker = accountAddress ?? (await signer.getAddress());
-
-    let offerHash: string;
-    if (type === "market") {
-      offerHash = this.hashMarketOffer(offer as MarketOffer);
-    } else if (type === "loan") {
-      offerHash = this.hashLoanOffer(offer as LoanOffer);
-    } else {
-      throw new Error("Invalid offer type: expected 'market' or 'loan'");
-    }
-
-    const signPermitAction: SignPermitAction = {
-      type: "permit",
-      payload: null,
-      permit: async () => {
-        const permit: Permit = {
-          taker,
-          currency: offer.terms.currency,
-          amount: offer.terms.amount,
-          offerHash: offerHash,
-          salt: randomSalt(),
-          expiration: await this.blocktime() + (60 * 10), // 10 minutes
-          nonce: await this.contract.nonces(taker),
-        }
-
-        const signature = await this._signPermit(permit, accountAddress);
-
-        return {
-          permit,
-          signature
-        }
-      }
-    } as const;
-
-    return [signPermitAction];
-  }
-
   // ==============================================
   //                TAKE OFFERS
   // ==============================================
@@ -238,23 +200,12 @@ export class Kettle {
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        let txn: any;
-
-        if (offer.side === Side.ASK) {
-          txn = await this.contract.connect(signer).buy(
-            offer,
-            signature
-          );
-        } else if (offer.side === Side.BID) {
-          txn = await this.contract.connect(signer).sell(
-            tokenId,
-            offer,
-            signature,
-            proof ?? []
-          );
-        } else {
-          throw new Error("Invalid side");
-        }
+        const txn = await this.contract.connect(signer).fulfillMarketOffer(
+          tokenId,
+          offer,
+          signature,
+          proof ?? []
+        );
 
         return this._confirmTransaction(txn.hash);
       }
@@ -281,10 +232,9 @@ export class Kettle {
       const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
 
       if (BigInt(debt) > netAmount) {
-        const _approvalActions = await this._erc20Approvals(taker, lien.currency, BigInt(debt) - netAmount);
+        const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - netAmount, 100));
         approvalActions.push(..._approvalActions);
       }
-
     } else {
       const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
       approvalActions.push(..._approvalActions);
@@ -293,26 +243,13 @@ export class Kettle {
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        let txn: any;
-
-        if (offer.side === Side.ASK) {
-          txn = await this.contract.connect(signer).buyInLien(
-            lienId,
-            lien,
-            offer,
-            signature
-          );
-        } else if (offer.side === Side.BID) {
-          txn = await this.contract.connect(signer).sellInLien(
-            lienId,
-            lien,
-            offer,
-            signature,
-            proof ?? []
-          );
-        } else {
-          throw new Error("Invalid side");
-        }
+        const txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
+          lienId,
+          lien,
+          offer,
+          signature,
+          proof ?? []
+        );
 
         return this._confirmTransaction(txn.hash);
       }
@@ -322,20 +259,20 @@ export class Kettle {
   }
 
   public async takeLoanOffer(
-    tokenId: number | string | number,
+    tokenId: Numberish,
+    amount: Numberish,
     offer: LoanOffer,
     signature: string,
     proof?: string[],
-    amount?: string | number | bigint,
     accountAddress?: string
   ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
     const signer = await this._getSigner(accountAddress);
-    const maker = accountAddress ?? (await signer.getAddress());
+    const taker = accountAddress ?? (await signer.getAddress());
 
     const approvalActions = await this._getTakeApprovalActions(
       offer.side,
-      maker,
+      taker,
       offer.terms,
       offer.collateral
     );
@@ -343,24 +280,13 @@ export class Kettle {
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        let txn: any;
-
-        if (offer.side === Side.ASK) {
-          txn = await this.contract.connect(signer).lend(
-            offer,
-            signature
-          );
-        } else if (offer.side === Side.BID) {
-          txn = await this.contract.connect(signer).borrow(
-            tokenId,
-            amount ?? offer.terms.maxAmount,
-            offer,
-            signature,
-            proof ?? []
-          );
-        } else {
-          throw new Error("Invalid side");
-        }
+        const txn = await this.contract.connect(signer).fulfillLoanOffer(
+          tokenId,
+          amount,
+          offer,
+          signature,
+          proof ?? []
+        );
 
         return this._confirmTransaction(txn.hash);
       }
@@ -413,8 +339,8 @@ export class Kettle {
   public async takeLoanOfferInLien(
     lienId: Numberish,
     amount: Numberish,
-    offer: LoanOffer,
     lien: Lien,
+    offer: LoanOffer,
     signature: string,
     proof?: string[],
     accountAddress?: string
@@ -424,29 +350,29 @@ export class Kettle {
     const taker = accountAddress ?? (await signer.getAddress());
 
     const approvalActions: ApprovalAction[] = [];
-    const { debt } = await this.currentDebt(lien);
-    if (BigInt(offer.terms.amount) < BigInt(debt)) {
-      const _approvalActions = await this._erc20Approvals(taker, lien.currency, BigInt(debt) - BigInt(offer.terms.amount));
+    if (offer.side === Side.BID) {
+      const { debt } = await this.currentDebt(lien);
+
+      if (BigInt(debt) > BigInt(amount)) {
+        const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(amount), 100));
+        approvalActions.push(..._approvalActions);
+      }
+    } else {
+      const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
       approvalActions.push(..._approvalActions);
     }
 
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        let txn: any;
-
-        if (offer.side === Side.BID) {
-          txn = await this.contract.connect(signer).refinance(
-            lienId,
-            amount ?? offer.terms.maxAmount,
-            lien,
-            offer,
-            signature,
-            proof ?? []
-          );
-        } else {
-          throw new Error("Invalid side");
-        }
+        const txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
+          lienId,
+          amount ?? offer.terms.maxAmount,
+          lien,
+          offer,
+          signature,
+          proof ?? []
+        );
 
         return this._confirmTransaction(txn.hash);
       }
@@ -525,6 +451,7 @@ export class Kettle {
   ): Promise<MarketOffer> {
 
     return {
+      soft: input.soft ?? false,
       side: input.side,
       maker,
       taker: input.taker ? (await this._resolveAddress(input.taker)) : ADDRESS_ZERO,
@@ -557,6 +484,7 @@ export class Kettle {
   ): Promise<LoanOffer> {
 
     return {
+      soft: input.soft ?? false,
       side: input.side,
       maker,
       taker: input.taker ? (await this._resolveAddress(input.taker)) : ADDRESS_ZERO,
@@ -923,3 +851,52 @@ export class Kettle {
     return (BigInt(amount) * (10_000n + BigInt(factor))) / 10_000n;
   }
 }
+
+
+/**
+  public async createPermit(
+    type: "market" | "loan",
+    offer: MarketOffer | LoanOffer,
+    accountAddress?: string
+  ): Promise<SignPermitAction[]> {
+
+    const signer = await this._getSigner(accountAddress);
+    const taker = accountAddress ?? (await signer.getAddress());
+
+    let offerHash: string;
+    if (type === "market") {
+      offerHash = this.hashMarketOffer(offer as MarketOffer);
+    } else if (type === "loan") {
+      offerHash = this.hashLoanOffer(offer as LoanOffer);
+    } else {
+      throw new Error("Invalid offer type: expected 'market' or 'loan'");
+    }
+
+    const signPermitAction: SignPermitAction = {
+      type: "permit",
+      payload: null,
+      permit: async () => {
+        const permit: Permit = {
+          taker,
+          currency: offer.terms.currency,
+          amount: offer.terms.amount,
+          offerHash: offerHash,
+          salt: randomSalt(),
+          expiration: await this.blocktime() + (60 * 10), // 10 minutes
+          nonce: await this.contract.nonces(taker),
+        }
+
+        const signature = await this._signPermit(permit, accountAddress);
+
+        return {
+          permit,
+          signature
+        }
+      }
+    } as const;
+
+    return [signPermitAction];
+  }
+
+
+ */

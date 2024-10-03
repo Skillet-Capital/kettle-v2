@@ -60,6 +60,7 @@ export type LoanOfferTerms = {
 }
 
 export type MarketOffer = {
+  soft: boolean;
   side: Side;
   maker: string;
   taker: string;
@@ -72,6 +73,7 @@ export type MarketOffer = {
 }
 
 export type LoanOffer = {
+  soft: boolean;
   side: Side;
   maker: string;
   taker: string;
@@ -123,11 +125,28 @@ export type Escrow = {
   lockTime: Numberish;
 }
 
+export type LienWithLender = {
+  lender: string;
+  borrower: string;
+  collection: string;
+  tokenId: Numberish;
+  currency: string;
+  principal: Numberish;
+  rate: Numberish;
+  defaultRate: Numberish;
+  duration: Numberish;
+  gracePeriod: Numberish;
+  recipient: string;
+  fee: Numberish;
+  startTime: Numberish;
+}
+
 // ==============================================
 //                INPUT TYPES
 // ==============================================
 
 export type CreateMarketOfferInput = {
+  soft?: boolean;
   side: Side;
   taker?: string | Addressable;
   criteria?: number | string | bigint;
@@ -139,9 +158,11 @@ export type CreateMarketOfferInput = {
   recipient: string | Addressable;
   expiration: string | number | bigint;
   rebate?: string | number | bigint;
+  lien?: LienWithLender;
 }
 
 export type CreateLoanOfferInput = {
+  soft?: boolean;
   side: Side;
   taker?: string | Addressable;
   criteria?: number | string | bigint;

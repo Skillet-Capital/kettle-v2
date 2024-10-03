@@ -4,19 +4,9 @@ pragma solidity ^0.8.19;
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import {
-    Collateral,
-    FeeTerms,
-    LoanOfferTerms,
-    LoanOffer,
-    MarketOfferTerms,
-    MarketOffer,
-    Permit
-} from "./Structs.sol";
+import { ERC6492DeployFailed, InvalidSignature, InvalidVParameter } from "./Errors.sol";
 
-error InvalidSignature();
-error InvalidVParameter();
-error ERC6492DeployFailed(bytes err);
+import { Collateral, FeeTerms, LoanOfferTerms, LoanOffer, MarketOfferTerms, MarketOffer, Permit } from "./Structs.sol";
 
 contract Signatures is Initializable {
     bytes32 private constant _ERC6492_DETECTION_SUFFIX = 0x6492649264926492649264926492649264926492649264926492649264926492;
@@ -128,6 +118,7 @@ contract Signatures is Initializable {
         loanOfferTypehash = keccak256(
             bytes.concat(
                 "LoanOffer(",
+                "bool soft,",
                 "uint8 side,",
                 "address maker,",
                 "address taker,",
@@ -160,6 +151,7 @@ contract Signatures is Initializable {
         marketOfferTypehash = keccak256(
             bytes.concat(
                 "MarketOffer(",
+                "bool soft,",
                 "uint8 side,",
                 "address maker,",
                 "address taker,",
@@ -261,6 +253,7 @@ contract Signatures is Initializable {
             keccak256(
                 abi.encode(
                     _LOAN_OFFER_TYPEHASH,
+                    offer.soft,
                     offer.side,
                     offer.maker,
                     offer.taker,
@@ -298,6 +291,7 @@ contract Signatures is Initializable {
             keccak256(
                 abi.encode(
                     _MARKET_OFFER_TYPEHASH,
+                    offer.soft,
                     offer.side,
                     offer.maker,
                     offer.taker,

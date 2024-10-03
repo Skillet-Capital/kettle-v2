@@ -34,6 +34,7 @@ export const LOAN_OFFER_TERMS_TYPE = [
 
 export const MARKET_OFFER_TYPE = {
   MarketOffer: [
+    { name: "soft",         type: "bool"    },
     { name: "side",         type: "uint8"   },
     { name: "maker",        type: "address" },
     { name: "taker",        type: "address" },
@@ -51,15 +52,16 @@ export const MARKET_OFFER_TYPE = {
 
 export const LOAN_OFFER_TYPE = {
   LoanOffer: [
-    { name: "side",           type: "uint8"   },
-    { name: "maker",          type: "address" },
-    { name: "taker",          type: "address" },
-    { name: "collateral",     type: "Collateral" },
-    { name: "terms",          type: "LoanOfferTerms" },
-    { name: "fee",            type: "FeeTerms" },
-    { name: "expiration",     type: "uint256" },
-    { name: "salt",           type: "uint256" },
-    { name: "nonce",          type: "uint256" }
+    { name: "soft",         type: "bool"    },
+    { name: "side",         type: "uint8"   },
+    { name: "maker",        type: "address" },
+    { name: "taker",        type: "address" },
+    { name: "collateral",   type: "Collateral" },
+    { name: "terms",        type: "LoanOfferTerms" },
+    { name: "fee",          type: "FeeTerms" },
+    { name: "expiration",   type: "uint256" },
+    { name: "salt",         type: "uint256" },
+    { name: "nonce",        type: "uint256" }
   ],
   Collateral: COLLATERAL_TYPE,
   FeeTerms: FEE_TERMS_TYPE,

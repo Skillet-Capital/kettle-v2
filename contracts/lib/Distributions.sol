@@ -44,7 +44,7 @@ library Distributions {
         address primaryPayer,
         address residualPayer,
         address residualRecipient
-    ) internal {
+    ) external {
         
         if (amount < debt) {
             // +-------------------------------------------------+

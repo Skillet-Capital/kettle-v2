@@ -5,12 +5,20 @@ import { Lien, Side } from "./Structs.sol";
 import { ILending } from "./interfaces/ILending.sol";
 import { ILenderReceipt } from "./interfaces/ILenderReceipt.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { CompoundInterest } from "./lib/CompoundInterest.sol";
 import { Distributions } from "./lib/Distributions.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract LendingController is ILending, Initializable {    
+import { LienIsCurrent, InvalidLien, LienIsDefaulted } from "./Errors.sol";
+
+contract LendingController is ILending, Initializable {   
+    using SafeERC20 for IERC20;
+
     ILenderReceipt public LENDER_RECEIPT;
     uint256 public lienIndex;
     
@@ -20,6 +28,58 @@ contract LendingController is ILending, Initializable {
         lienIndex = 0;
         LENDER_RECEIPT = ILenderReceipt(receipt);
     }
+
+    function repay(
+        uint256 lienId,
+        Lien calldata lien
+    ) external lienIsValid(lienId, lien) lienIsCurrent(lien) returns (uint256) {
+        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
+
+        IERC20(lien.currency).safeTransferFrom(
+            msg.sender,
+            _currentLender(lienId),
+            lien.principal + interest
+        );
+
+        IERC20(lien.currency).safeTransferFrom(
+            msg.sender, 
+            lien.recipient,
+            fee
+        );
+
+        IERC721(lien.collection).safeTransferFrom(
+            address(this), 
+            lien.borrower, 
+            lien.tokenId
+        );
+
+        _closeLien(lienId);
+
+        return debt;
+    }
+
+    function claim(
+        uint256 lienId,
+        Lien calldata lien
+    ) external lienIsValid(lienId, lien) returns (uint256) {
+        if (!_lienIsDefaulted(lien)) {
+            revert LienIsCurrent();
+        }
+
+        IERC721(lien.collection).safeTransferFrom(
+            address(this), 
+            _currentLender(lienId), 
+            lien.tokenId
+        );
+
+        _closeLien(lienId);
+
+        return lienId;
+    }
+
+    // ===============================
+    //          INTERNAL
+    // ===============================
 
     function _openLien(
         address lender,
@@ -94,25 +154,16 @@ contract LendingController is ILending, Initializable {
         );
     }
 
+    // ===============================
+    //           HELPERS
+    // ===============================
+
     function hashLien(Lien calldata lien) external pure returns (bytes32) {
         return _hashLien(lien);
     }
 
     function _hashLien(Lien memory lien) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(
-            lien.borrower,
-            lien.collection,
-            lien.tokenId,
-            lien.currency,
-            lien.principal,
-            lien.rate,
-            lien.defaultRate,
-            lien.duration,
-            lien.gracePeriod,
-            lien.recipient,
-            lien.fee,
-            lien.startTime
-        ));
+        return keccak256(abi.encode(lien));
     }
 
     function currentLender(uint256 lienId) public view returns (address) {
@@ -147,16 +198,20 @@ contract LendingController is ILending, Initializable {
         );
     }
 
+    // ===============================
+    //          MODIFIERS
+    // ===============================
+
     modifier lienIsValid(uint256 lienId, Lien calldata lien) {
         if (!_validateLien(lienId, lien)) {
-            revert("InvalidLien");
+            revert InvalidLien();
         }
         _;
     }
 
     modifier lienIsCurrent(Lien calldata lien) {
         if (_lienIsDefaulted(lien)) {
-            revert("LienIsDefaulted");
+            revert LienIsDefaulted();
         }
         _;
     }

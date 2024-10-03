@@ -47,6 +47,7 @@ struct LoanOfferTerms {
 }
 
 struct LoanOffer {
+    bool soft;
     Side side;
     address maker;
     address taker;
@@ -71,6 +72,7 @@ struct MarketOfferTerms {
 }
 
 struct MarketOffer {
+    bool soft;
     Side side;
     address maker;
     address taker;
@@ -99,6 +101,7 @@ struct Permit {
 // ====================================
 
 struct Escrow {
+    Side side;
     uint256 placeholder;
     uint256 identifier;
     address buyer;

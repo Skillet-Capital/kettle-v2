@@ -5,30 +5,30 @@ import { LoanOffer, MarketOffer, Lien } from "../Structs.sol";
 
 interface IKettle {
     
-    function buy(
-        MarketOffer calldata offer,
-        bytes calldata signature
-    ) external returns (uint256);
+    // function buy(
+    //     MarketOffer calldata offer,
+    //     bytes calldata signature
+    // ) external returns (uint256);
 
-    function sell(
-        uint256 tokenId,
-        MarketOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) external returns (uint256);
+    // function sell(
+    //     uint256 tokenId,
+    //     MarketOffer calldata offer,
+    //     bytes calldata signature,
+    //     bytes32[] calldata proof
+    // ) external returns (uint256);
 
-    function lend(
-        LoanOffer calldata offer,
-        bytes calldata signature
-    ) external returns (uint256);
+    // function lend(
+    //     LoanOffer calldata offer,
+    //     bytes calldata signature
+    // ) external returns (uint256);
 
-    function borrow(
-        uint256 tokenId,
-        uint256 amount,
-        LoanOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) external returns (uint256);
+    // function borrow(
+    //     uint256 tokenId,
+    //     uint256 amount,
+    //     LoanOffer calldata offer,
+    //     bytes calldata signature,
+    //     bytes32[] calldata proof
+    // ) external returns (uint256);
 
     // function refinanceLend(
     //     uint256 lienId,

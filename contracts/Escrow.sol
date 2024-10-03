@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,21 +8,26 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+import { KettleMath } from "./lib/KettleMath.sol";
+
 import { IEscrowController } from "./interfaces/IEscrowController.sol";
 import { IKettleAssetFactory } from "./interfaces/IKettleAssetFactory.sol";
 import { IKettleAsset } from "./interfaces/IKettleAsset.sol";
 
-import { Escrow } from "./Structs.sol";
+import { InvalidEscrow, EscrowLocked, SellerNotWhitelisted } from "./Errors.sol";
+
+import { Escrow, Side } from "./Structs.sol";
 
 contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
-    
+
     uint256 public escrowIndex;
     uint256 public lockTime;
     bool public whitelistOnly;
 
-    mapping(address => bool) public whitelist;
     mapping(uint256 => bytes32) public escrows;
+    mapping(address => bool) public whitelistedAskMakers;
+    mapping(address => bool) public whitelistedBidTakers;
 
     function __EscrowController_init() public initializer {
         escrowIndex = 0;
@@ -43,16 +47,101 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         whitelistOnly = _whitelistOnly;
     }
 
-    function setWhitelistSeller(address seller, bool whitelisted) external onlyOwner {
-        whitelist[seller] = whitelisted;
-        emit SellerWhitelisted(seller, whitelisted);
+    function whitelistedAskMaker(address user, bool whitelisted) external onlyOwner {
+        whitelistedAskMakers[user] = whitelisted;
+    }
+
+    function whitelistBidTaker(address user, bool whitelisted) external onlyOwner {
+        whitelistedBidTakers[user] = whitelisted;
     }
 
     // ===============================
     //             ESCROW
     // ===============================
 
+    function settleEscrow(
+        uint256 escrowId, 
+        uint256 tokenId, 
+        Escrow calldata escrow,
+        address assetFactory
+    ) external onlyOwner validEscrow(escrowId, escrow) {
+
+        if (address(assetFactory).code.length > 0 && IKettleAssetFactory(assetFactory).isKettleAsset(escrow.collection)) {
+            IKettleAssetFactory(assetFactory).mint(escrow.collection, escrow.buyer, tokenId);
+        } else {
+            IKettleAsset(escrow.collection).mint(escrow.buyer, tokenId);
+        }
+
+        uint256 netAmount = escrow.amount;
+        if (escrow.fee > 0) {
+            uint256 fee = KettleMath.safeMulFee(escrow.amount, escrow.fee);
+            netAmount -= fee;
+
+            IERC20(escrow.currency).transfer(
+                escrow.recipient, 
+                fee
+            );
+        }
+
+        IERC20(escrow.currency).transfer(
+            escrow.seller, 
+            netAmount + escrow.rebate
+        );
+
+        delete escrows[escrowId];
+
+        emit EscrowSettled({ escrowId: escrowId, tokenId: tokenId });
+    }
+
+    function rejectEscrow(
+        bool returnRebate,
+        uint256 escrowId, 
+        Escrow calldata escrow
+    ) external onlyOwner validEscrow(escrowId, escrow) {
+
+        if (returnRebate) {
+            IERC20(escrow.currency).transfer(
+                escrow.seller,
+                escrow.rebate
+            );
+
+            IERC20(escrow.currency).transfer(
+                escrow.buyer,
+                escrow.amount
+            );
+        } else {
+            IERC20(escrow.currency).transfer(
+                escrow.buyer,
+                escrow.amount + escrow.rebate
+            );
+        }
+
+        delete escrows[escrowId];
+
+        emit EscrowRejected({ escrowId: escrowId, rebateReturned: returnRebate });
+    }
+
+    function claimEscrow(
+        uint256 escrowId,
+        Escrow calldata escrow
+    ) external validEscrow(escrowId, escrow) escrowUnlocked(escrow) {
+
+        IERC20(escrow.currency).transfer(
+            escrow.buyer,
+            escrow.amount + escrow.rebate
+        );
+
+        delete escrows[escrowId];
+
+        emit EscrowClaimed({ escrowId: escrowId });
+    }
+
+    // ===============================
+    //             INTERNAL
+    // ===============================
+
     function _openEscrow(
+        Side side,
         uint256 placeholder,
         address buyer,
         address seller,
@@ -64,11 +153,13 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         uint256 fee,
         uint256 rebate
     ) internal returns (uint256 escrowId) {
-        if (whitelistOnly && !whitelist[seller]) {
-            revert("SellerNotWhitelisted");
+        if (whitelistOnly) {
+            if (side == Side.ASK && !whitelistedAskMakers[seller]) revert SellerNotWhitelisted();
+            if (side == Side.BID && !whitelistedBidTakers[buyer]) revert SellerNotWhitelisted();
         }
 
         Escrow memory escrow = Escrow({
+            side: side,
             placeholder: placeholder,
             buyer: buyer,
             seller: seller,
@@ -95,122 +186,16 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         });
     }
 
-    function settleEscrow(
-        uint256 escrowId, 
-        uint256 tokenId, 
-        Escrow calldata escrow,
-        address assetFactory
-    ) external onlyOwner validEscrow(escrowId, escrow) {
-
-        if (address(assetFactory).code.length > 0 && IKettleAssetFactory(assetFactory).isKettleAsset(escrow.collection)) {
-            IKettleAssetFactory(assetFactory).mint(escrow.collection, escrow.buyer, tokenId);
-        } else {
-            IKettleAsset(escrow.collection).mint(escrow.buyer, tokenId);
-        }
-
-        // calculate the net amount received
-        uint256 netAmount = escrow.amount;
-        if (escrow.fee > 0) {
-            uint256 fee = Math.mulDiv(escrow.amount, escrow.fee, 10_000);
-            netAmount -= fee;
-
-            // transfer fee to the fee recipient
-            IERC20(escrow.currency).transfer(escrow.recipient, fee);
-        }
-
-        // transfer amount and rebate to the seller
-        IERC20(escrow.currency).transfer(escrow.seller, netAmount + escrow.rebate);
-
-        // delete the escrow
-        delete escrows[escrowId];
-
-        emit EscrowSettled({ escrowId: escrowId, tokenId: tokenId });
-    }
-
-    function rejectEscrow(
-        uint256 escrowId, 
-        Escrow calldata escrow
-    ) external onlyOwner validEscrow(escrowId, escrow) {
-
-        // transfer amount and rebate to the buyer
-        IERC20(escrow.currency).transfer(
-            escrow.buyer,
-            escrow.amount + escrow.rebate
-        );
-
-        // delete the escrow
-        delete escrows[escrowId];
-
-        emit EscrowRejected({ escrowId: escrowId, rebateReturned: false });
-    }
-
-    function rejectEscrowReturnRebate(
-        uint256 escrowId,
-        Escrow calldata escrow
-    ) external onlyOwner validEscrow(escrowId, escrow) {
-
-        // transfer amount back to the buyer
-        IERC20(escrow.currency).transfer(
-            escrow.buyer,
-            escrow.amount
-        );
-
-        IERC20(escrow.currency).transfer(
-            escrow.seller,
-            escrow.rebate
-        );
-
-        // delete the escrow
-        delete escrows[escrowId];
-
-        emit EscrowRejected({ escrowId: escrowId, rebateReturned: true });
-    }
-
-    function claimEscrow(
-        uint256 escrowId,
-        Escrow calldata escrow
-    ) external validEscrow(escrowId, escrow) escrowUnlocked(escrow) {
-
-        // transfer amount and rebate to the buyer
-        IERC20(escrow.currency).transfer(
-            escrow.buyer,
-            escrow.amount + escrow.rebate
-        );
-
-        // delete the escrow
-        delete escrows[escrowId];
-
-        emit EscrowClaimed({ escrowId: escrowId });
-    }
-
     // ===============================
     //             HELPERS
     // ===============================
 
-    function _calculateRebate(
-        uint256 amount,
-        uint256 rebate
-    ) internal pure returns (uint256){
-        return Math.mulDiv(amount, rebate, 10_000);
+    function hashEscrow(Escrow memory escrow) external pure returns (bytes32 _hash) {
+        _hash = _hashEscrow(escrow);
     }
 
     function _hashEscrow(Escrow memory escrow) internal pure returns (bytes32 _hash) {
-        _hash = keccak256(
-            abi.encodePacked(
-                escrow.placeholder,
-                escrow.identifier,
-                escrow.buyer,
-                escrow.seller,
-                escrow.collection,
-                escrow.currency,
-                escrow.recipient,
-                escrow.amount,
-                escrow.fee,
-                escrow.rebate,
-                escrow.timestamp,
-                escrow.lockTime
-            )
-        );
+        _hash = keccak256(abi.encode(escrow));
     }
 
     // ===============================
@@ -218,12 +203,12 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
     // ===============================
 
     modifier validEscrow(uint256 escrowId, Escrow memory escrow) {
-        if (!(escrows[escrowId] == _hashEscrow(escrow))) revert("InvalidEscrow");
+        if (!(escrows[escrowId] == _hashEscrow(escrow))) revert InvalidEscrow();
         _;
     }
 
     modifier escrowUnlocked(Escrow memory escrow) {
-        if(escrow.timestamp + escrow.lockTime > block.timestamp) revert("EscrowLocked");
+        if(escrow.timestamp + escrow.lockTime > block.timestamp) revert EscrowLocked();
         _;
     }
 }
