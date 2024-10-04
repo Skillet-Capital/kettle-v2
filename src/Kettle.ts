@@ -43,7 +43,8 @@ import type {
   RepayAction,
   ClaimAction,
   Permit,
-  SignPermitAction
+  SignPermitAction,
+  TakeOfferInput
 } from "./types";
 
 import { Criteria, Kettle__factory, Side } from "./types";
@@ -56,14 +57,12 @@ import {
   collateralBalance,
   equalAddresses
 } from "./utils";
-import { LendingController, LendingController__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
+import { EscrowController, EscrowController__factory, LendingController, LendingController__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
-
-  public lendingController: LendingController;
 
   private provider: Provider;
   private signer?: Signer;
@@ -98,16 +97,8 @@ export class Kettle {
     );
   }
 
-  public async init() {
-    this.lendingController = LendingController__factory.connect(
-      await this.contract.lending(),
-      this.provider
-    );
-  }
-
-  public async connect(signer: Signer) {
+  public connect(signer: Signer) {
     const _kettle =  new Kettle(signer, this.contractAddress);
-    await _kettle.init();
     return _kettle;
   }
 
@@ -191,32 +182,41 @@ export class Kettle {
   // ==============================================
 
   public async takeMarketOffer(
-    tokenId: number | string | number,
-    offer: MarketOffer,
-    signature: string,
-    proof?: string[],
+    input: TakeOfferInput,
     accountAddress?: string
   ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
     const signer = await this._getSigner(accountAddress);
     const taker = accountAddress ?? (await signer.getAddress());
 
-    const approvalActions = await this._getTakeApprovalActions(
-      offer.side,
+    const proceeds = BigInt(input.offer.terms.amount) - this.mulFee(input.offer.terms.amount, input.offer.fee.rate);
+    const approvalActions = await this._getTakeApprovalActionsV2(
+      proceeds,
       taker,
-      offer.terms,
-      offer.collateral
+      input
     );
 
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        const txn = await this.contract.connect(signer).fulfillMarketOffer(
-          tokenId,
-          offer,
-          signature,
-          proof ?? []
-        );
+        let txn;
+        
+        if (input.lien && input.lienId) {
+          txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
+            input.lienId,
+            input.lien,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          );
+        } else {
+          txn = await this.contract.connect(signer).fulfillMarketOffer(
+            input.tokenId,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          );
+        }
 
         return this._confirmTransaction(txn.hash);
       }
@@ -225,79 +225,98 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
-  public async takeMarketOfferInLien(
-    lienId: Numberish,
-    lien: Lien,
-    offer: MarketOffer,
-    signature: string,
-    proof?: string[],
-    accountAddress?: string
-  ): Promise<(TakeOfferAction | ApprovalAction)[]> {
+  // public async takeMarketOfferInLien(
+  //   lienId: Numberish,
+  //   lien: Lien,
+  //   offer: MarketOffer,
+  //   signature: string,
+  //   proof?: string[],
+  //   accountAddress?: string
+  // ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
-    const signer = await this._getSigner(accountAddress);
-    const taker = accountAddress ?? (await signer.getAddress());
+  //   const signer = await this._getSigner(accountAddress);
+  //   const taker = accountAddress ?? (await signer.getAddress());
 
-    let approvalActions: ApprovalAction[] = [];
-    if (offer.side === Side.BID) {
-      const { debt } = await this.currentDebt(lien);
-      const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
+  //   let approvalActions: ApprovalAction[] = [];
+  //   if (offer.side === Side.BID) {
+  //     const { debt } = await this.currentDebt(lien);
+  //     const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
 
-      if (BigInt(debt) > netAmount) {
-        const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - netAmount, 100));
-        approvalActions.push(..._approvalActions);
-      }
-    } else {
-      const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
-      approvalActions.push(..._approvalActions);
-    }
+  //     if (BigInt(debt) > netAmount) {
+  //       const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - netAmount, 100));
+  //       approvalActions.push(..._approvalActions);
+  //     }
+  //   } else {
+  //     const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
+  //     approvalActions.push(..._approvalActions);
+  //   }
 
-    const takeOfferAction: TakeOfferAction = {
-      type: "take",
-      take: async () => {
-        const txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
-          lienId,
-          lien,
-          offer,
-          signature,
-          proof ?? []
-        );
+  //   const takeOfferAction: TakeOfferAction = {
+  //     type: "take",
+  //     take: async () => {
+  //       const txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
+  //         lienId,
+  //         lien,
+  //         offer,
+  //         signature,
+  //         proof ?? []
+  //       );
 
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
+  //       return this._confirmTransaction(txn.hash);
+  //     }
+  //   } as const;
 
-    return [...approvalActions, takeOfferAction];
-  }
+  //   return [...approvalActions, takeOfferAction];
+  // }
 
   public async takeLoanOffer(
-    tokenId: Numberish,
-    amount: Numberish,
-    offer: LoanOffer,
-    signature: string,
-    proof?: string[],
+    input: TakeOfferInput,
     accountAddress?: string
   ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
     const signer = await this._getSigner(accountAddress);
     const taker = accountAddress ?? (await signer.getAddress());
 
-    const approvalActions = await this._getTakeApprovalActions(
-      offer.side,
+    const proceeds = input.amount ?? input.offer.side === Side.BID
+      ? (input.offer as LoanOffer).terms.maxAmount
+      : (input.offer as LoanOffer).terms.amount;
+
+    const approvalActions = await this._getTakeApprovalActionsV2(
+      proceeds,
       taker,
-      offer.terms,
-      offer.collateral
+      input
     );
+
+    // const approvalActions = await this._getTakeApprovalActions(
+    //   input.offer.side,
+    //   taker,
+    //   input.offer.terms,
+    //   input.offer.collateral
+    // );
 
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        const txn = await this.contract.connect(signer).fulfillLoanOffer(
-          tokenId,
-          amount,
-          offer,
-          signature,
-          proof ?? []
-        );
+        let txn; 
+        
+        if (input.lien && input.lienId) {
+          txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
+            input.lienId,
+            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
+            input.lien,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          );
+        } else {
+          txn = await this.contract.connect(signer).fulfillLoanOffer(
+            input.tokenId,
+            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
+            input.offer as LoanOffer,
+            input.signature,
+            input.proof ?? []
+          );
+        }
 
         return this._confirmTransaction(txn.hash);
       }
@@ -343,50 +362,50 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
-  public async takeLoanOfferInLien(
-    lienId: Numberish,
-    amount: Numberish,
-    lien: Lien,
-    offer: LoanOffer,
-    signature: string,
-    proof?: string[],
-    accountAddress?: string
-  ): Promise<(TakeOfferAction | ApprovalAction)[]> {
+  // public async takeLoanOfferInLien(
+  //   lienId: Numberish,
+  //   amount: Numberish,
+  //   lien: Lien,
+  //   offer: LoanOffer,
+  //   signature: string,
+  //   proof?: string[],
+  //   accountAddress?: string
+  // ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
-    const signer = await this._getSigner(accountAddress);
-    const taker = accountAddress ?? (await signer.getAddress());
+  //   const signer = await this._getSigner(accountAddress);
+  //   const taker = accountAddress ?? (await signer.getAddress());
 
-    const approvalActions: ApprovalAction[] = [];
-    if (offer.side === Side.BID) {
-      const { debt } = await this.currentDebt(lien);
+  //   const approvalActions: ApprovalAction[] = [];
+  //   if (offer.side === Side.BID) {
+  //     const { debt } = await this.currentDebt(lien);
 
-      if (BigInt(debt) > BigInt(amount)) {
-        const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(amount), 100));
-        approvalActions.push(..._approvalActions);
-      }
-    } else {
-      const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
-      approvalActions.push(..._approvalActions);
-    }
+  //     if (BigInt(debt) > BigInt(amount)) {
+  //       const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(amount), 100));
+  //       approvalActions.push(..._approvalActions);
+  //     }
+  //   } else {
+  //     const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
+  //     approvalActions.push(..._approvalActions);
+  //   }
 
-    const takeOfferAction: TakeOfferAction = {
-      type: "take",
-      take: async () => {
-        const txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
-          lienId,
-          amount ?? offer.terms.maxAmount,
-          lien,
-          offer,
-          signature,
-          proof ?? []
-        );
+  //   const takeOfferAction: TakeOfferAction = {
+  //     type: "take",
+  //     take: async () => {
+  //       const txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
+  //         lienId,
+  //         amount ?? offer.terms.maxAmount,
+  //         lien,
+  //         offer,
+  //         signature,
+  //         proof ?? []
+  //       );
 
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
+  //       return this._confirmTransaction(txn.hash);
+  //     }
+  //   } as const;
 
-    return [...approvalActions, takeOfferAction];
-  }
+  //   return [...approvalActions, takeOfferAction];
+  // }
 
   // ==============================================
   //                LENDING ACTIONS
@@ -413,7 +432,8 @@ export class Kettle {
     const repayAction = {
       type: "repay",
       repay: async () => {
-        const txn = await this.lendingController.connect(signer).repay(lienId, lien as LienStruct);
+        const controller = await this._lendingController();
+        const txn = await controller.connect(signer).repay(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -432,7 +452,8 @@ export class Kettle {
     const claimAction = {
       type: "claim",
       claim: async () => {
-        const txn = await this.lendingController.connect(signer).claim(lienId, lien as LienStruct);
+        const controller = await this._lendingController();
+        const txn = await controller.connect(signer).claim(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -445,7 +466,8 @@ export class Kettle {
   // ==============================================
 
   public async currentDebt(lien: Lien): Promise<CurrentDebt> {
-    return this.lendingController.computeCurrentDebt(lien);
+    const controller = await this._lendingController();
+    return controller.computeCurrentDebt(lien);
   }
 
   // ==============================================
@@ -655,6 +677,73 @@ export class Kettle {
     }
   }
 
+  private async _getTakeApprovalActionsV2(
+    proceeds: Numberish,
+    taker: string,
+    input: TakeOfferInput
+  ): Promise<ApprovalAction[]> {
+
+    const signer = await this._getSigner(taker);
+    const operator = await this.contract.conduit();
+
+    const approvalActions: ApprovalAction[] = [];
+
+    if (input.offer.side === Side.BID) {
+
+      if (!(input.lien && input.lienId)) {
+        const approved = await collateralApprovals(
+          taker,
+          input.offer.collateral.collection,
+          operator,
+          this.provider
+        );
+    
+        if (!approved) {
+          approvalActions.push({
+            type: "approval",
+            approve: async () => {
+              const contract = TestERC721__factory.connect(input.offer.collateral.collection, signer);
+              const tx = await contract.setApprovalForAll(operator, true);
+              return this._confirmTransaction(tx.hash);
+            }
+          })
+        }
+      }
+
+      if (input.lien && input.lienId) {
+        const { debt } = await this.currentDebt(input.lien);
+
+        if (BigInt(debt) > BigInt(proceeds)) {
+          const _approvalActions = await this._erc20Approvals(taker, input.lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(proceeds), 250));
+          approvalActions.push(..._approvalActions);
+        }
+      }
+
+      return approvalActions;
+    
+    } else {
+      const allowance = await currencyAllowance(
+        taker,
+        input.offer.terms.currency,
+        operator,
+        this.provider
+      );
+  
+      if (allowance < BigInt(input.offer.terms.amount)) {
+        approvalActions.push({
+          type: "approval",
+          approve: async () => {
+            const currency = TestERC20__factory.connect(input.offer.terms.currency, signer);
+            const txn = await currency.approve(operator, BigInt(input.offer.terms.amount) - allowance);
+            return this._confirmTransaction(txn.hash);
+          }
+        })
+      }
+
+      return approvalActions;
+    }
+  }
+
   private async _getTakeApprovalActions(
     side: Side,
     user: string,
@@ -710,6 +799,20 @@ export class Kettle {
 
       return approvalActions;
     }
+  }
+
+  // ==============================================
+  //           PERIPHERAL CONTRACT INIT
+  // ==============================================
+
+  private async _lendingController() {
+    const lendingController = await this.contract.lending();
+    return LendingController__factory.connect(lendingController, this.provider);
+  }
+
+  private async _escrowController() {
+    const escrowController = await this.contract.escrow();
+    return EscrowController__factory.connect(escrowController, this.provider);
   }
 
   // ==============================================
@@ -793,6 +896,26 @@ export class Kettle {
 
     return signer.signTypedData(domain, PERMIT_TYPE, permit);
   }
+
+  // ==============================================
+  //                    PAYMENTS
+  // ==============================================
+
+  // public async takeMarketOfferPayments(
+  //   offer: MarketOffer
+  // ): Promise<string[]> {
+  //   const 
+
+  //   const txnHashes: string[] = [];
+  //   for (const payment of payments) {
+  //     const txn = await this.lendingController.connect(signer).pay(payment);
+  //     txnHashes.push(txn.hash);
+  //   }
+
+  //   return txnHashes;
+  // }
+
+  // )
 
   // ==============================================
   //                    UTILS

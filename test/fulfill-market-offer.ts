@@ -68,11 +68,11 @@ describe("Fulfill Market Offer", function () {
     const _buyer = await kettle.connect(buyer);
 
     // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer(
-      tokenId,
-      offer as MarketOffer, 
+    await expect(_buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferExpired");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferExpired");
   });
 
   it("should reject if offer is cancelled", async function () {
@@ -94,11 +94,11 @@ describe("Fulfill Market Offer", function () {
     await _kettle.connect(seller).cancelOffers([offer.salt]);
 
     // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer(
-      tokenId,
-      offer as MarketOffer, 
+    await expect(_buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
   });
   
   it("buyer should take ask offer", async function () {
@@ -118,24 +118,24 @@ describe("Fulfill Market Offer", function () {
     const _buyer = await kettle.connect(buyer);
 
     // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer(
-      tokenId + 1,
-      offer as MarketOffer, 
+    await expect(_buyer.takeMarketOffer({
+      tokenId: tokenId + 1,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if soft is true
-    await expect(_buyer.takeMarketOffer(
-      tokenId,
-      { ...offer, soft: true } as MarketOffer, 
+    await expect(_buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: { ...offer, soft: true } as MarketOffer, 
       signature,
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
-    await _buyer.takeMarketOffer(
-      tokenId,
-      offer as MarketOffer, 
+    await _buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 
@@ -163,17 +163,17 @@ describe("Fulfill Market Offer", function () {
     const _seller = await kettle.connect(seller);
 
     // should reject if tokenId does not match identifier
-    await expect(_seller.takeMarketOffer(
-      tokenId + 1,
-      offer as MarketOffer, 
+    await expect(_seller.takeMarketOffer({
+      tokenId: tokenId + 1,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
     
-    await _seller.takeMarketOffer(
-      tokenId,
-      offer as MarketOffer, 
+    await _seller.takeMarketOffer({
+      tokenId: tokenId,
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 
@@ -200,29 +200,28 @@ describe("Fulfill Market Offer", function () {
     const _seller = await kettle.connect(seller);
 
     // should reject if proof is not provided
-    await expect(_seller.takeMarketOffer(
+    await expect(_seller.takeMarketOffer({
       tokenId,
-      offer as MarketOffer, 
+      offer: offer as MarketOffer, 
       signature,
-      []
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     const proof = generateProof(tokens, tokenId);
 
     // should reject if proof is invalid
-    await expect(_seller.takeMarketOffer(
+    await expect(_seller.takeMarketOffer({
       tokenId,
-      offer as MarketOffer, 
+      offer: offer as MarketOffer, 
       signature,
-      [randomSalt(), randomSalt(), randomSalt()]
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+      proof: [randomSalt(), randomSalt(), randomSalt()]
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
-    await _seller.takeMarketOffer(
+    await _seller.takeMarketOffer({
       tokenId,
-      offer as MarketOffer, 
+      offer: offer as MarketOffer, 
       signature,
       proof
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 

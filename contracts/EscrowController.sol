@@ -35,7 +35,7 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         __Ownable2Step_init();
         _transferOwnership(owner);
 
-        escrowIndex = 0;
+        escrowIndex = 1;
         lockTime = 14 days;
         whitelistOnly = true;
     }

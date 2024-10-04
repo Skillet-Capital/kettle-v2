@@ -84,12 +84,11 @@ describe("Claim Lien", function () {
 
     const _borrower = await kettle.connect(borrower);
 
-    const txnHash = await _borrower.takeLoanOffer(
+    const txnHash = await _borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const receipt = await getReceipt(txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));

@@ -181,6 +181,16 @@ export type CreateLoanOfferInput = {
   expiration: string | number | bigint;
 }
 
+export type TakeOfferInput = {
+  tokenId: Numberish;
+  amount?: Numberish;
+  offer: MarketOffer | LoanOffer;
+  signature: string;
+  proof?: string[];
+  lienId?: Numberish;
+  lien?: Lien;
+}
+
 // ==============================================
 //                OUTPUT TYPES
 // ==============================================

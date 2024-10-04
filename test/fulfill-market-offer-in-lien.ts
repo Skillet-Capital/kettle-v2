@@ -2,7 +2,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-help
 
 import { tracer } from "hardhat";
 import { expect } from "chai";
-import { parseUnits, Signer } from "ethers";
+import { MaxUint256, parseUnits, Signer } from "ethers";
 
 import { TestERC20, TestERC721 } from "../typechain-types"; 
 
@@ -76,12 +76,11 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const _seller = await kettle.connect(seller);
 
-    const txnHash = await _seller.takeLoanOffer(
+    const txnHash = await _seller.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const receipt = await getReceipt(txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
@@ -107,12 +106,13 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const _buyer = await kettle.connect(buyer);
 
-    await expect(_buyer.takeMarketOfferInLien(
+    await expect(_buyer.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
   });
   
   it("buyer should take ask in lien", async function () {
@@ -133,24 +133,29 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const _buyer = await kettle.connect(buyer);
 
+    await currency.connect(buyer).approve(await _kettle.conduit(), MaxUint256);
+    await currency.connect(seller).approve(await _kettle.conduit(), MaxUint256);
+
     await currency.mint(buyer, offer.terms.amount);
 
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
     // should reject if soft is true
-    await expect(_buyer.takeMarketOfferInLien(
+    await expect(_buyer.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      { ...offer, soft: true } as MarketOffer, 
+      offer: { ...offer, soft: true } as MarketOffer, 
       signature,
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
-    await _buyer.takeMarketOfferInLien(
+    await _buyer.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps);
+  }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
 
@@ -191,12 +196,13 @@ describe("Fulfill Market Offer In Lien", function () {
     const buyerBalanceBefore = await currency.balanceOf(lender);
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
-    await _buyer.takeMarketOfferInLien(
+    await _buyer.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     
@@ -233,12 +239,13 @@ describe("Fulfill Market Offer In Lien", function () {
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
     const _seller = await kettle.connect(seller);
-    await _seller.takeMarketOfferInLien(
+    await _seller.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
@@ -271,12 +278,13 @@ describe("Fulfill Market Offer In Lien", function () {
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
     const _seller = await kettle.connect(seller);
-    await _seller.takeMarketOfferInLien(
+    await _seller.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
@@ -309,12 +317,13 @@ describe("Fulfill Market Offer In Lien", function () {
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
     const _seller = await kettle.connect(seller);
-    await _seller.takeMarketOfferInLien(
+    await _seller.takeMarketOffer({
+      tokenId: lien.tokenId,
       lienId,
       lien,
-      offer as MarketOffer,
+      offer: offer as MarketOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);

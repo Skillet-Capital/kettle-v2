@@ -82,12 +82,11 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const _borrower = await kettle.connect(borrower);
 
-    const txnHash = await _borrower.takeLoanOffer(
+    const txnHash = await _borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const receipt = await getReceipt(txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
@@ -95,7 +94,7 @@ describe("Fulfill Loan Offer In Lien", function () {
     await time.increase(BigInt(lien.duration) / 2n)
   });
 
-  it("should reject lien is invalid defaulted", async function () {
+  it("should reject lien is invalid or defaulted", async function () {
     const _lender = await kettle.connect(lender);
 
     const { debt } = await _lender.currentDebt(lien);
@@ -118,22 +117,22 @@ describe("Fulfill Loan Offer In Lien", function () {
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
 
-    await expect(_refinancer.takeLoanOfferInLien(
-      BigInt(lienId) + 1n,
-      offer.terms.amount,
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
+      lienId: BigInt(lienId) + 1n,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "InvalidLien");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "InvalidLien");
 
     await time.increase(BigInt(lien.duration) + BigInt(lien.gracePeriod) + BigInt(1));
-    await expect(_refinancer.takeLoanOfferInLien(
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
   })
 
   it("should reject refinance borrower offer (currency mismatch)", async function () {
@@ -159,13 +158,13 @@ describe("Fulfill Loan Offer In Lien", function () {
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
 
-    await expect(_refinancer.takeLoanOfferInLien(
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CurrencyMismatch");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CurrencyMismatch");
   })
 
   it("should reject refinance borrower offer (collection mismatch)", async function () {
@@ -191,13 +190,13 @@ describe("Fulfill Loan Offer In Lien", function () {
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
 
-    await expect(_refinancer.takeLoanOfferInLien(
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CollectionMismatch");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CollectionMismatch");
   })
 
   it("should reject refinance borrower offer (maker != borrower)", async function () {
@@ -223,13 +222,13 @@ describe("Fulfill Loan Offer In Lien", function () {
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
 
-    await expect(_refinancer.takeLoanOfferInLien(
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "MakerIsNotBorrower");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "MakerIsNotBorrower");
   });
 
 
@@ -256,13 +255,13 @@ describe("Fulfill Loan Offer In Lien", function () {
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
 
-    await expect(_refinancer.takeLoanOfferInLien(
+    await expect(_refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
   })
 
   it("refinancer should refinance borrower offer", async function () {
@@ -290,13 +289,13 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const borrowerBalanceBefore = await currency.balanceOf(borrower);
 
-    await _refinancer.takeLoanOfferInLien(
+    await _refinancer.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -332,13 +331,13 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const _lender = await kettle.connect(lender);
 
-    await expect(_lender.takeLoanOfferInLien(
+    await expect(_lender.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "TakerIsNotBorrower");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "TakerIsNotBorrower");
   })
 
   it("borrower should take refinance offer (debt < offer)", async function () {
@@ -367,13 +366,13 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const _borrower = await kettle.connect(borrower);
 
-    await _borrower.takeLoanOfferInLien(
+    await _borrower.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -411,13 +410,13 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const _borrower = await kettle.connect(borrower);
 
-    await _borrower.takeLoanOfferInLien(
+    await _borrower.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer: offer as LoanOffer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -453,13 +452,14 @@ describe("Fulfill Loan Offer In Lien", function () {
 
     const _borrower = await kettle.connect(borrower);
 
-    await _borrower.takeLoanOfferInLien(
+    await _borrower.takeLoanOffer({
+      tokenId: lien.tokenId,
       lienId,
-      offer.terms.amount,
+      amount: offer.terms.amount,
       lien,
-      offer as LoanOffer,
+      offer,
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 

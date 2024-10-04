@@ -14,21 +14,29 @@ import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/acc
 import { LendingController } from "./LendingController.sol";
 import { EscrowController } from "./EscrowController.sol";
 import { OfferController } from "./OfferController.sol";
+import { TransferConduit } from "./TransferConduit.sol";
 
 import { LienIsCurrent, TakerIsNotBorrower, MakerIsNotBorrower, InsufficientAskAmount, InvalidFee, CurrencyMismatch, CollectionMismatch, TokenMismatch, InvalidCriteria, InvalidToken, RequiresAskSide, RequiresBidSide, RequiresNakedBidSide, CannotTakeSoftOffer, CannotTakeHardOffer } from "./Errors.sol";
 
 import { LoanOffer, MarketOffer, Lien, Permit, Side, Criteria } from "./Structs.sol";
 
-import { TransferConduit } from "./TransferConduit.sol";
+import "hardhat/console.sol";
 
 contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
     using SafeERC20 for IERC20;
 
+    // @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 private constant _BASIS_POINTS = 10_000;
 
     TransferConduit public conduit;
     LendingController public lending;
     EscrowController public escrow;
+
+    struct Payment {
+        address _guy;
+        uint256 _in;
+        uint256 _out;
+    }
 
     uint256[] private _gap;
 
@@ -119,8 +127,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
         bytes calldata signature,
         bytes32[] calldata proof  
     ) external requireSoft(false, offer.soft) returns (uint256 netAmount) {
-        lending.validateLienIsCurrent(lienId, lien);
-
+        lending.verifyLienIsCurrent(lienId, lien);
         _takeMarketOffer(lien.tokenId, offer, signature, proof);
         _verifyBorrower(offer.side, lien.borrower, offer.maker);
 
@@ -130,29 +137,162 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
             lien.collection, 
             offer.collateral.collection
         );
-        
-        netAmount = _transferFees(
-            offer.terms.currency, 
-            offer.side == Side.BID ? offer.maker : msg.sender, 
-            offer.fee.recipient, 
-            offer.terms.amount, 
-            offer.fee.rate
-        );
 
-        if (offer.side == Side.ASK) {
-            (uint256 debt,,) = lending.computeCurrentDebt(lien);
-            if (debt > netAmount) {
-                revert InsufficientAskAmount();
-            }
+        address lender = lending.currentLender(lienId);
+        address borrower = offer.side == Side.BID ? msg.sender : offer.maker;
+        address buyer = offer.side == Side.BID ? offer.maker : msg.sender;
+
+        uint256 marketFee = Math.mulDiv(offer.terms.amount, offer.fee.rate, _BASIS_POINTS);
+        (uint256 debt, uint256 fee, uint256 interest) = lending.computeCurrentDebt(lien);
+
+        if (offer.side == Side.ASK && offer.terms.amount - marketFee < debt) {
+            revert InsufficientAskAmount();
         }
 
-        lending.closeLienWithPayments(
-            netAmount, 
-            lienId, 
-            offer.side == Side.BID ? offer.maker : msg.sender, 
-            offer.side == Side.BID ? msg.sender : offer.maker, 
-            lien
+        uint256 buyerIn = (buyer == lender)
+            ? offer.terms.amount > (lien.principal + interest)
+                ? offer.terms.amount - (lien.principal + interest)
+                : 0
+            : offer.terms.amount;
+
+        uint256 lenderOut = (buyer == lender)
+            ? 0
+            : lien.principal + interest;
+        
+        uint256 borrowerIn = (debt > offer.terms.amount - marketFee)
+            ? debt - (offer.terms.amount - marketFee)
+            : 0;
+
+        uint256 borrowerOut = (debt < (offer.terms.amount - marketFee))
+            ? (offer.terms.amount - marketFee) - debt
+            : 0;
+
+        conduit.transferERC20From(
+            offer.terms.currency, 
+            buyer, 
+            address(this), 
+            buyerIn
         );
+
+        conduit.transferERC20From(
+            offer.terms.currency, 
+            borrower, 
+            address(this), 
+            borrowerIn
+        );
+
+        if (borrowerOut > 0) {
+            offer.terms.currency.transfer(
+                borrower, 
+                borrowerOut
+            );
+        }
+
+        if (lenderOut > 0) {
+            offer.terms.currency.transfer(
+                lender,
+                lenderOut
+            );
+        }
+
+        offer.terms.currency.transfer(
+            lien.recipient,
+            fee
+        );
+
+        offer.terms.currency.transfer(
+            offer.fee.recipient,
+            marketFee
+        );
+
+        lending.closeLien(lienId, lien);
+
+        // Payment[5] memory payments = [
+        //     Payment({ _guy: lender,              _out: lien.principal + interest,       _in: 0 }),
+        //     Payment({ _guy: buyer,               _out: 0,                               _in: offer.terms.amount }),
+        //     Payment({ _guy: seller,              _out: offer.terms.amount - marketFee,  _in: debt }),
+        //     Payment({ _guy: lien.recipient,      _out: fee,                             _in: 0 }),
+        //     Payment({ _guy: offer.fee.recipient, _out: marketFee,                       _in: 0 })
+        // ];
+
+        // Payment[5] memory netPayments;
+        // uint256 uniqueCount = 0;
+
+        // // Loop through the payments array
+        // for (uint256 i = 0; i < payments.length; i++) {
+        //     Payment memory currentPayment = payments[i];
+        //     bool found = false;
+
+        //     // Check if the address already exists in the netPayments array
+        //     for (uint256 j = 0; j < uniqueCount; j++) {
+        //         if (netPayments[j]._guy == currentPayment._guy) {
+        //             // If the address is found, update the existing netPayment
+        //             netPayments[j]._in += currentPayment._in;
+        //             netPayments[j]._out += currentPayment._out;
+        //             found = true;
+        //             break;
+        //         }
+        //     }
+
+        //     // If the address was not found, add a new entry
+        //     if (!found) {
+        //         netPayments[uniqueCount] = Payment({
+        //             _guy: currentPayment._guy,
+        //             _in: currentPayment._in,
+        //             _out: currentPayment._out
+        //         });
+        //         uniqueCount++;
+        //     }
+        // }
+
+        // // Create a new array with the exact size of unique payments and copy data
+        // // Payment[] memory result = new Payment[](uniqueCount);
+        // console.log("Transfer In");
+        // for (uint256 i = 0; i < uniqueCount; i++) {
+        //     if (netPayments[i]._in > netPayments[i]._out) {
+        //         console.log(netPayments[i]._guy, netPayments[i]._in - netPayments[i]._out);
+        //         conduit.transferERC20From(
+        //             offer.terms.currency, 
+        //             netPayments[i]._guy, 
+        //             address(this), 
+        //             netPayments[i]._in - netPayments[i]._out
+        //         );
+        //     }
+        // }
+
+        // console.log("Transfer Out");
+        // for (uint256 i = 0; i < uniqueCount; i++) {
+        //     if (netPayments[i]._out > netPayments[i]._in) {
+        //         console.log(netPayments[i]._guy, netPayments[i]._out - netPayments[i]._in);
+        //         offer.terms.currency.transfer(
+        //             netPayments[i]._guy,
+        //             netPayments[i]._out - netPayments[i]._in
+        //         );
+        //     }
+        // }
+
+        // netAmount = _transferFees(
+        //     offer.terms.currency, 
+        //     offer.side == Side.BID ? offer.maker : msg.sender, 
+        //     offer.fee.recipient, 
+        //     offer.terms.amount, 
+        //     offer.fee.rate
+        // );
+
+        // if (offer.side == Side.ASK) {
+        //     (uint256 debt,,) = lending.computeCurrentDebt(lien);
+        //     if (debt > netAmount) {
+        //         revert InsufficientAskAmount();
+        //     }
+        // }
+
+        // lending.closeLienWithPayments(
+        //     netAmount, 
+        //     lienId, 
+        //     offer.side == Side.BID ? offer.maker : msg.sender, 
+        //     offer.side == Side.BID ? msg.sender : offer.maker, 
+        //     lien
+        // );
 
         lending.releaseCollateral(
             lien.collection, 
@@ -169,7 +309,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
         bytes calldata signature,
         bytes32[] calldata proof
     ) external requireSoft(false, offer.soft) returns (uint256 newLienId) {
-        lending.validateLienIsCurrent(lienId, lien);
+        lending.verifyLienIsCurrent(lienId, lien);
 
         uint256 principal = offer.side == Side.BID ? amount : offer.terms.amount;
 
@@ -182,21 +322,77 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
             lien.collection, 
             offer.collateral.collection
         );
+        
+        (uint256 debt, uint256 fee, uint256 interest) = lending.computeCurrentDebt(lien);
 
-        if (offer.side == Side.ASK) {
-            (uint256 debt,,) = lending.computeCurrentDebt(lien);
-            if (debt > principal) {
-                revert InsufficientAskAmount();
-            }
+        if (offer.side == Side.ASK && offer.terms.amount < debt) {
+            revert InsufficientAskAmount();
         }
 
-        lending.closeLienWithPayments(
-            principal, 
-            lienId, 
-            offer.side == Side.BID ? offer.maker : msg.sender, 
-            offer.side == Side.BID ? msg.sender : offer.maker, 
-            lien
+        address lender = lending.currentLender(lienId);
+        address refinancer = offer.side == Side.BID ? offer.maker : msg.sender;
+        address borrower = offer.side == Side.BID ? msg.sender : offer.maker;
+
+        uint256 refinancerIn = (refinancer == lender)
+            ? offer.terms.amount > (lien.principal + interest)
+                ? offer.terms.amount - (lien.principal + interest)
+                : 0
+            : offer.terms.amount;
+
+        uint256 lenderOut = (refinancer == lender)
+            ? 0
+            : lien.principal + interest;
+        
+        uint256 borrowerIn = (debt > offer.terms.amount)
+            ? debt - offer.terms.amount
+            : 0;
+
+        uint256 borrowerOut = (debt < offer.terms.amount)
+            ? offer.terms.amount - debt
+            : 0;
+
+        conduit.transferERC20From(
+            offer.terms.currency, 
+            refinancer, 
+            address(this), 
+            refinancerIn
         );
+
+        conduit.transferERC20From(
+            offer.terms.currency, 
+            borrower, 
+            address(this), 
+            borrowerIn
+        );
+
+        if (borrowerOut > 0) {
+            offer.terms.currency.transfer(
+                borrower, 
+                borrowerOut
+            );
+        }
+
+        if (lenderOut > 0) {
+            offer.terms.currency.transfer(
+                lender,
+                lenderOut
+            );
+        }
+
+        offer.terms.currency.transfer(
+            lien.recipient,
+            fee
+        );
+
+        lending.closeLien(lienId, lien);
+
+        // lending.closeLienWithPayments(
+        //     principal, 
+        //     lienId, 
+        //     offer.side == Side.BID ? offer.maker : msg.sender, 
+        //     offer.side == Side.BID ? msg.sender : offer.maker, 
+        //     lien
+        // );
 
         newLienId = lending.openLien(
             lien.tokenId, 

@@ -74,27 +74,24 @@ describe("Fulfill Loan Offer", function () {
     const _lender = await kettle.connect(lender);
 
     // should reject if tokenId does not match identifier
-    await expect(_lender.takeLoanOffer(
-      tokenId + 1,
-      0,
-      offer as LoanOffer, 
+    await expect(_lender.takeLoanOffer({
+      tokenId: tokenId + 1,
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if soft is true
-    await expect(_lender.takeLoanOffer(
+    await expect(_lender.takeLoanOffer({
       tokenId,
-      0,
-      { ...offer, soft: true } as LoanOffer, 
+      offer: { ...offer, soft: true } as LoanOffer, 
       signature,
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
-    const txnHash = await _lender.takeLoanOffer(
+    const txnHash = await _lender.takeLoanOffer({
       tokenId,
-      0,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     const receipt = await getReceipt(txnHash);
     const { lienId } = parseLienOpenedLog(receipt);
@@ -129,35 +126,33 @@ describe("Fulfill Loan Offer", function () {
     const _borrower = await kettle.connect(borrower);
 
     // should reject if tokenId does not match identifier
-    await expect(_borrower.takeLoanOffer(
-      tokenId + 1,
-      offer.terms.amount,
-      offer as LoanOffer, 
+    await expect(_borrower.takeLoanOffer({
+      tokenId: tokenId + 1,
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if amount is too high
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      BigInt(offer.terms.amount) * 2n,
-      offer as LoanOffer, 
+      amount: BigInt(offer.terms.amount) * 2n,
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
 
     // should reject if amount is too low
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      0,
-      offer as LoanOffer, 
+      amount: 0,
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
     
-    await _borrower.takeLoanOffer(
+    await _borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
@@ -170,12 +165,11 @@ describe("Fulfill Loan Offer", function () {
     expect(await _kettle.amountTaken(offerHash)).to.equal(offer.terms.amount);
 
     // should revert if offer is already taken
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature,
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
   });
 
   it("should take bid offer (PROOF)", async function () {
@@ -201,32 +195,28 @@ describe("Fulfill Loan Offer", function () {
     const _borrower = await kettle.connect(borrower);
 
     // should reject if proof is not provided
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature,
-      []
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     const proof = generateProof(tokens, tokenId);
 
     // should reject if proof is invalid
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature,
-      [randomSalt(), randomSalt(), randomSalt()]
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+      proof: [randomSalt(), randomSalt(), randomSalt()]
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
-    await _borrower.takeLoanOffer(
+    await _borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature,
       proof
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
@@ -239,12 +229,11 @@ describe("Fulfill Loan Offer", function () {
     expect(await _kettle.amountTaken(offerHash)).to.equal(offer.terms.amount);
 
     // should revert if offer is already taken
-    await expect(_borrower.takeLoanOffer(
+    await expect(_borrower.takeLoanOffer({
       tokenId,
-      offer.terms.amount,
-      offer as LoanOffer, 
+      offer: offer as LoanOffer, 
       signature,
       proof
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
   });
 });

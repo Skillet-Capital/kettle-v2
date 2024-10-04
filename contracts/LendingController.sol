@@ -43,7 +43,7 @@ contract LendingController is ILending, Initializable, Ownable2StepUpgradeable, 
         conduit = ITransferConduit(conduitController);
         LENDER_RECEIPT = ILenderReceipt(receipt);
 
-        lienIndex = 0;
+        lienIndex = 1;
     }
 
     function setKettle(address _kettle) external onlyOwner() {
@@ -140,6 +140,13 @@ contract LendingController is ILending, Initializable, Ownable2StepUpgradeable, 
             lienId: lienId, 
             lien: lien 
         });
+    }
+
+    function closeLien(
+        uint256 lienId,
+        Lien calldata lien
+    ) external onlyKettle() {
+        _closeLien(lienId);
     }
 
     function closeLienWithPayments(
@@ -267,7 +274,7 @@ contract LendingController is ILending, Initializable, Ownable2StepUpgradeable, 
         _;
     }
 
-    function validateLienIsCurrent(uint256 lienId, Lien calldata lien) external view {
+    function verifyLienIsCurrent(uint256 lienId, Lien calldata lien) external view {
         if (!_validateLien(lienId, lien)) {
             revert InvalidLien();
         }

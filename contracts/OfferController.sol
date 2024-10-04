@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import { Signatures } from "./Signatures.sol";
-import { IOfferController } from "./interfaces/IOfferController.sol";
-
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
-import { BidCannotBorrow, InvalidRate, InvalidLoanAmount, InsufficientOffer, InvalidPermitOfferHash, OfferExpired, OfferUnavailable, InvalidCriteria, InvalidToken } from "./Errors.sol";
-
-import { MarketOffer, LoanOffer, Permit, Lien, Side, Criteria } from "./Structs.sol";
+import "./interfaces/IOfferController.sol";
+import "./Signatures.sol";
+import "./Errors.sol";
+import "./Structs.sol";
 
 contract OfferController is IOfferController, Initializable, Ownable2StepUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
