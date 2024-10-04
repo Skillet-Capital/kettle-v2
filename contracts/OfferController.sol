@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+
 import { Signatures } from "./Signatures.sol";
 import { IOfferController } from "./interfaces/IOfferController.sol";
 
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import { BidCannotBorrow, InvalidRate, InvalidLoanAmount, InsufficientOffer, InvalidPermitOfferHash, OfferExpired, OfferUnavailable } from "./Errors.sol";
+import { BidCannotBorrow, InvalidRate, InvalidLoanAmount, InsufficientOffer, InvalidPermitOfferHash, OfferExpired, OfferUnavailable, InvalidCriteria, InvalidToken } from "./Errors.sol";
 
-import { MarketOffer, LoanOffer, Permit, Lien, Side } from "./Structs.sol";
+import { MarketOffer, LoanOffer, Permit, Lien, Side, Criteria } from "./Structs.sol";
 
 contract OfferController is IOfferController, Initializable, Ownable2StepUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
@@ -28,9 +30,21 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
     }
 
     function _takeMarketOffer(
+        uint256 tokenId,
         MarketOffer calldata offer,
-        bytes calldata signature
+        bytes calldata signature,
+        bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+
+        if (!offer.soft) {
+             _verifyCollateral(
+                offer.collateral.criteria,
+                offer.collateral.identifier,
+                tokenId,
+                proof
+            );
+        }
+
         if (offer.terms.withLoan) {
             if (offer.terms.amount < offer.terms.borrowAmount) {
                 revert BidCannotBorrow();
@@ -44,10 +58,19 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
     }
 
     function _takeLoanOffer(
-        LoanOffer calldata offer,
+        uint256 tokenId,
         uint256 amount,
-        bytes calldata signature
+        LoanOffer calldata offer,
+        bytes calldata signature,
+        bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        _verifyCollateral(
+            offer.collateral.criteria,
+            offer.collateral.identifier,
+            tokenId,
+            proof
+        );
+
         if (offer.terms.rate > _MAX_RATE || offer.terms.defaultRate > _MAX_RATE) {
             revert InvalidRate();
         }
@@ -77,21 +100,6 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         }
     }
 
-    function _verifyPermit(
-        Permit calldata permit,
-        bytes32 offerHash,
-        bytes calldata signature
-    ) internal {
-        if (permit.offerHash != offerHash) {
-            revert InvalidPermitOfferHash();
-        }
-
-        bytes32 _hash = _hashPermit(permit);
-        _validateOffer(_hash, permit.taker, permit.expiration, permit.salt, signature);
-
-        cancelledOrFulfilled[permit.taker][permit.salt] = 1;
-    }
-
     function _validateOffer(
         bytes32 offerHash,
         address signer,
@@ -106,6 +114,29 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
         }
         if (cancelledOrFulfilled[signer][salt] == 1) {
             revert OfferUnavailable();
+        }
+    }
+
+    function _verifyCollateral(
+        Criteria criteria,
+        uint256 identifier,
+        uint256 tokenId,
+        bytes32[] calldata proof
+    ) internal pure {
+        if (criteria == Criteria.PROOF) {
+            if (
+                !MerkleProof.verifyCalldata(
+                    proof, 
+                    bytes32(identifier), 
+                    keccak256(abi.encode(bytes32(tokenId)))
+                )
+            ) {
+                revert InvalidCriteria();
+            }
+        } else {
+            if (!(tokenId == identifier)) {
+                revert InvalidToken();
+            }
         }
     }
 

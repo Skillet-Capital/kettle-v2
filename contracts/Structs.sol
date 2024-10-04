@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
 enum LienStatus { CURRENT, DELINQUENT, DEFAULTED }
 enum Criteria { SIMPLE, PROOF }
 enum Side { BID, ASK }
 
 struct Lien {
     address borrower;
-    address collection;
+    IERC721 collection;
     uint256 tokenId;
-    address currency;
+    IERC20 currency;
     uint256 principal;
     uint256 rate;
     uint256 defaultRate;
@@ -22,7 +25,7 @@ struct Lien {
 
 struct Collateral {
     Criteria criteria;
-    address collection;
+    IERC721 collection;
     uint256 identifier;
 }
 
@@ -36,7 +39,7 @@ struct FeeTerms {
 // ====================================
 
 struct LoanOfferTerms {
-    address currency;
+    IERC20 currency;
     uint256 amount;
     uint256 maxAmount;
     uint256 minAmount;
@@ -63,7 +66,7 @@ struct LoanOffer {
 // ====================================
 
 struct MarketOfferTerms {
-    address currency;
+    IERC20 currency;
     uint256 amount;
     bool withLoan;
     uint256 borrowAmount;
@@ -106,8 +109,8 @@ struct Escrow {
     uint256 identifier;
     address buyer;
     address seller;
-    address collection;
-    address currency;
+    IERC721 collection;
+    IERC20 currency;
     address recipient;
     uint256 amount;
     uint256 fee;

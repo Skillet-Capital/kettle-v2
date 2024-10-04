@@ -56,12 +56,14 @@ import {
   collateralBalance,
   equalAddresses
 } from "./utils";
-import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
+import { LendingController, LendingController__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
+
+  public lendingController: LendingController;
 
   private provider: Provider;
   private signer?: Signer;
@@ -96,8 +98,17 @@ export class Kettle {
     );
   }
 
-  public connect(signer: Signer) {
-    return new Kettle(signer, this.contractAddress);
+  public async init() {
+    this.lendingController = LendingController__factory.connect(
+      await this.contract.lending(),
+      this.provider
+    );
+  }
+
+  public async connect(signer: Signer) {
+    const _kettle =  new Kettle(signer, this.contractAddress);
+    await _kettle.init();
+    return _kettle;
   }
 
   // ==============================================
@@ -318,16 +329,12 @@ export class Kettle {
     const takeOfferAction: TakeOfferAction = {
       type: "take",
       take: async () => {
-        let txn: any;
-
-        if (offer.side === Side.ASK) {
-          txn = await this.contract.connect(signer).escrowBuy(
-            offer,
-            signature
-          );
-        } else {
-          throw new Error("Invalid side");
-        }
+        const txn = await this.contract.connect(signer).escrowMarketOffer(
+          offer.collateral.identifier,
+          offer,
+          signature,
+          []
+        );
 
         return this._confirmTransaction(txn.hash);
       }
@@ -406,7 +413,7 @@ export class Kettle {
     const repayAction = {
       type: "repay",
       repay: async () => {
-        const txn = await this.contract.connect(signer).repay(lienId, lien as LienStruct);
+        const txn = await this.lendingController.connect(signer).repay(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -425,7 +432,7 @@ export class Kettle {
     const claimAction = {
       type: "claim",
       claim: async () => {
-        const txn = await this.contract.connect(signer).claim(lienId, lien as LienStruct);
+        const txn = await this.lendingController.connect(signer).claim(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -438,7 +445,7 @@ export class Kettle {
   // ==============================================
 
   public async currentDebt(lien: Lien): Promise<CurrentDebt> {
-    return this.contract.computeDebt(lien);
+    return this.lendingController.computeCurrentDebt(lien);
   }
 
   // ==============================================
@@ -524,7 +531,7 @@ export class Kettle {
     useMax?: boolean
   ): Promise<ApprovalAction[]> {
     const signer = await this._getSigner(user);
-    const operator = await this.contract.getAddress();
+    const operator = await this.contract.conduit();
 
     const approvalActions: ApprovalAction[] = [];
 
@@ -551,7 +558,7 @@ export class Kettle {
     collection: string,
   ): Promise<ApprovalAction[]> {
     const signer = await this._getSigner(user);
-    const operator = await this.contract.getAddress();
+    const operator = await this.contract.conduit();
 
     const approvalActions: ApprovalAction[] = [];
 
@@ -579,7 +586,7 @@ export class Kettle {
   ): Promise<ApprovalAction[]> {
 
     const signer = await this._getSigner(user);
-    const operator = await this.contract.getAddress();
+    const operator = await this.contract.conduit();
 
     const approvalActions: ApprovalAction[] = [];
 
@@ -656,7 +663,7 @@ export class Kettle {
   ): Promise<ApprovalAction[]> {
 
     const signer = await this._getSigner(user);
-    const operator = await this.contract.getAddress();
+    const operator = await this.contract.conduit();
 
     const approvalActions: ApprovalAction[] = [];
 

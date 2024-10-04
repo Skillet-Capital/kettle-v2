@@ -49,10 +49,34 @@ describe("Fulfill Market Offer", function () {
     tracer.nameTags[await recipient.getAddress()] = "recipient";
     tracer.nameTags[await buyer.getAddress()] = "buyer";
     tracer.nameTags[await seller.getAddress()] = "seller";
-  })
-  
-  it("buyer should take ask offer", async function () {
-    const _seller = kettle.connect(seller);
+  });
+
+  it("should reject if offer is expired", async function () {
+    const _seller = await kettle.connect(seller);
+
+    const { offer, signature } = await _seller.createMarketOffer({
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: 0
+    }).then(executeCreateSteps);
+
+    const _buyer = await kettle.connect(buyer);
+
+    // should reject if tokenId does not match identifier
+    await expect(_buyer.takeMarketOffer(
+      tokenId,
+      offer as MarketOffer, 
+      signature
+    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferExpired");
+  });
+
+  it("should reject if offer is cancelled", async function () {
+    const _seller = await kettle.connect(seller);
 
     const { offer, signature } = await _seller.createMarketOffer({
       side: Side.ASK,
@@ -65,7 +89,33 @@ describe("Fulfill Market Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
+
+    await _kettle.connect(seller).cancelOffers([offer.salt]);
+
+    // should reject if tokenId does not match identifier
+    await expect(_buyer.takeMarketOffer(
+      tokenId,
+      offer as MarketOffer, 
+      signature
+    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
+  });
+  
+  it("buyer should take ask offer", async function () {
+    const _seller = await kettle.connect(seller);
+
+    const { offer, signature } = await _seller.createMarketOffer({
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + 60
+    }).then(executeCreateSteps);
+
+    const _buyer = await kettle.connect(buyer);
 
     // should reject if tokenId does not match identifier
     await expect(_buyer.takeMarketOffer(
@@ -97,7 +147,7 @@ describe("Fulfill Market Offer", function () {
   });
 
   it("seller should take bid offer (SIMPLE)", async function () {
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     const { offer, signature } = await _buyer.createMarketOffer({
       side: Side.BID,
@@ -110,7 +160,7 @@ describe("Fulfill Market Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     // should reject if tokenId does not match identifier
     await expect(_seller.takeMarketOffer(
@@ -133,7 +183,7 @@ describe("Fulfill Market Offer", function () {
   });
 
   it("seller should take bid offer (PROOF)", async function () {
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     const { offer, signature } = await _buyer.createMarketOffer({
       side: Side.BID,
@@ -147,7 +197,7 @@ describe("Fulfill Market Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     // should reject if proof is not provided
     await expect(_seller.takeMarketOffer(

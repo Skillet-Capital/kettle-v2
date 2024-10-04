@@ -4,9 +4,9 @@ import { tracer } from "hardhat";
 import { expect } from "chai";
 import { parseUnits, Signer } from "ethers";
 
-import { TestERC20, TestERC721 } from "../typechain-types"; 
+import { LendingController, TestERC20, TestERC721 } from "../typechain-types"; 
 
-import { generateProof, generateRoot, randomSalt } from "../src/utils";
+import { generateProof, generateRoot, getReceipt, parseLienOpenedLog, randomSalt } from "../src/utils";
 import { Criteria, Kettle, KettleContract, LoanOffer, Side } from "../src";
 import { DAY_SECONDS, executeCreateSteps, executeTakeSteps } from "./utils";
 
@@ -14,6 +14,7 @@ import { deployKettle } from "./fixture";
 
 describe("Fulfill Loan Offer", function () {
   let _kettle: KettleContract;
+  let _lending: LendingController;
   let kettle: Kettle;
 
   let lender: Signer;
@@ -32,6 +33,7 @@ describe("Fulfill Loan Offer", function () {
   beforeEach(async () => {
     const fixture = await loadFixture(deployKettle);
     _kettle = fixture.kettle;
+    _lending = fixture.lending;
     lender = fixture.accounts[0];
     borrower = fixture.accounts[1];
     recipient = fixture.recipient;
@@ -52,7 +54,7 @@ describe("Fulfill Loan Offer", function () {
   })
   
   it("lender should take borrow offer", async function () {
-    const _borrower = kettle.connect(borrower);
+    const _borrower = await kettle.connect(borrower);
 
     const { offer, signature } = await _borrower.createLoanOffer({
       side: Side.ASK,
@@ -69,7 +71,7 @@ describe("Fulfill Loan Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _lender = kettle.connect(lender);
+    const _lender = await kettle.connect(lender);
 
     // should reject if tokenId does not match identifier
     await expect(_lender.takeLoanOffer(
@@ -87,22 +89,26 @@ describe("Fulfill Loan Offer", function () {
       signature,
     ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
-    await _lender.takeLoanOffer(
+    const txnHash = await _lender.takeLoanOffer(
       tokenId,
       0,
       offer as LoanOffer, 
       signature
     ).then(executeTakeSteps);
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
+    const receipt = await getReceipt(txnHash);
+    const { lienId } = parseLienOpenedLog(receipt);
+
+    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower)).to.equal(amount);
 
     expect(await _kettle.cancelledOrFulfilled(offer.maker, offer.salt)).to.equal(1);
+    expect(await _lending.currentLender(lienId)).to.equal(lender);
   });
 
   it("borrower should take loan offer (SIMPLE)", async function () {
-    const _lender = kettle.connect(lender);
+    const _lender = await kettle.connect(lender);
 
     const { offer, signature } = await _lender.createLoanOffer({
       side: Side.BID,
@@ -120,7 +126,7 @@ describe("Fulfill Loan Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _borrower = kettle.connect(borrower);
+    const _borrower = await kettle.connect(borrower);
 
     // should reject if tokenId does not match identifier
     await expect(_borrower.takeLoanOffer(
@@ -132,7 +138,7 @@ describe("Fulfill Loan Offer", function () {
 
     // should reject if amount is too high
     await expect(_borrower.takeLoanOffer(
-      tokenId + 1,
+      tokenId,
       BigInt(offer.terms.amount) * 2n,
       offer as LoanOffer, 
       signature
@@ -140,7 +146,7 @@ describe("Fulfill Loan Offer", function () {
 
     // should reject if amount is too low
     await expect(_borrower.takeLoanOffer(
-      tokenId + 1,
+      tokenId,
       0,
       offer as LoanOffer, 
       signature
@@ -153,7 +159,7 @@ describe("Fulfill Loan Offer", function () {
       signature
     ).then(executeTakeSteps);
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
+    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower))
       .to.equal(amount)
@@ -173,7 +179,7 @@ describe("Fulfill Loan Offer", function () {
   });
 
   it("should take bid offer (PROOF)", async function () {
-    const _lender = kettle.connect(lender);
+    const _lender = await kettle.connect(lender);
 
     const { offer, signature } = await _lender.createLoanOffer({
       side: Side.BID,
@@ -192,7 +198,7 @@ describe("Fulfill Loan Offer", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _borrower = kettle.connect(borrower);
+    const _borrower = await kettle.connect(borrower);
 
     // should reject if proof is not provided
     await expect(_borrower.takeLoanOffer(
@@ -222,9 +228,7 @@ describe("Fulfill Loan Offer", function () {
       proof
     ).then(executeTakeSteps);
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
-
-    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
+    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower))
       .to.equal(amount)

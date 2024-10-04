@@ -56,7 +56,7 @@ describe("Fulfill Market Offer In Lien", function () {
     tracer.nameTags[await seller.getAddress()] = "seller";
     tracer.nameTags[await lender.getAddress()] = "lender";
 
-    const _lender = kettle.connect(lender);
+    const _lender = await kettle.connect(lender);
     await currency.mint(lender, amount);
 
     const { offer, signature } = await _lender.createLoanOffer({
@@ -74,7 +74,7 @@ describe("Fulfill Market Offer In Lien", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     const txnHash = await _seller.takeLoanOffer(
       tokenId,
@@ -90,7 +90,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
 
   it("buyer should reject ask (offer < debt)", async function () {
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     const { debt } = await _seller.currentDebt(lien);
 
@@ -105,7 +105,7 @@ describe("Fulfill Market Offer In Lien", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     await expect(_buyer.takeMarketOfferInLien(
       lienId,
@@ -116,7 +116,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
   
   it("buyer should take ask in lien", async function () {
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     const { debt } = await _seller.currentDebt(lien);
 
@@ -131,7 +131,7 @@ describe("Fulfill Market Offer In Lien", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     await currency.mint(buyer, offer.terms.amount);
 
@@ -168,7 +168,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
 
   it("buyer should take ask in lien (buyer = lender)", async function () {
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
 
     const { debt } = await _seller.currentDebt(lien);
 
@@ -183,7 +183,7 @@ describe("Fulfill Market Offer In Lien", function () {
       expiration: await time.latest() + 60
     }).then(executeCreateSteps);
 
-    const _buyer = kettle.connect(lender);
+    const _buyer = await kettle.connect(lender);
 
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
     await currency.mint(lender, offer.terms.amount);
@@ -213,7 +213,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
 
   it("seller should take bid in lien (debt < offer)", async function () {
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     const { debt } = await _buyer.currentDebt(lien);
 
@@ -232,7 +232,7 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
     await _seller.takeMarketOfferInLien(
       lienId,
       lien,
@@ -251,7 +251,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
 
   it("seller should take bid in lien (principal + interest < offer < debt)", async function () {
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     const { interest } = await _buyer.currentDebt(lien);
 
@@ -270,7 +270,7 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
     await _seller.takeMarketOfferInLien(
       lienId,
       lien,
@@ -288,7 +288,7 @@ describe("Fulfill Market Offer In Lien", function () {
   });
 
   it("seller should take bid in lien (offer < principal + interest)", async function () {
-    const _buyer = kettle.connect(buyer);
+    const _buyer = await kettle.connect(buyer);
 
     const { interest } = await _buyer.currentDebt(lien);
 
@@ -308,7 +308,7 @@ describe("Fulfill Market Offer In Lien", function () {
 
     const sellerBalanceBefore = await currency.balanceOf(seller);
 
-    const _seller = kettle.connect(seller);
+    const _seller = await kettle.connect(seller);
     await _seller.takeMarketOfferInLien(
       lienId,
       lien,

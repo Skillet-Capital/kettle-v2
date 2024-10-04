@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { Log, LogDescription, TransactionReceipt } from "ethers";
-import { Kettle__factory } from "../../typechain-types";
+import { Kettle__factory, LendingController__factory } from "../../typechain-types";
 import { Numberish, Lien, Escrow } from "../types";
 
 interface LienLog {
@@ -29,7 +29,7 @@ export async function getReceipt(txnHash: string | null): Promise<TransactionRec
 }
 
 export function parseLienOpenedLog(receipt: TransactionReceipt): LienLog {
-  const iface = Kettle__factory.createInterface();
+  const iface = LendingController__factory.createInterface();
 
   const logs = receipt.logs
     .map((log: Log) => iface.parseLog(log))
@@ -62,7 +62,7 @@ export function parseLienOpenedLog(receipt: TransactionReceipt): LienLog {
 }
 
 export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
-  const iface = Kettle__factory.createInterface();
+  const iface = LendingController__factory.createInterface();
 
   const logs = receipt.logs
     .map((log: Log) => iface.parseLog(log))

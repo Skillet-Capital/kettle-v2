@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
 import { OfferController } from "../OfferController.sol";
@@ -6,7 +6,6 @@ import { LoanOffer, MarketOffer } from "../Structs.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-
 
 contract TestOfferController is Initializable, Ownable2StepUpgradeable, OfferController {
 
@@ -19,17 +18,21 @@ contract TestOfferController is Initializable, Ownable2StepUpgradeable, OfferCon
     }
 
     function takeLoanOffer(
+        uint256 tokenId,
         LoanOffer calldata offer,
         uint256 amount,
-        bytes calldata signature
+        bytes calldata signature,
+        bytes32[] calldata proof
     ) public returns (bytes32) {
-        return _takeLoanOffer(offer, amount, signature);
+        return _takeLoanOffer(tokenId, amount, offer, signature, proof);
     }
 
     function takeMarketOffer(
+        uint256 tokenId,
         MarketOffer calldata offer,
-        bytes calldata signature
+        bytes calldata signature,
+        bytes32[] calldata proof
     ) public returns (bytes32) {
-        return _takeMarketOffer(offer, signature);
+        return _takeMarketOffer(tokenId, offer, signature, proof);
     }  
 }

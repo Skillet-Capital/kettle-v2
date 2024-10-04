@@ -34,9 +34,14 @@ error InvalidSignature();
 error InvalidVParameter();
 error ERC6492DeployFailed(bytes err);
 
-error SellerNotWhitelisted();
+error InvalidAssetFactory();
+error SellerNotAskWhitelisted();
+error SellerNotBidWhitelisted();
+
 error InvalidEscrow();
 error EscrowLocked();
 
 error CannotTakeSoftOffer();
 error CannotTakeHardOffer();
+
+error OnlyKettle();

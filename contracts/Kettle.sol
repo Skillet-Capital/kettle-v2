@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,28 +11,41 @@ import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721H
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-import { KettleMath } from "./lib/KettleMath.sol";
-
-import { LendingController } from "./Lending.sol";
-import { EscrowController } from "./Escrow.sol";
+import { LendingController } from "./LendingController.sol";
+import { EscrowController } from "./EscrowController.sol";
 import { OfferController } from "./OfferController.sol";
 
 import { LienIsCurrent, TakerIsNotBorrower, MakerIsNotBorrower, InsufficientAskAmount, InvalidFee, CurrencyMismatch, CollectionMismatch, TokenMismatch, InvalidCriteria, InvalidToken, RequiresAskSide, RequiresBidSide, RequiresNakedBidSide, CannotTakeSoftOffer, CannotTakeHardOffer } from "./Errors.sol";
 
 import { LoanOffer, MarketOffer, Lien, Permit, Side, Criteria } from "./Structs.sol";
 
-contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, LendingController, EscrowController, ERC721Holder {
+import { TransferConduit } from "./TransferConduit.sol";
+
+contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
     using SafeERC20 for IERC20;
+
+    uint256 private constant _BASIS_POINTS = 10_000;
+
+    TransferConduit public conduit;
+    LendingController public lending;
+    EscrowController public escrow;
 
     uint256[] private _gap;
 
-    function initialize(address lenderReceipt, address owner) public initializer {
-        __LendingController_init(lenderReceipt);
-        __EscrowController_init();
-        __OfferController_init();
-
+    function __Kettle_init(
+        address conduitController,
+        address lendingController, 
+        address escrowController,
+        address owner
+    ) public initializer {
         __Ownable2Step_init();
         _transferOwnership(owner);
+
+        __OfferController_init();
+
+        conduit = TransferConduit(conduitController);
+        lending = LendingController(lendingController);
+        escrow = EscrowController(escrowController);
     }
 
     function fulfillMarketOffer(
@@ -40,14 +54,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
         bytes calldata signature,
         bytes32[] calldata proof
     ) external requireSoft(false, offer.soft) returns (uint256 netAmount) {
-        _takeMarketOffer(offer, signature);
-
-        _verifyCollateral(
-            offer.collateral.criteria, 
-            offer.collateral.identifier, 
-            tokenId,
-            proof
-        );
+        _takeMarketOffer(tokenId, offer, signature, proof);
 
         netAmount = _transferFees(
             offer.terms.currency, 
@@ -57,13 +64,15 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
             offer.fee.rate
         );
 
-        IERC20(offer.terms.currency).safeTransferFrom(
+        conduit.transferERC20From(
+            offer.terms.currency, 
             offer.side == Side.BID ? offer.maker : msg.sender, 
             offer.side == Side.BID ? msg.sender : offer.maker, 
             netAmount
         );
 
-        IERC721(offer.collateral.collection).safeTransferFrom(
+        conduit.transferERC721From(
+            offer.collateral.collection, 
             offer.side == Side.BID ? msg.sender : offer.maker, 
             offer.side == Side.BID ? offer.maker : msg.sender, 
             tokenId
@@ -77,41 +86,29 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
         bytes calldata signature,
         bytes32[] calldata proof
     ) external requireSoft(false, offer.soft) returns (uint256 lienId) {
-        uint256 _amount = offer.side == Side.BID ? amount : offer.terms.amount;
-        _takeLoanOffer(offer, _amount, signature);
+        uint256 principal = offer.side == Side.BID ? amount : offer.terms.amount;
+        _takeLoanOffer(tokenId, principal, offer, signature, proof);
 
-        _verifyCollateral(
-            offer.collateral.criteria, 
-            offer.collateral.identifier, 
-            tokenId, 
-            proof
+        conduit.transferERC20From(
+            offer.terms.currency, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            principal
         );
 
-        IERC20(offer.terms.currency).safeTransferFrom(
-            offer.side == Side.BID ? offer.maker : msg.sender,
+        conduit.transferERC721From(
+            offer.collateral.collection, 
             offer.side == Side.BID ? msg.sender : offer.maker, 
-            _amount
-        );
-
-        IERC721(offer.collateral.collection).safeTransferFrom(
-            offer.side == Side.BID ? msg.sender : offer.maker, 
-            address(this), 
+            address(lending), 
             tokenId
         );
 
-        lienId = _openLien(
-            offer.side == Side.BID ? offer.maker : msg.sender,
-            offer.side == Side.BID ? msg.sender : offer.maker,
-            offer.collateral.collection, 
-            tokenId,
-            offer.terms.currency, 
-            _amount, 
-            offer.terms.rate, 
-            offer.terms.defaultRate, 
-            offer.terms.duration, 
-            offer.terms.gracePeriod, 
-            offer.fee.recipient, 
-            offer.fee.rate
+        lienId = lending.openLien(
+            tokenId, 
+            principal, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
+            offer.side == Side.BID ? msg.sender : offer.maker, 
+            offer
         );
     }
 
@@ -121,89 +118,18 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof  
-    ) external requireSoft(false, offer.soft) lienIsValid(lienId, lien) lienIsCurrent(lien) returns (uint256 netAmount) {
-        if (offer.side == Side.BID && lien.borrower != msg.sender) {
-            revert TakerIsNotBorrower();
-        }
+    ) external requireSoft(false, offer.soft) returns (uint256 netAmount) {
+        lending.validateLienIsCurrent(lienId, lien);
 
-        if (offer.side == Side.ASK && lien.borrower != offer.maker) {
-            revert MakerIsNotBorrower();
-        }
-
-        _takeMarketOffer(offer, signature);
-
-        _verifyCollateral(
-            offer.collateral.criteria, 
-            offer.collateral.identifier, 
-            lien.tokenId, 
-            proof
-        );
+        _takeMarketOffer(lien.tokenId, offer, signature, proof);
+        _verifyBorrower(offer.side, lien.borrower, offer.maker);
 
         _matchTerms(
             lien.currency, 
             offer.terms.currency, 
             lien.collection, 
-            offer.collateral.collection, 
-            0,  // tokenId matched in _verifyCollateral
-            0
+            offer.collateral.collection
         );
-
-        // (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-        // uint256 marketFee = KettleMath.safeMulFee(offer.terms.amount, offer.fee.rate);
-        // netAmount = offer.terms.amount - marketFee;
-
-        // if (offer.side == Side.ASK && debt > netAmount) {
-        //     revert InsufficientAskAmount();
-        // }
-
-        // address currentLender = _currentLender(lienId);
-
-        // bool buyerIsLender = (offer.side == Side.BID && offer.maker == currentLender) || (offer.side == Side.ASK && msg.sender == currentLender);
-
-        // // transfer amount in from buyer
-        // if (!buyerIsLender) {
-        //     IERC20(offer.terms.currency).safeTransferFrom(
-        //         offer.side == Side.BID ? offer.maker : msg.sender, 
-        //         address(this), 
-        //         offer.terms.amount
-        //     );
-        // }
-
-        // if (offer.side == Side.BID && netAmount < debt) {
-        //     IERC20(offer.terms.currency).safeTransferFrom(
-        //         msg.sender,
-        //         address(this), 
-        //         debt - netAmount
-        //     );
-        // }
-
-        // // transfer market fee to market fee recipient
-        // IERC20(offer.terms.currency).transfer(
-        //     offer.fee.recipient, 
-        //     marketFee
-        // );
-
-        // // transfer lending fee to lien recipient
-        // IERC20(lien.currency).transfer(
-        //     lien.recipient, 
-        //     fee
-        // );
-
-        // // transfer amount owed to lender
-        // IERC20(lien.currency).transfer(
-        //     _currentLender(lienId), 
-        //     lien.principal + interest
-        // );
-
-        // if (netAmount > debt) {
-        //     // transfer excess amount to seller
-        //     IERC20(offer.terms.currency).transfer(
-        //         lien.borrower, 
-        //         netAmount - debt
-        //     );
-        // }
-
-        // transfer the net amount to the seller
         
         netAmount = _transferFees(
             offer.terms.currency, 
@@ -213,32 +139,26 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
             offer.fee.rate
         );
 
-        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-
-        if (offer.side == Side.ASK && debt > netAmount) {
-            revert InsufficientAskAmount();
+        if (offer.side == Side.ASK) {
+            (uint256 debt,,) = lending.computeCurrentDebt(lien);
+            if (debt > netAmount) {
+                revert InsufficientAskAmount();
+            }
         }
 
-        _transferPayments(
-            lien.currency, 
+        lending.closeLienWithPayments(
             netAmount, 
-            debt, 
-            lien.principal + interest, 
-            fee, 
-            _currentLender(lienId),
-            lien.recipient, 
+            lienId, 
             offer.side == Side.BID ? offer.maker : msg.sender, 
             offer.side == Side.BID ? msg.sender : offer.maker, 
-            offer.side == Side.BID ? msg.sender : offer.maker
+            lien
         );
 
-        IERC721(lien.collection).safeTransferFrom(
-            address(this), 
-            offer.side == Side.BID ? offer.maker : msg.sender, 
-            lien.tokenId
+        lending.releaseCollateral(
+            lien.collection, 
+            lien.tokenId, 
+            offer.side == Side.BID ? offer.maker : msg.sender
         );
-
-        _closeLien(lienId);
     }
 
     function fulfillLoanOfferInLien(
@@ -248,134 +168,113 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireSoft(false, offer.soft) lienIsValid(lienId, lien) lienIsCurrent(lien) returns (uint256 newLienId) {
-        uint256 _amount = offer.side == Side.BID ? amount : offer.terms.amount;
+    ) external requireSoft(false, offer.soft) returns (uint256 newLienId) {
+        lending.validateLienIsCurrent(lienId, lien);
 
-        if (offer.side == Side.BID && lien.borrower != msg.sender) {
-            revert TakerIsNotBorrower();
-        }
+        uint256 principal = offer.side == Side.BID ? amount : offer.terms.amount;
 
-        if (offer.side == Side.ASK && lien.borrower != offer.maker) {
-            revert MakerIsNotBorrower();
-        }
-
-        _takeLoanOffer(offer, amount, signature);
-
-        _verifyCollateral(
-            offer.collateral.criteria, 
-            offer.collateral.identifier, 
-            lien.tokenId, 
-            proof
-        );
+        _takeLoanOffer(lien.tokenId, principal, offer, signature, proof);
+        _verifyBorrower(offer.side, lien.borrower, offer.maker);
 
         _matchTerms(
             lien.currency, 
             offer.terms.currency, 
             lien.collection, 
-            offer.collateral.collection, 
-            0,  // tokenId matched in _verifyCollateral
-            0
+            offer.collateral.collection
         );
 
-        (uint256 debt, uint256 fee, uint256 interest) = _computeDebt(lien);
-
-        if (offer.side == Side.ASK && debt > _amount) {
-            revert InsufficientAskAmount();
+        if (offer.side == Side.ASK) {
+            (uint256 debt,,) = lending.computeCurrentDebt(lien);
+            if (debt > principal) {
+                revert InsufficientAskAmount();
+            }
         }
 
-        _transferPayments(
-            lien.currency, 
-            _amount, 
-            debt, 
-            lien.principal + interest, 
-            fee, 
-            _currentLender(lienId), 
-            lien.recipient, 
+        lending.closeLienWithPayments(
+            principal, 
+            lienId, 
             offer.side == Side.BID ? offer.maker : msg.sender, 
             offer.side == Side.BID ? msg.sender : offer.maker, 
-            offer.side == Side.BID ? msg.sender : offer.maker
+            lien
         );
 
-        _closeLien(lienId);
-
-        newLienId = _openLien(
-            offer.maker, 
+        newLienId = lending.openLien(
+            lien.tokenId, 
+            principal, 
+            offer.side == Side.BID ? offer.maker : msg.sender, 
             lien.borrower, 
-            lien.collection, 
-            lien.tokenId,
-            lien.currency, 
-            amount, 
-            offer.terms.rate, 
-            offer.terms.defaultRate, 
-            offer.terms.duration, 
-            offer.terms.gracePeriod, 
-            offer.fee.recipient, 
-            offer.fee.rate
+            offer
         );
     }
 
-    // function escrowMarketOffer(
-    //     MarketOffer calldata offer,
-    //     bytes calldata signature
-    // ) external requireSoft(true, offer.soft) returns (uint256 escrowId) {
-    //     if (offer.side == Side.BID) {
-    //         revert RequiresAskSide();
-    //     }
+    function escrowMarketOffer(
+        uint256 placeholder,
+        MarketOffer calldata offer,
+        bytes calldata signature,
+        bytes32[] calldata proof
+    ) external requireSoft(true, offer.soft) returns (uint256 escrowId) {
+        _takeMarketOffer(placeholder, offer, signature, proof);
 
-    //     _takeMarketOffer(offer, signature);
+        uint256 rebate = 0;
+        if (offer.terms.rebate > 0) {
+            rebate = Math.mulDiv(offer.terms.amount, offer.terms.rebate, _BASIS_POINTS);
+            conduit.transferERC20From(
+                offer.terms.currency,
+                offer.side == Side.BID ? msg.sender : offer.maker, 
+                address(escrow),
+                rebate
+            );
+        }
 
-    //     uint256 rebate = 0;
-    //     if (rebate > 0) {
-    //         rebate = KettleMath.safeMulFee(offer.terms.amount, offer.terms.rebate);
-    //         IERC20(offer.terms.currency).safeTransferFrom(
-    //             offer.side == Side.BID ? msg.sender : offer.maker, 
-    //             address(this), 
-    //             rebate
-    //         );
-    //     }
+        conduit.transferERC20From(
+            offer.terms.currency,
+            offer.side == Side.BID ? offer.maker : msg.sender,
+            address(escrow),
+            offer.terms.amount
+        );
 
-    //     IERC20(offer.terms.currency).safeTransferFrom(
-    //         offer.side == Side.BID ? offer.maker : msg.sender,
-    //         address(this),
-    //         offer.terms.amount
-    //     );
-
-    //     escrowId = _openEscrow(
-    //         offer.side,
-    //         offer.collateral.identifier, // only for ask side
-    //         offer.side == Side.BID ? offer.maker : msg.sender,
-    //         offer.side == Side.BID ? msg.sender : offer.maker,
-    //         offer.collateral.collection,
-    //         offer.collateral.identifier,
-    //         offer.terms.currency,
-    //         offer.terms.amount,
-    //         offer.fee.recipient,
-    //         offer.fee.rate,
-    //         offer.terms.rebate
-    //     );
-    // }
+        escrowId = escrow.openEscrow(
+            placeholder,
+            rebate,
+            offer.side == Side.BID ? offer.maker : msg.sender,
+            offer.side == Side.BID ? msg.sender : offer.maker,
+            offer
+        );
+    }
 
     function _transferFees(
-        address currency,
+        IERC20 currency,
         address payer,
         address recipient,
         uint256 amount,
         uint256 fee
     ) internal returns (uint256 netAmount) {
-        uint256 feeAmount = KettleMath.safeMulFee(amount, fee);
+        uint256 feeAmount = Math.mulDiv(amount, fee, _BASIS_POINTS);
         if (feeAmount > amount) revert InvalidFee();
 
-        IERC20(currency).safeTransferFrom(payer, recipient, feeAmount);
+        conduit.transferERC20From(currency, payer, recipient, feeAmount);
         netAmount = amount - feeAmount;
     }
 
+    function _verifyBorrower(
+        Side side,
+        address borrower,
+        address maker
+    ) internal view {
+        if (side == Side.ASK && borrower != maker) {
+            revert MakerIsNotBorrower();
+        }
+
+        if (side == Side.BID && borrower != msg.sender) {
+            revert TakerIsNotBorrower();
+        }
+    }
+
     function _matchTerms(
-        address currency1,
-        address currency2,
-        address collection1,
-        address collection2,
-        uint256 tokenId1,
-        uint256 tokenId2
+        IERC20 currency1,
+        IERC20 currency2,
+        IERC721 collection1,
+        IERC721 collection2
     ) internal pure {
         if (currency1 != currency2) {
             revert CurrencyMismatch();
@@ -383,33 +282,6 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, Lend
 
         if (collection1 != collection2) {
             revert CollectionMismatch();
-        }
-
-        if (tokenId1 != tokenId2) {
-            revert TokenMismatch();
-        }
-    }
-
-    function _verifyCollateral(
-        Criteria criteria,
-        uint256 identifier,
-        uint256 tokenId,
-        bytes32[] calldata proof
-    ) internal pure {
-        if (criteria == Criteria.PROOF) {
-            if (
-                !MerkleProof.verifyCalldata(
-                    proof, 
-                    bytes32(identifier), 
-                    keccak256(abi.encode(bytes32(tokenId)))
-                )
-            ) {
-                revert InvalidCriteria();
-            }
-        } else {
-            if (!(tokenId == identifier)) {
-                revert InvalidToken();
-            }
         }
     }
 
