@@ -10,7 +10,7 @@ import "./Signatures.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract OfferController is IOfferController, Initializable, Ownable2StepUpgradeable, Signatures {
+contract OfferController is IOfferController, Ownable2StepUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
@@ -18,7 +18,7 @@ contract OfferController is IOfferController, Initializable, Ownable2StepUpgrade
    
     uint256[50] private _gap;
 
-    function __OfferController_init() public initializer {
+    function __OfferController_init() internal {
         __Signatures_init();
     }
 

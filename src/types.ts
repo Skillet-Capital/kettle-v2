@@ -1,16 +1,33 @@
 import { Addressable } from "ethers";
-import { Kettle as KettleContract } from "../typechain-types";
 
-import { Kettle__factory } from "../typechain-types";
-import { LienStruct } from "../typechain-types/contracts/Kettle";
+import { 
+  Kettle as KettleContract, 
+  EscrowController, 
+  LendingController,
+  Kettle__factory,
+  EscrowController__factory,
+  LendingController__factory
+} from "../typechain-types";
 
-export type { 
+import { LienStruct } from "../typechain-types/contracts/LendingController";
+import { EscrowStruct } from "../typechain-types/contracts/EscrowController";
+
+import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
+
+export type {
   KettleContract,
-  LienStruct
+  EscrowController,
+  LendingController,
+  LienStruct,
+  EscrowStruct
 };
 
 export {
-  Kettle__factory
+  Kettle__factory,
+  EscrowController__factory,
+  LendingController__factory,
+  TestERC20__factory,
+  TestERC721__factory
 };
 
 export type Numberish = string | number | bigint;
@@ -19,6 +36,7 @@ export type Numberish = string | number | bigint;
 //                INTERNAL TYPES
 // ==============================================
 
+export enum OfferType { LOAN, MARKET };
 export enum Side { BID, ASK };
 export enum Criteria { SIMPLE, PROOF };
 
@@ -60,6 +78,7 @@ export type LoanOfferTerms = {
 }
 
 export type MarketOffer = {
+  kind: OfferType;
   soft: boolean;
   side: Side;
   maker: string;
@@ -73,6 +92,7 @@ export type MarketOffer = {
 }
 
 export type LoanOffer = {
+  kind: OfferType;
   soft: boolean;
   side: Side;
   maker: string;
@@ -182,7 +202,7 @@ export type CreateLoanOfferInput = {
 }
 
 export type TakeOfferInput = {
-  tokenId: Numberish;
+  tokenId?: Numberish;
   amount?: Numberish;
   offer: MarketOffer | LoanOffer;
   signature: string;
@@ -194,6 +214,11 @@ export type TakeOfferInput = {
 // ==============================================
 //                OUTPUT TYPES
 // ==============================================
+
+export type UserOp = {
+  target: string;
+  data: string;
+}
 
 export type OfferWithSignature = {
   offer: LoanOffer | MarketOffer;
@@ -215,26 +240,22 @@ export type CurrentDebt = {
 //                ACTION TYPES
 // ==============================================
 
-export type ApprovalAction = {
-  type: "approval";
-  approve: () => Promise<string | null>;
-}
-
 export type CreateOfferAction = {
   type: "create";
+  offer: MarketOffer | LoanOffer;
   payload: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   create: () => Promise<OfferWithSignature>;
 }
 
-export type SignPermitAction = {
-  type: "permit";
-  payload: any;
-  permit: () => Promise<PermitWithSignature>;
+export type ApprovalAction = {
+  type: "approval";
+  userOp: UserOp;
+  approve: () => Promise<string | null>;
 }
 
 export type TakeOfferAction = {
   type: "take";
-  // payload: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  userOp: UserOp;
   take: () => Promise<string>;
 }
 

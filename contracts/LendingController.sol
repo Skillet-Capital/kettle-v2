@@ -14,11 +14,11 @@ import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/acc
 import { Lien, Side, Collateral, LoanOfferTerms, LoanOffer } from "./Structs.sol";
 import { LienIsCurrent, InvalidLien, LienIsDefaulted, OnlyKettle } from "./Errors.sol";
 
-import { ILending } from "./interfaces/ILending.sol";
 import { ILenderReceipt } from "./interfaces/ILenderReceipt.sol";
 import { ITransferConduit } from "./interfaces/ITransferConduit.sol";
+import { ILendingController } from "./interfaces/ILendingController.sol";
 
-contract LendingController is ILending, Initializable, Ownable2StepUpgradeable, ERC721Holder {   
+contract LendingController is ILendingController, Initializable, Ownable2StepUpgradeable, ERC721Holder {   
     using SafeERC20 for IERC20;
 
     int256 private constant _YEAR_WAD = 365 days * 1e18;

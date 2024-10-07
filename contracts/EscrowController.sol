@@ -28,6 +28,8 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
     bool public whitelistOnly;
 
     mapping(uint256 => bytes32) public escrows;
+
+    mapping(uint256 => bool) public escrowedTokens;
     mapping(address => bool) public whitelistedAskMakers;
     mapping(address => bool) public whitelistedBidTakers;
 
@@ -149,6 +151,10 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         emit EscrowClaimed({ escrowId: escrowId });
     }
 
+    function setEscrowedToken(uint256 tokenId, bool escrowed) external onlyOwner {
+        escrowedTokens[tokenId] = escrowed;
+    }
+
     // ===============================
     //        ACCESS CONTROL
     // ===============================
@@ -186,6 +192,7 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         }
 
         escrows[escrowIndex] = _hashEscrow(escrow);
+        escrowedTokens[placeholder] = true;
 
         emit EscrowOpened({
             escrowId: escrowIndex++,

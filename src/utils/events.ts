@@ -1,7 +1,6 @@
 import { ethers } from "hardhat";
 import { Log, LogDescription, TransactionReceipt } from "ethers";
-import { Kettle__factory, LendingController__factory } from "../../typechain-types";
-import { Numberish, Lien, Escrow } from "../types";
+import { LendingController__factory, Numberish, Lien, Escrow } from "../types";
 
 interface LienLog {
   lienId: Numberish;
@@ -93,4 +92,3 @@ export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
     }
   }
 }
-

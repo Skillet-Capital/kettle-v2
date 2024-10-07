@@ -45,3 +45,6 @@ error CannotTakeSoftOffer();
 error CannotTakeHardOffer();
 
 error OnlyKettle();
+
+error InvalidMarketOffer();
+error InvalidLoanOffer();

@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { TestERC721__factory } from "../../typechain-types";
+import { TestERC721__factory } from "../types";
 
 export const collateralApprovals = async (
   owner: string,

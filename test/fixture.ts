@@ -7,10 +7,6 @@ import { EscrowController__factory, Kettle__factory, LendingController__factory,
 export async function deployKettle() {
   const [owner, recipient, ...accounts] = await ethers.getSigners();
 
-  // Deploy Factory Contract
-  const Create2Factory = await ethers.getContractFactory("Create2Factory");
-  const factory = await Create2Factory.deploy();
-
   // Deploy Transfer Conduit
   const Conduit = await ethers.getContractFactory("TransferConduit");
   const _conduit = await Conduit.deploy();

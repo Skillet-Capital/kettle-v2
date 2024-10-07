@@ -72,10 +72,10 @@ describe("Escrow Market Offer", function () {
 
     const _buyer = await kettle.connect(buyer);
 
-    await expect(_buyer.escrowMarketOffer(
-      offer as MarketOffer, 
+    await expect(_buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeHardOffer");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeHardOffer");
   });
   
   it("buyer should escrow ask offer (NO REBATE)", async function () {
@@ -95,17 +95,17 @@ describe("Escrow Market Offer", function () {
 
     const _buyer = await kettle.connect(buyer);
 
-    await expect(_buyer.escrowMarketOffer(
-      offer as MarketOffer, 
+    await expect(_buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_escrow, "SellerNotAskWhitelisted");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_escrow, "SellerNotAskWhitelisted");
 
     await _escrow.whitelistedAskMaker(seller, true);
 
-    await _buyer.escrowMarketOffer(
-      offer as MarketOffer, 
+    await _buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await currency.balanceOf(_escrow)).to.equal(offer.terms.amount);
   });
@@ -130,17 +130,17 @@ describe("Escrow Market Offer", function () {
     await currency.mint(seller, rebateAmount);
 
     const _buyer = await kettle.connect(buyer);
-    await expect(_buyer.escrowMarketOffer(
-      offer as MarketOffer, 
+    await expect(_buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps)).to.be.revertedWithCustomError(_escrow, "SellerNotAskWhitelisted");
+    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_escrow, "SellerNotAskWhitelisted");
 
     await _escrow.whitelistedAskMaker(seller, true);
 
-    await _buyer.escrowMarketOffer(
-      offer as MarketOffer, 
+    await _buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
       signature
-    ).then(executeTakeSteps);
+    }).then(executeTakeSteps);
 
     expect(await currency.balanceOf(_escrow)).to.equal(BigInt(offer.terms.amount) + rebateAmount);
   });

@@ -34,6 +34,7 @@ export const LOAN_OFFER_TERMS_TYPE = [
 
 export const MARKET_OFFER_TYPE = {
   MarketOffer: [
+    { name: "kind",         type: "uint8"   },
     { name: "soft",         type: "bool"    },
     { name: "side",         type: "uint8"   },
     { name: "maker",        type: "address" },
@@ -52,6 +53,7 @@ export const MARKET_OFFER_TYPE = {
 
 export const LOAN_OFFER_TYPE = {
   LoanOffer: [
+    { name: "kind",         type: "uint8"   },
     { name: "soft",         type: "bool"    },
     { name: "side",         type: "uint8"   },
     { name: "maker",        type: "address" },

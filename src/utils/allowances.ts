@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { TestERC20__factory } from "../../typechain-types";
+import { TestERC20__factory } from "../types";
 
 export const currencyAllowance = async (
   owner: string,

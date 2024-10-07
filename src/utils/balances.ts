@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
-import { CollateralTerms } from "../types";
-import { TestERC20__factory, TestERC721__factory } from "../../typechain-types";
+import { TestERC20__factory, TestERC721__factory } from "../types";
 import { equalAddresses } from "./equalAddresses";
 
 export const currencyBalance = async (

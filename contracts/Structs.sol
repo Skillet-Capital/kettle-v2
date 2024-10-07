@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-enum LienStatus { CURRENT, DELINQUENT, DEFAULTED }
+enum OfferType { LOAN, MARKET }
 enum Criteria { SIMPLE, PROOF }
 enum Side { BID, ASK }
 
@@ -50,6 +50,7 @@ struct LoanOfferTerms {
 }
 
 struct LoanOffer {
+    OfferType kind;
     bool soft;
     Side side;
     address maker;
@@ -75,6 +76,7 @@ struct MarketOfferTerms {
 }
 
 struct MarketOffer {
+    OfferType kind;
     bool soft;
     Side side;
     address maker;
@@ -82,19 +84,6 @@ struct MarketOffer {
     Collateral collateral;
     MarketOfferTerms terms;
     FeeTerms fee;
-    uint256 expiration;
-    uint256 salt;
-}
-
-// ====================================
-//              PERMIT
-// ====================================
-
-struct Permit {
-    address taker;
-    address currency;
-    uint256 amount;
-    bytes32 offerHash;
     uint256 expiration;
     uint256 salt;
 }

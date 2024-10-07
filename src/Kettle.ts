@@ -22,6 +22,7 @@ import {
   MaxUint256,
   keccak256,
   solidityPacked,
+  AbiCoder
 } from "ethers";
 
 import type { 
@@ -39,15 +40,24 @@ import type {
   Numberish,
   Lien,
   LienStruct,
+  EscrowStruct,
   CurrentDebt,
   RepayAction,
   ClaimAction,
   Permit,
-  SignPermitAction,
   TakeOfferInput
 } from "./types";
 
-import { Criteria, Kettle__factory, Side } from "./types";
+import {
+  Criteria,
+  OfferType,
+  Side,
+  Kettle__factory,
+  LendingController__factory,
+  EscrowController__factory,
+  TestERC20__factory,
+  TestERC721__factory
+} from "./types";
 
 import {
   randomSalt,
@@ -57,12 +67,12 @@ import {
   collateralBalance,
   equalAddresses
 } from "./utils";
-import { EscrowController, EscrowController__factory, LendingController, LendingController__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
+  public iface: any;
 
   private provider: Provider;
   private signer?: Signer;
@@ -95,6 +105,8 @@ export class Kettle {
       _contractAddress,
       this.provider
     );
+
+    this.iface = Kettle__factory.createInterface();
   }
 
   public connect(signer: Signer) {
@@ -130,7 +142,8 @@ export class Kettle {
 
     const createOfferAction: CreateOfferAction = {
       type: "create",
-      payload: null,
+      offer: offer,
+      payload: await this._marketOfferPayload(offer),
       create: async (): Promise<OfferWithSignature> => {
         const signature = await this._signMarketOffer(offer, accountAddress);
 
@@ -163,7 +176,8 @@ export class Kettle {
 
     const createOfferAction: CreateOfferAction = {
       type: "create",
-      payload: null,
+      offer: offer,
+      payload: await this._loanOfferPayload(offer),
       create: async (): Promise<OfferWithSignature> => {
         const signature = await this._signLoanOffer(offer, accountAddress);
 
@@ -190,7 +204,7 @@ export class Kettle {
     const taker = accountAddress ?? (await signer.getAddress());
 
     const proceeds = BigInt(input.offer.terms.amount) - this.mulFee(input.offer.terms.amount, input.offer.fee.rate);
-    const approvalActions = await this._getTakeApprovalActionsV2(
+    const approvalActions = await this._getTakeApprovalActions(
       proceeds,
       taker,
       input
@@ -198,6 +212,30 @@ export class Kettle {
 
     const takeOfferAction: TakeOfferAction = {
       type: "take",
+      userOp: (input.lien && input.lienId) ? {
+        target: this.contractAddress,
+        data: this.iface.encodeFunctionData(
+          this.iface.getFunction("fulfillMarketOfferInLien"),
+          [
+            input.lienId,
+            input.lien,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      } : {
+        target: this.contractAddress,
+        data: this.iface.encodeFunctionData(
+          this.iface.getFunction("fulfillMarketOffer"),
+          [
+            input.tokenId!,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      },
       take: async () => {
         let txn;
         
@@ -205,14 +243,14 @@ export class Kettle {
           txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
             input.lienId,
             input.lien,
-            input.offer,
+            input.offer as MarketOffer,
             input.signature,
             input.proof ?? []
           );
         } else {
           txn = await this.contract.connect(signer).fulfillMarketOffer(
-            input.tokenId,
-            input.offer,
+            input.tokenId!,
+            input.offer as MarketOffer,
             input.signature,
             input.proof ?? []
           );
@@ -224,50 +262,6 @@ export class Kettle {
 
     return [...approvalActions, takeOfferAction];
   }
-
-  // public async takeMarketOfferInLien(
-  //   lienId: Numberish,
-  //   lien: Lien,
-  //   offer: MarketOffer,
-  //   signature: string,
-  //   proof?: string[],
-  //   accountAddress?: string
-  // ): Promise<(TakeOfferAction | ApprovalAction)[]> {
-
-  //   const signer = await this._getSigner(accountAddress);
-  //   const taker = accountAddress ?? (await signer.getAddress());
-
-  //   let approvalActions: ApprovalAction[] = [];
-  //   if (offer.side === Side.BID) {
-  //     const { debt } = await this.currentDebt(lien);
-  //     const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
-
-  //     if (BigInt(debt) > netAmount) {
-  //       const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - netAmount, 100));
-  //       approvalActions.push(..._approvalActions);
-  //     }
-  //   } else {
-  //     const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
-  //     approvalActions.push(..._approvalActions);
-  //   }
-
-  //   const takeOfferAction: TakeOfferAction = {
-  //     type: "take",
-  //     take: async () => {
-  //       const txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
-  //         lienId,
-  //         lien,
-  //         offer,
-  //         signature,
-  //         proof ?? []
-  //       );
-
-  //       return this._confirmTransaction(txn.hash);
-  //     }
-  //   } as const;
-
-  //   return [...approvalActions, takeOfferAction];
-  // }
 
   public async takeLoanOffer(
     input: TakeOfferInput,
@@ -281,21 +275,40 @@ export class Kettle {
       ? (input.offer as LoanOffer).terms.maxAmount
       : (input.offer as LoanOffer).terms.amount;
 
-    const approvalActions = await this._getTakeApprovalActionsV2(
+    const approvalActions = await this._getTakeApprovalActions(
       proceeds,
       taker,
       input
     );
 
-    // const approvalActions = await this._getTakeApprovalActions(
-    //   input.offer.side,
-    //   taker,
-    //   input.offer.terms,
-    //   input.offer.collateral
-    // );
-
     const takeOfferAction: TakeOfferAction = {
       type: "take",
+      userOp: (input.lien && input.lienId) ? {
+        target: this.contractAddress,
+        data: this.iface.encodeFunctionData(
+          this.iface.getFunction("fulfillLoanOfferInLien"),
+          [
+            input.lienId,
+            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
+            input.lien,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      } : {
+        target: this.contractAddress,
+        data: this.iface.encodeFunctionData(
+          this.iface.getFunction("fulfillLoanOffer"),
+          [
+            input.tokenId,
+            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      },
       take: async () => {
         let txn; 
         
@@ -304,13 +317,13 @@ export class Kettle {
             input.lienId,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
             input.lien,
-            input.offer,
+            input.offer as LoanOffer,
             input.signature,
             input.proof ?? []
           );
         } else {
           txn = await this.contract.connect(signer).fulfillLoanOffer(
-            input.tokenId,
+            input.tokenId!,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
             input.offer as LoanOffer,
             input.signature,
@@ -326,32 +339,42 @@ export class Kettle {
   }
 
   public async escrowMarketOffer(
-    offer: MarketOffer,
-    signature: string,
+    input: TakeOfferInput,
     accountAddress?: string
   ): Promise<(TakeOfferAction | ApprovalAction)[]> {
 
     const signer = await this._getSigner(accountAddress);
     const taker = accountAddress ?? (await signer.getAddress());
 
-    if (offer.side === Side.BID) {
+    if (input.offer.side === Side.BID) {
       throw new Error("Invalid side: cannot take side bid");
     }
 
     const approvalActions = await this._getTakeApprovalActions(
-      offer.side,
+      0,
       taker,
-      offer.terms,
-      offer.collateral
+      input
     );
 
     const takeOfferAction: TakeOfferAction = {
       type: "take",
+      userOp: {
+        target: this.contractAddress,
+        data: this.iface.encodeFunctionData(
+          this.iface.getFunction("escrowMarketOffer"),
+          [
+            input.offer.collateral.identifier,
+            input.offer as MarketOffer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      },
       take: async () => {
         const txn = await this.contract.connect(signer).escrowMarketOffer(
-          offer.collateral.identifier,
-          offer,
-          signature,
+          input.offer.collateral.identifier,
+          input.offer as MarketOffer,
+          input.signature,
           []
         );
 
@@ -361,51 +384,6 @@ export class Kettle {
 
     return [...approvalActions, takeOfferAction];
   }
-
-  // public async takeLoanOfferInLien(
-  //   lienId: Numberish,
-  //   amount: Numberish,
-  //   lien: Lien,
-  //   offer: LoanOffer,
-  //   signature: string,
-  //   proof?: string[],
-  //   accountAddress?: string
-  // ): Promise<(TakeOfferAction | ApprovalAction)[]> {
-
-  //   const signer = await this._getSigner(accountAddress);
-  //   const taker = accountAddress ?? (await signer.getAddress());
-
-  //   const approvalActions: ApprovalAction[] = [];
-  //   if (offer.side === Side.BID) {
-  //     const { debt } = await this.currentDebt(lien);
-
-  //     if (BigInt(debt) > BigInt(amount)) {
-  //       const _approvalActions = await this._erc20Approvals(taker, lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(amount), 100));
-  //       approvalActions.push(..._approvalActions);
-  //     }
-  //   } else {
-  //     const _approvalActions = await this._erc20Approvals(taker, offer.terms.currency, offer.terms.amount);
-  //     approvalActions.push(..._approvalActions);
-  //   }
-
-  //   const takeOfferAction: TakeOfferAction = {
-  //     type: "take",
-  //     take: async () => {
-  //       const txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
-  //         lienId,
-  //         amount ?? offer.terms.maxAmount,
-  //         lien,
-  //         offer,
-  //         signature,
-  //         proof ?? []
-  //       );
-
-  //       return this._confirmTransaction(txn.hash);
-  //     }
-  //   } as const;
-
-  //   return [...approvalActions, takeOfferAction];
-  // }
 
   // ==============================================
   //                LENDING ACTIONS
@@ -480,6 +458,7 @@ export class Kettle {
   ): Promise<MarketOffer> {
 
     return {
+      kind: OfferType.MARKET,
       soft: input.soft ?? false,
       side: input.side,
       maker,
@@ -513,6 +492,7 @@ export class Kettle {
   ): Promise<LoanOffer> {
 
     return {
+      kind: OfferType.LOAN,
       soft: input.soft ?? false,
       side: input.side,
       maker,
@@ -562,6 +542,13 @@ export class Kettle {
     if (allowance < BigInt(amount)) {
       approvalActions.push({
         type: "approval",
+        userOp: {
+          target: currency,
+          data: TestERC20__factory.createInterface().encodeFunctionData(
+            "approve", 
+            [operator, useMax ? MaxUint256 : BigInt(amount) - allowance]
+          )
+        },
         approve: async () => {
           const contract = TestERC20__factory.connect(currency, signer);
 
@@ -589,6 +576,10 @@ export class Kettle {
     if (!approved) {
       approvalActions.push({
         type: "approval",
+        userOp: {
+          target: collection,
+          data: TestERC721__factory.createInterface().encodeFunctionData("setApprovalForAll", [operator, true])
+        },
         approve: async () => {
           const contract = TestERC721__factory.connect(collection, signer);
           const txn = await contract.setApprovalForAll(operator, true);
@@ -613,192 +604,84 @@ export class Kettle {
     const approvalActions: ApprovalAction[] = [];
 
     if (side === Side.BID) {
-      const allowance = await currencyAllowance(
+      const _approvalActions = await this._erc20Approvals(
         user,
         terms.currency,
-        operator,
-        this.provider
+        BigInt(terms.amount), 
+        true
       );
 
-      if (allowance < BigInt(terms.amount)) {
-        approvalActions.push({
-          type: "approval",
-          approve: async () => {
-            const currency = TestERC20__factory.connect(terms.currency, signer);
-            const txn = await currency.approve(operator, MaxUint256);
-            return this._confirmTransaction(txn.hash);
-          }
-        })
-      }
-
-      return approvalActions;
+      approvalActions.push(..._approvalActions);
     
     } else {
-      const approved = await collateralApprovals(
+      const _approvalActions = await this._erc721Approvals(
         user,
-        collateral.collection,
-        operator,
-        this.provider
+        collateral.collection
       );
-  
-      if (!approved) {
-        approvalActions.push({
-          type: "approval",
-          approve: async () => {
-            const contract = TestERC721__factory.connect(collateral.collection, signer);
-            const tx = await contract.setApprovalForAll(operator, true);
-            return this._confirmTransaction(tx.hash);
-          }
-        })
-      }
+
+      approvalActions.push(..._approvalActions);
 
       if (terms.rebate && BigInt(terms.rebate) > 0) {
-        const allowance = await currencyAllowance(
+        const rebateAmount = this.mulFee(terms.amount, terms.rebate);
+        const _approvalActions = await this._erc20Approvals(
           user,
           terms.currency,
-          operator,
-          this.provider
+          rebateAmount
         );
 
-        const rebateAmount = this.mulFee(terms.amount, terms.rebate);
-        if (allowance < rebateAmount) {
-          approvalActions.push({
-            type: "approval",
-            approve: async () => {
-              const currency = TestERC20__factory.connect(terms.currency, signer);
-              const txn = await currency.approve(operator, rebateAmount);
-              return this._confirmTransaction(txn.hash);
-            }
-          })
-        }
+        approvalActions.push(..._approvalActions);
       }
-
-      return approvalActions;
     }
+
+    return approvalActions;
   }
 
-  private async _getTakeApprovalActionsV2(
+  private async _getTakeApprovalActions(
     proceeds: Numberish,
     taker: string,
     input: TakeOfferInput
   ): Promise<ApprovalAction[]> {
 
-    const signer = await this._getSigner(taker);
-    const operator = await this.contract.conduit();
-
     const approvalActions: ApprovalAction[] = [];
 
     if (input.offer.side === Side.BID) {
 
+      // not in lien or is hard , need to approve collateral
       if (!(input.lien && input.lienId)) {
-        const approved = await collateralApprovals(
-          taker,
-          input.offer.collateral.collection,
-          operator,
-          this.provider
+        const _approvalActions = await this._erc721Approvals(
+          taker, 
+          input.offer.collateral.collection
         );
-    
-        if (!approved) {
-          approvalActions.push({
-            type: "approval",
-            approve: async () => {
-              const contract = TestERC721__factory.connect(input.offer.collateral.collection, signer);
-              const tx = await contract.setApprovalForAll(operator, true);
-              return this._confirmTransaction(tx.hash);
-            }
-          })
-        }
+
+        approvalActions.push(..._approvalActions);
       }
 
+      // in lien,might need to approve extra amount
       if (input.lien && input.lienId) {
         const { debt } = await this.currentDebt(input.lien);
 
         if (BigInt(debt) > BigInt(proceeds)) {
-          const _approvalActions = await this._erc20Approvals(taker, input.lien.currency, this.safeFactorMul(BigInt(debt) - BigInt(proceeds), 250));
+          const _approvalActions = await this._erc20Approvals(
+            taker, 
+            input.lien.currency, 
+            this.safeFactorMul(BigInt(debt) - BigInt(proceeds), 250)
+          );
           approvalActions.push(..._approvalActions);
         }
       }
-
-      return approvalActions;
     
+    // taking ask, needs to approve currency
     } else {
-      const allowance = await currencyAllowance(
-        taker,
-        input.offer.terms.currency,
-        operator,
-        this.provider
+      const _approvalActions = await this._erc20Approvals(
+        taker, 
+        input.offer.terms.currency, 
+        input.offer.terms.amount
       );
-  
-      if (allowance < BigInt(input.offer.terms.amount)) {
-        approvalActions.push({
-          type: "approval",
-          approve: async () => {
-            const currency = TestERC20__factory.connect(input.offer.terms.currency, signer);
-            const txn = await currency.approve(operator, BigInt(input.offer.terms.amount) - allowance);
-            return this._confirmTransaction(txn.hash);
-          }
-        })
-      }
 
-      return approvalActions;
+      approvalActions.push(..._approvalActions);
     }
-  }
 
-  private async _getTakeApprovalActions(
-    side: Side,
-    user: string,
-    terms: GenericOfferTerms,
-    collateral: CollateralTerms
-  ): Promise<ApprovalAction[]> {
-
-    const signer = await this._getSigner(user);
-    const operator = await this.contract.conduit();
-
-    const approvalActions: ApprovalAction[] = [];
-
-    if (side === Side.BID) {
-
-      const approved = await collateralApprovals(
-        user,
-        collateral.collection,
-        operator,
-        this.provider
-      );
-  
-      if (!approved) {
-        approvalActions.push({
-          type: "approval",
-          approve: async () => {
-            const contract = TestERC721__factory.connect(collateral.collection, signer);
-            const tx = await contract.setApprovalForAll(operator, true);
-            return this._confirmTransaction(tx.hash);
-          }
-        })
-      }
-
-      return approvalActions;
-    
-    } else {
-      const allowance = await currencyAllowance(
-        user,
-        terms.currency,
-        operator,
-        this.provider
-      );
-  
-      if (allowance < BigInt(terms.amount)) {
-        approvalActions.push({
-          type: "approval",
-          approve: async () => {
-            const currency = TestERC20__factory.connect(terms.currency, signer);
-            const txn = await currency.approve(operator, BigInt(terms.amount) - allowance);
-            return this._confirmTransaction(txn.hash);
-          }
-        })
-      }
-
-      return approvalActions;
-    }
+    return approvalActions;
   }
 
   // ==============================================
@@ -890,32 +773,25 @@ export class Kettle {
     return signer.signTypedData(domain, LOAN_OFFER_TYPE, offer);
   }
 
-  private async _signPermit(permit: Permit, accountAddress?: string): Promise<string> {
-    const signer = await this._getSigner(accountAddress);
+  private async _marketOfferPayload(offer: MarketOffer): Promise<string> {
     const domain = await this._getDomainData();
 
-    return signer.signTypedData(domain, PERMIT_TYPE, permit);
+    return TypedDataEncoder.getPayload(
+      domain, 
+      MARKET_OFFER_TYPE,
+      offer
+    );
   }
 
-  // ==============================================
-  //                    PAYMENTS
-  // ==============================================
+  private async _loanOfferPayload(offer: LoanOffer): Promise<string> {
+    const domain = await this._getDomainData();
 
-  // public async takeMarketOfferPayments(
-  //   offer: MarketOffer
-  // ): Promise<string[]> {
-  //   const 
-
-  //   const txnHashes: string[] = [];
-  //   for (const payment of payments) {
-  //     const txn = await this.lendingController.connect(signer).pay(payment);
-  //     txnHashes.push(txn.hash);
-  //   }
-
-  //   return txnHashes;
-  // }
-
-  // )
+    return TypedDataEncoder.getPayload(
+      domain, 
+      LOAN_OFFER_TYPE,
+      offer
+    );
+  }
 
   // ==============================================
   //                    UTILS
@@ -930,38 +806,13 @@ export class Kettle {
   }
 
   public hashLien(lien: Lien): string {
-    return keccak256(
-      solidityPacked(
-        [
-          "address",  // borrower
-          "address",  // collection
-          "uint256",  // tokenId
-          "address",  // currency
-          "uint256",  // principal
-          "uint256",  // rate
-          "uint256",  // defaultRate
-          "uint256",  // duration
-          "uint256",  // gracePeriod
-          "address",  // recipient
-          "uint256",  // fee
-          "uint256"   // startTime
-        ],
-        [
-          lien.borrower, 
-          lien.collection, 
-          lien.tokenId, 
-          lien.currency, 
-          lien.principal, 
-          lien.rate, 
-          lien.defaultRate, 
-          lien.duration, 
-          lien.gracePeriod, 
-          lien.recipient, 
-          lien.fee, 
-          lien.startTime
-        ]
-      )
-    );
+    // TODO: implement abi coder
+    return "";
+  }
+
+  public hashEscrow(escrow: EscrowStruct): string {
+    // TODO: implement abi coder
+    return "";
   }
 
   public blocktime(): Promise<any> {
@@ -981,52 +832,3 @@ export class Kettle {
     return (BigInt(amount) * (10_000n + BigInt(factor))) / 10_000n;
   }
 }
-
-
-/**
-  public async createPermit(
-    type: "market" | "loan",
-    offer: MarketOffer | LoanOffer,
-    accountAddress?: string
-  ): Promise<SignPermitAction[]> {
-
-    const signer = await this._getSigner(accountAddress);
-    const taker = accountAddress ?? (await signer.getAddress());
-
-    let offerHash: string;
-    if (type === "market") {
-      offerHash = this.hashMarketOffer(offer as MarketOffer);
-    } else if (type === "loan") {
-      offerHash = this.hashLoanOffer(offer as LoanOffer);
-    } else {
-      throw new Error("Invalid offer type: expected 'market' or 'loan'");
-    }
-
-    const signPermitAction: SignPermitAction = {
-      type: "permit",
-      payload: null,
-      permit: async () => {
-        const permit: Permit = {
-          taker,
-          currency: offer.terms.currency,
-          amount: offer.terms.amount,
-          offerHash: offerHash,
-          salt: randomSalt(),
-          expiration: await this.blocktime() + (60 * 10), // 10 minutes
-          nonce: await this.contract.nonces(taker),
-        }
-
-        const signature = await this._signPermit(permit, accountAddress);
-
-        return {
-          permit,
-          signature
-        }
-      }
-    } as const;
-
-    return [signPermitAction];
-  }
-
-
- */

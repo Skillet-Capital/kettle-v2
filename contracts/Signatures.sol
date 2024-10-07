@@ -6,9 +6,9 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 
 import { ERC6492DeployFailed, InvalidSignature, InvalidVParameter } from "./Errors.sol";
 
-import { Collateral, FeeTerms, LoanOfferTerms, LoanOffer, MarketOfferTerms, MarketOffer, Permit } from "./Structs.sol";
+import { Collateral, FeeTerms, LoanOfferTerms, LoanOffer, MarketOfferTerms, MarketOffer } from "./Structs.sol";
 
-contract Signatures is Initializable {
+contract Signatures {
     bytes32 private constant _ERC6492_DETECTION_SUFFIX = 0x6492649264926492649264926492649264926492649264926492649264926492;
 
     bytes32 private _EIP_712_DOMAIN_TYPEHASH;
@@ -22,16 +22,13 @@ contract Signatures is Initializable {
     bytes32 private _MARKET_OFFER_TERMS_TYPEHASH;
     bytes32 private _MARKET_OFFER_TYPEHASH;
 
-    bytes32 private _PERMIT_TYPEHASH;
-
     string private constant _NAME = "Kettle";
     string private constant _VERSION = "1";
 
     mapping(address => uint256) public nonces;
     uint256[50] private _gap;
 
-    // @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    function __Signatures_init() internal initializer {
+    function __Signatures_init() internal {
         (
             _EIP_712_DOMAIN_TYPEHASH,
             _COLLATERAL_TYPEHASH,
@@ -39,8 +36,7 @@ contract Signatures is Initializable {
             _LOAN_OFFER_TERMS_TYPEHASH,
             _LOAN_OFFER_TYPEHASH,
             _MARKET_OFFER_TERMS_TYPEHASH,
-            _MARKET_OFFER_TYPEHASH,
-            _PERMIT_TYPEHASH
+            _MARKET_OFFER_TYPEHASH
         ) = _createTypeHashes();
     }
 
@@ -50,10 +46,6 @@ contract Signatures is Initializable {
 
     function hashMarketOffer(MarketOffer calldata offer) external view returns (bytes32) {
         return _hashMarketOffer(offer);
-    }
-
-    function hashPermit(Permit calldata permit) external view returns (bytes32) {
-        return _hashPermit(permit);
     }
 
     function _createTypeHashes()
@@ -66,8 +58,7 @@ contract Signatures is Initializable {
             bytes32 loanOfferTermsTypehash,
             bytes32 loanOfferTypehash,
             bytes32 marketOfferTermsTypehash,
-            bytes32 marketOfferTypehash,
-            bytes32 permitTypehash
+            bytes32 marketOfferTypehash
         ) 
     {
         eip712DomainTypehash = keccak256(
@@ -118,6 +109,7 @@ contract Signatures is Initializable {
         loanOfferTypehash = keccak256(
             bytes.concat(
                 "LoanOffer(",
+                "uint8 kind,",
                 "bool soft,",
                 "uint8 side,",
                 "address maker,",
@@ -151,6 +143,7 @@ contract Signatures is Initializable {
         marketOfferTypehash = keccak256(
             bytes.concat(
                 "MarketOffer(",
+                "uint8 kind,",
                 "bool soft,",
                 "uint8 side,",
                 "address maker,",
@@ -165,20 +158,6 @@ contract Signatures is Initializable {
                 collateralTypestring,
                 feeTermsTypestring,
                 marketOfferTermsTypestring
-            )
-        );
-
-        permitTypehash = keccak256(
-            bytes.concat(
-                "Permit(",
-                "address taker,",
-                "address currency,",
-                "uint256 amount,",
-                "bytes32 offerHash,",
-                "uint256 expiration,",
-                "uint256 salt,",
-                "uint256 nonce",
-                ")"
             )
         );
     }
@@ -253,6 +232,7 @@ contract Signatures is Initializable {
             keccak256(
                 abi.encode(
                     _LOAN_OFFER_TYPEHASH,
+                    offer.kind,
                     offer.soft,
                     offer.side,
                     offer.maker,
@@ -291,6 +271,7 @@ contract Signatures is Initializable {
             keccak256(
                 abi.encode(
                     _MARKET_OFFER_TYPEHASH,
+                    offer.kind,
                     offer.soft,
                     offer.side,
                     offer.maker,
@@ -301,24 +282,6 @@ contract Signatures is Initializable {
                     offer.expiration,
                     offer.salt,
                     nonces[offer.maker]
-                )
-            );
-    }
-
-    function _hashPermit(
-        Permit calldata permit
-    ) internal view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    _PERMIT_TYPEHASH,
-                    permit.taker,
-                    permit.currency,
-                    permit.amount,
-                    permit.offerHash,
-                    permit.expiration,
-                    permit.salt,
-                    nonces[permit.taker]
                 )
             );
     }

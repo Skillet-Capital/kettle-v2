@@ -1,0 +1,16 @@
+{
+  "Kettle#EscrowControllerImplementation": "0x886C82D785617040320d2F8A9c855D0d88e75e75",
+  "Kettle#KettleImplementation": "0xB241eA55a39F5314f95555769d117C714214120B",
+  "Kettle#LenderReceipt": "0x56EC63fAdA8F5f50d40fCE6b8F6Ba321a7c481a7",
+  "Kettle#LendingControllerImplementation": "0x8616724CD90dBB491D7469ECC6028C3Bba59Bab7",
+  "Kettle#TransferConduit": "0x5dFc99A4aa19C0f2ddbcb9BB8DDEA706A78C71fb",
+  "Kettle#EscrowControllerProxy": "0x5aBe43c199E67cA55061fc90fd29d8F0B4403175",
+  "Kettle#KettleProxy": "0x4485c9b693B82164b5cFc111D223490d7d3B6779",
+  "Kettle#LendingControllerProxy": "0x21FD679356943d9250a7738442cFBaA24773A419",
+  "Kettle#EscrowController": "0x5aBe43c199E67cA55061fc90fd29d8F0B4403175",
+  "Kettle#Kettle": "0x4485c9b693B82164b5cFc111D223490d7d3B6779",
+  "Kettle#LendingController": "0x21FD679356943d9250a7738442cFBaA24773A419",
+  "Kettle#EscrowControllerProxyAdmin": "0xb5e2aE9bEF742e435C364967eAb8bd458c5B6e12",
+  "Kettle#KettleProxyAdmin": "0xC3CC8cD3a9De1cF2E91326e7A72e0aaC7bb4f4AE",
+  "Kettle#LendingControllerProxyAdmin": "0x8efEFb5a04f0A5aD779d0C05847C7243028Ed89a"
+}
