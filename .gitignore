@@ -4,6 +4,7 @@ node_modules
 # Hardhat files
 /cache
 /artifacts
+/storageLayout
 Flattened.sol
 
 # TypeChain files
@@ -13,6 +14,8 @@ Flattened.sol
 # solidity-coverage files
 /coverage
 /coverage.json
+testMatrix.json
+mochaOutput.json
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
