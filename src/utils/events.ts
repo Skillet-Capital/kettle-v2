@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";
+import { Provider } from "ethers";
 import { Log, LogDescription, TransactionReceipt } from "ethers";
 import { LendingController__factory, Numberish, Lien, Escrow } from "../types";
 
@@ -12,13 +12,13 @@ interface EscrowLog {
   escrow: Escrow;
 }
 
-export async function getReceipt(txnHash: string | null): Promise<TransactionReceipt> {
+export async function getReceipt(provider: Provider, txnHash: string | null): Promise<TransactionReceipt> {
   if (!txnHash) {
     throw new Error("Transaction hash was not properly created.");
   }
 
   // get the logs from the transaction hash
-  const receipt = await ethers.provider.getTransactionReceipt(txnHash);
+  const receipt = await provider.getTransactionReceipt(txnHash);
 
   if (!receipt) {
     throw new Error("Transaction receipt was not properly created.");

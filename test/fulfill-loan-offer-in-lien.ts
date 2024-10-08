@@ -6,8 +6,8 @@ import { parseUnits, Signer } from "ethers";
 
 import { LendingController, TestERC20, TestERC721 } from "../typechain-types"; 
 
-import { generateProof, generateRoot, getReceipt, parseLienOpenedLog, randomSalt } from "../src/utils";
-import { Criteria, Kettle, KettleContract, Lien, LoanOffer, MarketOffer, Numberish, Side } from "../src";
+import { generateRoot, getReceipt, parseLienOpenedLog } from "../src/utils";
+import { Kettle, KettleContract, Lien, LoanOffer, Numberish, Side } from "../src";
 import { DAY_SECONDS, executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
@@ -78,7 +78,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _borrower = await kettle.connect(borrower);
 
@@ -86,9 +86,9 @@ describe("Fulfill Loan Offer In Lien", function () {
       tokenId,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
-    const receipt = await getReceipt(txnHash);
+    const receipt = await getReceipt(borrower.provider!, txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
 
     await time.increase(BigInt(lien.duration) / 2n)
@@ -112,7 +112,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -123,7 +123,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "InvalidLien");
+    }, refinancer).then(s => executeTakeSteps(lender, s))).to.be.revertedWithCustomError(_lending, "InvalidLien");
 
     await time.increase(BigInt(lien.duration) + BigInt(lien.gracePeriod) + BigInt(1));
     await expect(_refinancer.takeLoanOffer({
@@ -132,7 +132,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
+    }, refinancer).then(s => executeTakeSteps(refinancer, s))).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
   })
 
   it("should reject refinance borrower offer (currency mismatch)", async function () {
@@ -153,7 +153,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -164,7 +164,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CurrencyMismatch");
+    }, refinancer).then(s => executeTakeSteps(refinancer, s))).to.be.revertedWithCustomError(_kettle, "CurrencyMismatch");
   })
 
   it("should reject refinance borrower offer (collection mismatch)", async function () {
@@ -185,7 +185,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -196,7 +196,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CollectionMismatch");
+    }, refinancer).then(s => executeTakeSteps(refinancer, s))).to.be.revertedWithCustomError(_kettle, "CollectionMismatch");
   })
 
   it("should reject refinance borrower offer (maker != borrower)", async function () {
@@ -217,7 +217,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -228,7 +228,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "MakerIsNotBorrower");
+    }, refinancer).then(s => executeTakeSteps(refinancer, s))).to.be.revertedWithCustomError(_kettle, "MakerIsNotBorrower");
   });
 
 
@@ -250,7 +250,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -261,7 +261,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
+    }, refinancer).then(s => executeTakeSteps(refinancer, s))).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
   })
 
   it("refinancer should refinance borrower offer", async function () {
@@ -282,7 +282,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);
@@ -295,7 +295,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps);
+    }, refinancer).then(s => executeTakeSteps(refinancer, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -325,7 +325,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, refinancer).then(s => executeCreateSteps(refinancer, s));
 
     await currency.mint(refinancer, offer.terms.amount);
 
@@ -337,7 +337,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "TakerIsNotBorrower");
+    }, lender).then(s => executeTakeSteps(lender, s))).to.be.revertedWithCustomError(_kettle, "TakerIsNotBorrower");
   })
 
   it("borrower should take refinance offer (debt < offer)", async function () {
@@ -358,7 +358,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, refinancer).then(s => executeCreateSteps(refinancer, s));
 
     await currency.mint(refinancer, offer.terms.amount);
 
@@ -372,7 +372,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -402,7 +402,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, refinancer).then(s => executeCreateSteps(refinancer, s));
 
     await currency.mint(refinancer, offer.terms.amount);
 
@@ -416,7 +416,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
@@ -444,7 +444,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, refinancer).then(s => executeCreateSteps(refinancer, s));
 
     await currency.mint(refinancer, offer.terms.amount);
 
@@ -459,7 +459,7 @@ describe("Fulfill Loan Offer In Lien", function () {
       lien,
       offer,
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 

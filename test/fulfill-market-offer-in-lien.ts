@@ -6,8 +6,8 @@ import { MaxUint256, parseUnits, Signer } from "ethers";
 
 import { TestERC20, TestERC721 } from "../typechain-types"; 
 
-import { generateProof, generateRoot, getReceipt, parseLienOpenedLog, randomSalt } from "../src/utils";
-import { Criteria, Kettle, KettleContract, Lien, LoanOffer, MarketOffer, Numberish, Side } from "../src";
+import { generateRoot, getReceipt, parseLienOpenedLog } from "../src/utils";
+import { Kettle, KettleContract, Lien, LoanOffer, MarketOffer, Numberish, Side } from "../src";
 import { DAY_SECONDS, executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
@@ -72,7 +72,7 @@ describe("Fulfill Market Offer In Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _seller = await kettle.connect(seller);
 
@@ -80,9 +80,9 @@ describe("Fulfill Market Offer In Lien", function () {
       tokenId,
       offer: offer as LoanOffer,
       signature
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
-    const receipt = await getReceipt(txnHash);
+    const receipt = await getReceipt(seller.provider!, txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
 
     await time.increase(BigInt(lien.duration) / 2n)
@@ -102,7 +102,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
 
@@ -112,7 +112,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "InsufficientAskAmount");
   });
   
   it("buyer should take ask in lien", async function () {
@@ -129,7 +129,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
 
@@ -147,7 +147,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: { ...offer, soft: true } as MarketOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
     await _buyer.takeMarketOffer({
       tokenId: lien.tokenId,
@@ -155,7 +155,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-  }).then(executeTakeSteps);
+    }, buyer).then(s => executeTakeSteps(buyer, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
 
@@ -186,7 +186,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(lender);
 
@@ -202,7 +202,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-    }).then(executeTakeSteps);
+    }, lender).then(s => executeTakeSteps(lender, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     
@@ -232,7 +232,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
     await currency.mint(buyer, offer.terms.amount);
 
@@ -245,7 +245,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
@@ -271,7 +271,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
     await currency.mint(buyer, offer.terms.amount);
 
@@ -284,7 +284,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
@@ -309,7 +309,7 @@ describe("Fulfill Market Offer In Lien", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
     await currency.mint(seller, offer.terms.amount);
     await currency.mint(buyer, offer.terms.amount);
@@ -323,7 +323,7 @@ describe("Fulfill Market Offer In Lien", function () {
       lien,
       offer: offer as MarketOffer,
       signature
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _seller.currentDebt(lien);
     const marketFee = kettle.mulFee(offer.terms.amount, offer.fee.rate);

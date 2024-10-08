@@ -1,14 +1,15 @@
-import { ApprovalAction, ClaimAction, CreateOfferAction, OfferWithSignature, RepayAction, TakeOfferAction } from "../src";
+import { OfferWithSignature, SignStep, SendStep, StepAction } from "../src";
+import { Signer } from "ethers";
 
 export const DAY_SECONDS = 60 * 60 * 24;
 
-export async function executeCreateSteps(steps: (CreateOfferAction | ApprovalAction)[]): Promise<OfferWithSignature> {
+export async function executeCreateSteps(signer: Signer, steps: (SignStep | SendStep)[]): Promise<OfferWithSignature> {
   let output: OfferWithSignature | null = null;
   for (const step of steps) {
-    if (step.type === "approval") {
-      await step.approve();
-    } else if (step.type === "create") {
-      output = await step.create();
+    if (step.action === StepAction.SEND) {
+      await step.send(signer);
+    } else if (step.action === StepAction.SIGN) {
+      output = await step.sign(signer);
     }
   }
 
@@ -21,13 +22,15 @@ export async function executeCreateSteps(steps: (CreateOfferAction | ApprovalAct
   return { offer, signature };
 }
 
-export async function executeTakeSteps(steps: (TakeOfferAction | ApprovalAction)[]): Promise<string> {
+export async function executeTakeSteps(signer: Signer, steps: (SignStep | SendStep)[]): Promise<string> {
   let txnHash: string | null = null;
   for (const step of steps) {
-    if (step.type === "approval") {
-      await step.approve();
-    } else if (step.type === "take") {
-      txnHash = await step.take();
+    if (step.action === StepAction.SEND) {
+      if (step.type.startsWith("take") || step.type.startsWith("escrow")) {
+        txnHash = await step.send(signer);
+      } else {
+        await step.send(signer);
+      }
     }
   }
 
@@ -38,13 +41,15 @@ export async function executeTakeSteps(steps: (TakeOfferAction | ApprovalAction)
   return txnHash;
 }
 
-export async function executeRepaySteps(steps: (RepayAction | ApprovalAction)[]): Promise<string> {
+export async function executeRepaySteps(signer: Signer, steps: (SignStep | SendStep)[]): Promise<string> {
   let txnHash: string | null = null;
   for (const step of steps) {
-    if (step.type === "approval") {
-      await step.approve();
-    } else if (step.type === "repay") {
-      txnHash = await step.repay();
+    if (step.action === StepAction.SEND) {
+      if (step.type.startsWith("repay")) {
+        txnHash = await step.send(signer);
+      } else {
+        await step.send(signer);
+      }
     }
   }
 
@@ -55,13 +60,15 @@ export async function executeRepaySteps(steps: (RepayAction | ApprovalAction)[])
   return txnHash;
 }
 
-export async function executeClaimSteps(steps: (ClaimAction | ApprovalAction)[]): Promise<string> {
+export async function executeClaimSteps(signer: Signer, steps: (SignStep | SendStep)[]): Promise<string> {
   let txnHash: string | null = null;
   for (const step of steps) {
-    if (step.type === "approval") {
-      await step.approve();
-    } else if (step.type === "claim") {
-      txnHash = await step.claim();
+    if (step.action === StepAction.SEND) {
+      if (step.type.startsWith("claim")) {
+        txnHash = await step.send(signer);
+      } else {
+        await step.send(signer);
+      }
     }
   }
 

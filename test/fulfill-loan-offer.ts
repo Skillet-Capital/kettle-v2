@@ -69,7 +69,7 @@ describe("Fulfill Loan Offer", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _lender = await kettle.connect(lender);
 
@@ -78,22 +78,22 @@ describe("Fulfill Loan Offer", function () {
       tokenId: tokenId + 1,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }, lender).then(s => executeTakeSteps(lender, s))).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if soft is true
     await expect(_lender.takeLoanOffer({
       tokenId,
       offer: { ...offer, soft: true } as LoanOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }, lender).then(s => executeTakeSteps(lender, s))).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
     const txnHash = await _lender.takeLoanOffer({
       tokenId,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, lender).then(s => executeTakeSteps(lender, s));
 
-    const receipt = await getReceipt(txnHash);
+    const receipt = await getReceipt(borrower.provider!, txnHash);
     const { lienId } = parseLienOpenedLog(receipt);
 
     expect(await collection.ownerOf(tokenId)).to.equal(_lending);
@@ -121,7 +121,7 @@ describe("Fulfill Loan Offer", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _borrower = await kettle.connect(borrower);
 
@@ -130,7 +130,7 @@ describe("Fulfill Loan Offer", function () {
       tokenId: tokenId + 1,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if amount is too high
     await expect(_borrower.takeLoanOffer({
@@ -138,7 +138,7 @@ describe("Fulfill Loan Offer", function () {
       amount: BigInt(offer.terms.amount) * 2n,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
 
     // should reject if amount is too low
     await expect(_borrower.takeLoanOffer({
@@ -146,13 +146,13 @@ describe("Fulfill Loan Offer", function () {
       amount: 0,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InvalidLoanAmount");
     
     await _borrower.takeLoanOffer({
       tokenId,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
     expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
@@ -169,7 +169,7 @@ describe("Fulfill Loan Offer", function () {
       tokenId,
       offer: offer as LoanOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
   });
 
   it("should take bid offer (PROOF)", async function () {
@@ -190,7 +190,7 @@ describe("Fulfill Loan Offer", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _borrower = await kettle.connect(borrower);
 
@@ -199,7 +199,7 @@ describe("Fulfill Loan Offer", function () {
       tokenId,
       offer: offer as LoanOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     const proof = generateProof(tokens, tokenId);
 
@@ -209,14 +209,14 @@ describe("Fulfill Loan Offer", function () {
       offer: offer as LoanOffer, 
       signature,
       proof: [randomSalt(), randomSalt(), randomSalt()]
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     await _borrower.takeLoanOffer({
       tokenId,
       offer: offer as LoanOffer, 
       signature,
       proof
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
     expect(await collection.ownerOf(tokenId)).to.equal(_lending);
     expect(await currency.balanceOf(lender)).to.equal(0);
@@ -234,6 +234,6 @@ describe("Fulfill Loan Offer", function () {
       offer: offer as LoanOffer, 
       signature,
       proof
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
+    }, borrower).then(s => executeTakeSteps(borrower, s))).to.be.revertedWithCustomError(_kettle, "InsufficientOffer");
   });
 });

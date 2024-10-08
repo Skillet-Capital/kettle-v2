@@ -30,7 +30,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
     LendingController public lending;
     EscrowController public escrow;
 
-    uint256[] private _gap;
+    uint256[50] private _gap;
 
     function __Kettle_init(
         address conduitController,

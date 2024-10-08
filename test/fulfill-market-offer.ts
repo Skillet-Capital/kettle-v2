@@ -63,7 +63,7 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: 0
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
 
@@ -72,7 +72,7 @@ describe("Fulfill Market Offer", function () {
       tokenId: tokenId,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferExpired");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "OfferExpired");
   });
 
   it("should reject if offer is cancelled", async function () {
@@ -87,7 +87,7 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
 
@@ -98,7 +98,7 @@ describe("Fulfill Market Offer", function () {
       tokenId: tokenId,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
   });
   
   it("buyer should take ask offer", async function () {
@@ -113,7 +113,7 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
 
@@ -122,20 +122,20 @@ describe("Fulfill Market Offer", function () {
       tokenId: tokenId + 1,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "InvalidToken");
 
     // should reject if soft is true
     await expect(_buyer.takeMarketOffer({
       tokenId: tokenId,
       offer: { ...offer, soft: true } as MarketOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
 
     await _buyer.takeMarketOffer({
       tokenId: tokenId,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, buyer).then(s => executeTakeSteps(buyer, s));
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 
@@ -158,7 +158,7 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
     const _seller = await kettle.connect(seller);
 
@@ -167,13 +167,13 @@ describe("Fulfill Market Offer", function () {
       tokenId: tokenId + 1,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidToken");
+    }, seller).then(s => executeTakeSteps(seller, s))).to.be.revertedWithCustomError(_kettle, "InvalidToken");
     
     await _seller.takeMarketOffer({
       tokenId: tokenId,
       offer: offer as MarketOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 
@@ -195,7 +195,7 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
     const _seller = await kettle.connect(seller);
 
@@ -204,7 +204,7 @@ describe("Fulfill Market Offer", function () {
       tokenId,
       offer: offer as MarketOffer, 
       signature,
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }, seller).then(s => executeTakeSteps(seller, s))).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     const proof = generateProof(tokens, tokenId);
 
@@ -214,14 +214,14 @@ describe("Fulfill Market Offer", function () {
       offer: offer as MarketOffer, 
       signature,
       proof: [randomSalt(), randomSalt(), randomSalt()]
-    }).then(executeTakeSteps)).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
+    }, seller).then(s => executeTakeSteps(seller, s))).to.be.revertedWithCustomError(_kettle, "InvalidCriteria");
 
     await _seller.takeMarketOffer({
       tokenId,
       offer: offer as MarketOffer, 
       signature,
       proof
-    }).then(executeTakeSteps);
+    }, seller).then(s => executeTakeSteps(seller, s));
 
     expect(await collection.ownerOf(tokenId)).to.equal(buyer);
 

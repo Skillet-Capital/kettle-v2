@@ -80,7 +80,7 @@ describe("Repay Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then(s => executeCreateSteps(lender, s));
 
     const _borrower = await kettle.connect(borrower);
 
@@ -88,9 +88,9 @@ describe("Repay Lien", function () {
       tokenId,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
-    const receipt = await getReceipt(txnHash);
+    const receipt = await getReceipt(borrower.provider!, txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
   });
 
@@ -98,14 +98,18 @@ describe("Repay Lien", function () {
     await time.increase(BigInt(lien.duration) + BigInt(lien.gracePeriod) + BigInt(1));
 
     const _borrower = await kettle.connect(borrower);
-    await expect(_borrower.repay(lienId, lien).then(executeRepaySteps)).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
+    await expect(
+      _borrower.repay(lienId, lien, borrower).then(s => executeRepaySteps(borrower, s))
+    ).to.be.revertedWithCustomError(_lending, "LienIsDefaulted");
   });
 
   it("should reject if lien is invalid", async function () {
     await time.increase(BigInt(lien.duration) + BigInt(lien.gracePeriod) + BigInt(1));
 
     const _borrower = await kettle.connect(borrower);
-    await expect(_borrower.repay(BigInt(lienId) + 1n, lien).then(executeRepaySteps)).to.be.revertedWithCustomError(_lending, "InvalidLien");
+    await expect(_borrower.repay(
+      BigInt(lienId) + 1n, lien, borrower).then(s => executeRepaySteps(borrower, s))
+    ).to.be.revertedWithCustomError(_lending, "InvalidLien");
   });
 
   it("should repay lien", async function () {
@@ -116,7 +120,7 @@ describe("Repay Lien", function () {
 
     const borrowerBalanceBefore = await currency.balanceOf(borrower);
 
-    await _borrower.repay(lienId, lien).then(executeRepaySteps);
+    await _borrower.repay(lienId, lien, borrower).then(s => executeRepaySteps(borrower, s));
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(borrower);
@@ -135,7 +139,7 @@ describe("Repay Lien", function () {
 
     const borrowerBalanceBefore = await currency.balanceOf(borrower);
 
-    await _borrower.repay(lienId, lien).then(executeRepaySteps);
+    await _borrower.repay(lienId, lien, borrower).then(s => executeRepaySteps(borrower, s));
     const { debt: finalDebt, interest: finalInterest, fee: finalFee } = await _borrower.currentDebt(lien);
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(borrower);

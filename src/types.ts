@@ -1,4 +1,4 @@
-import { Addressable } from "ethers";
+import { Addressable, Signer, JsonRpcSigner } from "ethers";
 
 import { 
   Kettle as KettleContract, 
@@ -36,7 +36,7 @@ export type Numberish = string | number | bigint;
 //                INTERNAL TYPES
 // ==============================================
 
-export enum OfferType { LOAN, MARKET };
+export enum OfferKind { LOAN, MARKET };
 export enum Side { BID, ASK };
 export enum Criteria { SIMPLE, PROOF };
 
@@ -78,7 +78,7 @@ export type LoanOfferTerms = {
 }
 
 export type MarketOffer = {
-  kind: OfferType;
+  kind: OfferKind;
   soft: boolean;
   side: Side;
   maker: string;
@@ -92,7 +92,7 @@ export type MarketOffer = {
 }
 
 export type LoanOffer = {
-  kind: OfferType;
+  kind: OfferKind;
   soft: boolean;
   side: Side;
   maker: string;
@@ -240,32 +240,32 @@ export type CurrentDebt = {
 //                ACTION TYPES
 // ==============================================
 
-export type CreateOfferAction = {
-  type: "create";
+export enum StepAction { SEND, SIGN };
+
+export type GenericStep = {
+  action: StepAction;
+  type: string;
+}
+
+export type SendStep = GenericStep & {
+  action: StepAction.SEND;
+  userOp: UserOp;
+  send: (signer: Signer | JsonRpcSigner) => Promise<string>;
+}
+
+export type SignStep = GenericStep & {
+  action: StepAction.SIGN;
   offer: MarketOffer | LoanOffer;
   payload: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  create: () => Promise<OfferWithSignature>;
+  sign: (signer: Signer | JsonRpcSigner) => Promise<OfferWithSignature>;
 }
 
-export type ApprovalAction = {
-  type: "approval";
-  userOp: UserOp;
-  approve: () => Promise<string | null>;
-}
+// ==============================================
+//               VALIDATION TYPES
+// ==============================================
 
-export type TakeOfferAction = {
-  type: "take";
-  userOp: UserOp;
-  take: () => Promise<string>;
+export type Validation = {
+  check: "cancelled" | "nonce" | "balance" | "allowance" | "ownership" | "approval" | "debt-covers-ask" | "loan-max-amount"
+  valid: boolean;
+  reason?: string;
 }
-
-export type RepayAction = {
-  type: "repay";
-  repay: () => Promise<string>;
-}
-
-export type ClaimAction = {
-  type: "claim";
-  claim: () => Promise<string>;
-}
-

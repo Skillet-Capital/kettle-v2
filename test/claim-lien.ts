@@ -6,9 +6,9 @@ import { parseUnits, Signer } from "ethers";
 
 import { LenderReceipt, LendingController, TestERC20, TestERC721 } from "../typechain-types"; 
 
-import { generateProof, generateRoot, getReceipt, parseLienOpenedLog, randomSalt } from "../src/utils";
-import { Criteria, Kettle, KettleContract, Lien, LoanOffer, MarketOffer, Numberish, Side } from "../src";
-import { DAY_SECONDS, executeClaimSteps, executeCreateSteps, executeRepaySteps, executeTakeSteps } from "./utils";
+import { generateRoot, getReceipt, parseLienOpenedLog } from "../src/utils";
+import { Kettle, KettleContract, Lien, LoanOffer, Numberish, Side } from "../src";
+import { DAY_SECONDS, executeClaimSteps, executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
 
@@ -80,7 +80,7 @@ describe("Claim Lien", function () {
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
       expiration: await time.latest() + 60
-    }).then(executeCreateSteps);
+    }, lender).then((s) => executeCreateSteps(lender, s));
 
     const _borrower = await kettle.connect(borrower);
 
@@ -88,20 +88,24 @@ describe("Claim Lien", function () {
       tokenId,
       offer: offer as LoanOffer, 
       signature
-    }).then(executeTakeSteps);
+    }, borrower).then(s => executeTakeSteps(borrower, s));
 
-    const receipt = await getReceipt(txnHash);
+    const receipt = await getReceipt(borrower.provider!, txnHash);
     ({ lienId, lien } = parseLienOpenedLog(receipt));
   });
 
   it("should reject if lien is not defaulted", async function () {
     const _borrower = await kettle.connect(borrower);
-    await expect(_borrower.claim(lienId, lien).then(executeClaimSteps)).to.be.revertedWithCustomError(_lending, "LienIsCurrent");
+    await expect(
+      _borrower.claim(lienId, lien, borrower).then(s => executeClaimSteps(borrower, s))
+    ).to.be.revertedWithCustomError(_lending, "LienIsCurrent");
   });
 
   it("should reject if lien is invalid", async function () {
     const _borrower = await kettle.connect(borrower);
-    await expect(_borrower.claim(BigInt(lienId) + 1n, lien).then(executeClaimSteps)).to.be.revertedWithCustomError(_lending, "InvalidLien");
+    await expect(
+      _borrower.claim(BigInt(lienId) + 1n, lien, borrower).then(s => executeClaimSteps(borrower, s))
+    ).to.be.revertedWithCustomError(_lending, "InvalidLien");
   });
 
   it("should claim lien", async function () {
@@ -109,7 +113,7 @@ describe("Claim Lien", function () {
 
     const _lender = await kettle.connect(lender);
 
-    await _lender.claim(lienId, lien).then(executeClaimSteps);
+    await _lender.claim(lienId, lien, lender).then(s => executeClaimSteps(lender, s));
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(lender);
   });
@@ -121,7 +125,7 @@ describe("Claim Lien", function () {
 
     const _lender = await kettle.connect(newLender);
 
-    await _lender.claim(lienId, lien).then(executeClaimSteps);
+    await _lender.claim(lienId, lien, lender).then(s => executeClaimSteps(lender, s));
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(newLender);
   });

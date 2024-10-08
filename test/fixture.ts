@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 
 import { ethers, upgrades } from "hardhat";
-import { EscrowController__factory, Kettle__factory, LendingController__factory, TransferConduit__factory } from "../typechain-types";
+import { EscrowController__factory, Kettle__factory, LenderReceipt, LenderReceipt__factory, LendingController__factory, TransferConduit__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export async function deployKettle() {
   const [owner, recipient, ...accounts] = await ethers.getSigners();
@@ -12,17 +12,17 @@ export async function deployKettle() {
   const _conduit = await Conduit.deploy();
 
   // Deploy Lender Receipt
-  const receipt = await ethers.deployContract("LenderReceipt");
+  const _receipt = await ethers.deployContract("LenderReceipt");
 
   // Deploy Lending Controller
   const LendingController = await ethers.getContractFactory("LendingController");
   const _lending = await upgrades.deployProxy(LendingController, [
     await _conduit.getAddress(),
-    await receipt.getAddress(),
+    await _receipt.getAddress(),
     await owner.getAddress(),
   ], { initializer: "__LendingController_init" });
 
-  await receipt.setSupplier(_lending, 1);
+  await _receipt.setSupplier(_lending, 1);
 
   // Deploy Escrow Controller
   const EscrowController = await ethers.getContractFactory("EscrowController");
@@ -48,11 +48,17 @@ export async function deployKettle() {
   await _conduit.updateChannel(_lending, true);
 
   // deploy test currencies and collections
-  const currency = await ethers.deployContract("TestERC20", [18]);
-  const currency2 = await ethers.deployContract("TestERC20", [18]);
+  const _currency = await ethers.deployContract("TestERC20", [18]);
+  const _currency2 = await ethers.deployContract("TestERC20", [18]);
 
-  const collection = await ethers.deployContract("TestERC721");
-  const collection2 = await ethers.deployContract("TestERC721");
+  const _collection = await ethers.deployContract("TestERC721");
+  const _collection2 = await ethers.deployContract("TestERC721");
+
+  const receipt = LenderReceipt__factory.connect(await _receipt.getAddress(), owner);
+  const currency = TestERC20__factory.connect(await _currency.getAddress(), owner);
+  const currency2 = TestERC20__factory.connect(await _currency2.getAddress(), owner);
+  const collection = TestERC721__factory.connect(await _collection.getAddress(), owner);
+  const collection2 = TestERC721__factory.connect(await _collection2.getAddress(), owner);
 
   const kettle  =   Kettle__factory.connect(await _kettle.getAddress(), owner);
   const conduit =   TransferConduit__factory.connect(await _conduit.getAddress(), owner);

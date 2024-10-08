@@ -3044,6 +3044,15 @@ keccak@^3.0.0, keccak@^3.0.2:
     node-gyp-build "^4.2.0"
     readable-stream "^3.6.0"
 
+"kettle-v2@file:":
+  version "0.1.0"
+  resolved "file:"
+  dependencies:
+    "@ethersproject/bignumber" "^5.7.0"
+    ethers "^6.13.2"
+    kettle-v2 "file:"
+    merkletreejs "^0.4.0"
+
 kind-of@^6.0.2:
   version "6.0.3"
   resolved "https://registry.npmjs.org/kind-of/-/kind-of-6.0.3.tgz"

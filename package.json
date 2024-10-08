@@ -1,5 +1,11 @@
 {
   "name": "kettle-v2",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "hardhat compile && tsc"
+  },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
     "@account-abstraction/sdk": "^0.6.0",
