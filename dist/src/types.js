@@ -29,9 +29,6 @@ var Criteria;
     Criteria[Criteria["PROOF"] = 1] = "PROOF";
 })(Criteria || (exports.Criteria = Criteria = {}));
 ;
-// ==============================================
-//                ACTION TYPES
-// ==============================================
 var StepAction;
 (function (StepAction) {
     StepAction[StepAction["SEND"] = 0] = "SEND";

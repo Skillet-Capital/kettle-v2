@@ -131,9 +131,6 @@ contract Signatures {
             "MarketOfferTerms(",
             "address currency,",
             "uint256 amount,",
-            "bool withLoan,",
-            "uint256 borrowAmount,",
-            "bytes32 loanOfferHash,",
             "uint256 rebate",
             ")"
         );
@@ -256,9 +253,6 @@ contract Signatures {
                     _MARKET_OFFER_TERMS_TYPEHASH,
                     terms.currency,
                     terms.amount,
-                    terms.withLoan,
-                    terms.borrowAmount,
-                    terms.loanOfferHash,
                     terms.rebate
                 )
             );

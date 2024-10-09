@@ -6,7 +6,6 @@ export declare class Kettle {
     iface: any;
     lendingIface: any;
     private provider;
-    private signer?;
     constructor(_providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner, _contractAddress: string);
     connect(_providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner): Kettle;
     createMarketOffer(input: CreateMarketOfferInput, maker: string | Addressable): Promise<(SendStep | SignStep)[]>;
@@ -36,6 +35,7 @@ export declare class Kettle {
     private _signLoanOffer;
     private _marketOfferPayload;
     private _loanOfferPayload;
+    hashToSign(offer: MarketOffer | LoanOffer): Promise<string>;
     hashOffer(offer: MarketOffer | LoanOffer): string;
     hashMarketOffer(offer: MarketOffer): string;
     hashLoanOffer(offer: LoanOffer): string;

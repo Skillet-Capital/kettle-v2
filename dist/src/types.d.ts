@@ -1,4 +1,4 @@
-import { Addressable, Signer, JsonRpcSigner } from "ethers";
+import { Addressable, Signer, JsonRpcSigner, TypedDataField } from "ethers";
 import { Kettle as KettleContract, EscrowController, LendingController, Kettle__factory, EscrowController__factory, LendingController__factory } from "../typechain-types";
 import { LienStruct } from "../typechain-types/contracts/LendingController";
 import { EscrowStruct } from "../typechain-types/contracts/EscrowController";
@@ -51,7 +51,7 @@ export type LoanOfferTerms = {
     gracePeriod: string | number | bigint;
 };
 export type MarketOffer = {
-    kind: OfferKind;
+    kind: OfferKind.MARKET;
     soft: boolean;
     side: Side;
     maker: string;
@@ -64,7 +64,7 @@ export type MarketOffer = {
     nonce: string | number | bigint;
 };
 export type LoanOffer = {
-    kind: OfferKind;
+    kind: OfferKind.LOAN;
     soft: boolean;
     side: Side;
     maker: string;
@@ -188,6 +188,17 @@ export type CurrentDebt = {
     interest: Numberish;
     fee: Numberish;
 };
+export type Payload = {
+    types: Record<string, TypedDataField[]>;
+    domain: {
+        readonly name: string;
+        readonly version: string;
+        readonly chainId: number | string;
+        readonly verifyingContract: string;
+    };
+    primaryType: string;
+    message: Record<string, any>;
+};
 export declare enum StepAction {
     SEND = 0,
     SIGN = 1
@@ -204,7 +215,7 @@ export type SendStep = GenericStep & {
 export type SignStep = GenericStep & {
     action: StepAction.SIGN;
     offer: MarketOffer | LoanOffer;
-    payload: any;
+    payload: Payload;
     sign: (signer: Signer | JsonRpcSigner) => Promise<OfferWithSignature>;
 };
 export type Validation = {

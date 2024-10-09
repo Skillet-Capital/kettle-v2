@@ -5,15 +5,13 @@ const constants_1 = require("./constants");
 const ethers_1 = require("ethers");
 const types_1 = require("./types");
 const utils_1 = require("./utils");
+const signature_validator_1 = require("@ambire/signature-validator");
+// import { createPublicClient, defineChain } from "viem";
 class Kettle {
     constructor(_providerOrSigner, _contractAddress) {
         const provider = "provider" in _providerOrSigner
             ? _providerOrSigner.provider
             : _providerOrSigner;
-        this.signer =
-            "getAddress" in _providerOrSigner
-                ? _providerOrSigner
-                : undefined;
         if (!provider) {
             throw new Error("Either a provider or custom signer with provider must be provided");
         }
@@ -222,16 +220,37 @@ class Kettle {
     //                 VALIDATIONS
     // ==============================================
     async validateSignature(offer, signature) {
-        const domain = await this._getDomainData();
-        const sig = ethers_1.Signature.from(signature);
-        if (sig.v !== 27 && sig.v !== 28) {
-            throw new Error("Invalid v parameter");
-        }
-        const _hash = ethers_1.TypedDataEncoder.hash(domain, offer.kind === types_1.OfferKind.MARKET ? constants_1.MARKET_OFFER_TYPE : constants_1.LOAN_OFFER_TYPE, offer);
-        const recovered = (0, ethers_1.recoverAddress)(_hash, signature);
-        if (!(0, utils_1.equalAddresses)(recovered, offer.maker)) {
+        // const domain = await this._getDomainData();
+        // console.log(domain);
+        // const sig = Signature.from(signature);
+        // if (sig.v !== 27 && sig.v !== 28) {
+        //   throw new Error("Invalid v parameter");
+        // }
+        // const _hash = TypedDataEncoder.hash(
+        //   domain,
+        //   offer.kind === OfferKind.MARKET ? MARKET_OFFER_TYPE : LOAN_OFFER_TYPE,
+        //   offer
+        // );
+        const payload = offer.kind === types_1.OfferKind.MARKET
+            ? await this._marketOfferPayload(offer)
+            : await this._loanOfferPayload(offer);
+        delete payload['types']['EIP712Domain'];
+        const isValidSig = await (0, signature_validator_1.verifyMessage)({
+            signer: offer.maker,
+            typedData: payload,
+            signature,
+            // @ts-ignore
+            provider: this.provider,
+        });
+        if (!isValidSig) {
             throw new Error("Invalid signature");
         }
+        // console.log(offer);
+        // const recovered = recoverAddress(_hash, signature);
+        // console.log(recovered);
+        // if (!equalAddresses(recovered, offer.maker)) {
+        //   throw new Error("Invalid signature");
+        // }
     }
     async validateOffer(offer, lien) {
         const operator = await this.contract.conduit();
@@ -599,6 +618,22 @@ class Kettle {
     // ==============================================
     //                    UTILS
     // ==============================================
+    // private async _viemProvider() {
+    //   const { chainId } = await this.provider.getNetwork();
+    //   return createPublicClient({
+    //     chain: defineChain({
+    //       id: Number(chainId),
+    //       name: "chain",
+    //     })
+    //     transport: http()
+    //   })
+    // }
+    async hashToSign(offer) {
+        const domain = await this._getDomainData();
+        const domainHash = ethers_1.TypedDataEncoder.hashDomain(domain);
+        const messageHash = ethers_1.TypedDataEncoder.hash(domain, offer.kind === types_1.OfferKind.MARKET ? constants_1.MARKET_OFFER_TYPE : constants_1.LOAN_OFFER_TYPE, offer);
+        return (0, ethers_1.solidityPacked)(["bytes32", "bytes32"], [domainHash, messageHash]);
+    }
     hashOffer(offer) {
         return offer.kind === types_1.OfferKind.MARKET
             ? this.hashMarketOffer(offer)

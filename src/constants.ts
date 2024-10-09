@@ -15,9 +15,6 @@ export const FEE_TERMS_TYPE = [
 export const MARKET_OFFER_TERMS_TYPE = [
   { name: "currency",       type: "address" },
   { name: "amount",         type: "uint256" },
-  { name: "withLoan",       type: "bool"    },
-  { name: "borrowAmount",   type: "uint256" },
-  { name: "loanOfferHash",  type: "bytes32" },
   { name: "rebate",         type: "uint256" }
 ];
 

@@ -41,40 +41,37 @@ export enum Side { BID, ASK };
 export enum Criteria { SIMPLE, PROOF };
 
 export type CollateralTerms = {
-  criteria: number | string | bigint;
+  criteria: Criteria;
   collection: string;
-  identifier: string | number | bigint;
+  identifier: Numberish;
 }
 
 export type FeeTerms = {
   recipient: string;
-  rate: string | number | bigint;
+  rate: Numberish;
 }
 
 export type GenericOfferTerms = {
   currency: string;
-  amount: string | number | bigint;
-  rebate?: string | number | bigint;
+  amount: Numberish;
+  rebate?: Numberish;
 }
 
 export type MarketOfferTerms = {
   currency: string;
-  amount: string | number | bigint;
-  withLoan: boolean;
-  borrowAmount: string | number | bigint;
-  loanOfferHash: string;
-  rebate: string | number | bigint;
+  amount: Numberish;
+  rebate: Numberish;
 }
 
 export type LoanOfferTerms = {
   currency: string;
-  amount: string | number | bigint;
-  maxAmount: string | number | bigint;
-  minAmount: string | number | bigint;
-  rate: string | number | bigint;
-  defaultRate: string | number | bigint;
-  duration: string | number | bigint;
-  gracePeriod: string | number | bigint;
+  amount: Numberish;
+  maxAmount: Numberish;
+  minAmount: Numberish;
+  rate: Numberish;
+  defaultRate: Numberish;
+  duration: Numberish;
+  gracePeriod: Numberish;
 }
 
 export type MarketOffer = {
@@ -86,9 +83,9 @@ export type MarketOffer = {
   collateral: CollateralTerms;
   terms: MarketOfferTerms;
   fee: FeeTerms;
-  expiration: string | number | bigint;
-  salt: string | number | bigint;
-  nonce: string | number | bigint;
+  expiration: Numberish;
+  salt: Numberish;
+  nonce: Numberish;
 }
 
 export type LoanOffer = {
@@ -100,9 +97,9 @@ export type LoanOffer = {
   collateral: CollateralTerms;
   terms: LoanOfferTerms;
   fee: FeeTerms;
-  expiration: string | number | bigint;
-  salt: string | number | bigint;
-  nonce: string | number | bigint;
+  expiration: Numberish;
+  salt: Numberish;
+  nonce: Numberish;
 }
 
 export type Permit = {
@@ -169,15 +166,15 @@ export type CreateMarketOfferInput = {
   soft?: boolean;
   side: Side;
   taker?: string | Addressable;
-  criteria?: number | string | bigint;
+  criteria?: Criteria;
   collection: string | Addressable;
-  identifier: string | number | bigint;
+  identifier: Numberish;
   currency: string | Addressable;
-  amount: string | number | bigint;
-  fee: string | number | bigint;
+  amount: Numberish;
+  fee: Numberish;
   recipient: string | Addressable;
-  expiration: string | number | bigint;
-  rebate?: string | number | bigint;
+  expiration: Numberish;
+  rebate?: Numberish;
   lien?: LienWithLender;
 }
 
@@ -185,20 +182,20 @@ export type CreateLoanOfferInput = {
   soft?: boolean;
   side: Side;
   taker?: string | Addressable;
-  criteria?: number | string | bigint;
+  criteria?: Criteria;
   collection: string | Addressable;
-  identifier: string | number | bigint;
+  identifier: Numberish;
   currency: string | Addressable;
-  amount: string | number | bigint;
-  minAmount?: string | number | bigint;
-  maxAmount?: string | number | bigint;
-  rate: string | number | bigint;
-  defaultRate: string | number | bigint;
-  duration: string | number | bigint;
-  gracePeriod: string | number | bigint
-  fee: string | number | bigint;
+  amount: Numberish;
+  minAmount?: Numberish;
+  maxAmount?: Numberish;
+  rate: Numberish;
+  defaultRate: Numberish;
+  duration: Numberish;
+  gracePeriod: Numberish
+  fee: Numberish;
   recipient: string | Addressable;
-  expiration: string | number | bigint;
+  expiration: Numberish;
 }
 
 export type TakeOfferInput = {

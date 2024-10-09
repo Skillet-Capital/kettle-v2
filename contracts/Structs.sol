@@ -69,9 +69,6 @@ struct LoanOffer {
 struct MarketOfferTerms {
     IERC20 currency;
     uint256 amount;
-    bool withLoan;
-    uint256 borrowAmount;
-    bytes32 loanOfferHash;
     uint256 rebate;
 }
 

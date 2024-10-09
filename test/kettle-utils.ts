@@ -59,9 +59,6 @@ describe("Kettle Utils", () => {
       terms: {
         amount: randomAmount(),
         currency: randomAddress(),
-        withLoan: randomBoolean(),
-        loanOfferHash: randomBytes32(),
-        borrowAmount: randomAmount(),
         rebate: randomRate()
       },
       fee: {

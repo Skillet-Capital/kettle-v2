@@ -42,12 +42,6 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
             );
         }
 
-        if (offer.terms.withLoan) {
-            if (offer.terms.amount < offer.terms.borrowAmount) {
-                revert BidCannotBorrow();
-            }
-        }
-
         _hash = _hashMarketOffer(offer);
         _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
 
@@ -61,6 +55,7 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        
         _verifyCollateral(
             offer.collateral.criteria,
             offer.collateral.identifier,

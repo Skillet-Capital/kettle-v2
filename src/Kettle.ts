@@ -16,8 +16,6 @@ import {
   TypedDataEncoder,
   Addressable,
   MaxUint256,
-  recoverAddress,
-  Signature,
   solidityPacked
 } from "ethers";
 
@@ -451,7 +449,7 @@ export class Kettle {
     offer: MarketOffer | LoanOffer,
     signature: string
   ): Promise<void> {
-    
+
     const payload = offer.kind === OfferKind.MARKET
       ? await this._marketOfferPayload(offer as MarketOffer)
       : await this._loanOfferPayload(offer as LoanOffer);
@@ -670,9 +668,6 @@ export class Kettle {
       terms: {
         currency: await this._resolveAddress(input.currency),
         amount: input.amount,
-        withLoan: false,
-        borrowAmount: 0,
-        loanOfferHash: BYTES_ZERO,
         rebate: input.rebate ?? 0,
       },
       fee: {
