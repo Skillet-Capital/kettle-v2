@@ -4,11 +4,8 @@ import {
   BASIS_POINTS_DIVISOR,
   KETTLE_CONTRACT_NAME,
   KETTLE_CONTRACT_VERSION,
-  LOAN_OFFER_TERMS_TYPE,
-  MARKET_OFFER_TERMS_TYPE,
   LOAN_OFFER_TYPE,
-  MARKET_OFFER_TYPE,
-  PERMIT_TYPE,
+  MARKET_OFFER_TYPE
 } from "./constants";
 
 import {
@@ -16,15 +13,12 @@ import {
   Signer,
   JsonRpcProvider,
   JsonRpcSigner,
-  ZeroAddress,
   TypedDataEncoder,
   Addressable,
   MaxUint256,
-  keccak256,
-  solidityPacked,
-  AbiCoder,
   recoverAddress,
-  Signature
+  Signature,
+  solidityPacked
 } from "ethers";
 
 import type {
@@ -45,7 +39,8 @@ import type {
   Validation,
   SendStep,
   SignStep,
-  UserOp
+  UserOp,
+  Payload
 } from "./types";
 
 import {
@@ -71,6 +66,11 @@ import {
   lienDefaulted
 } from "./utils";
 
+import {
+  verifyMessage
+} from "@ambire/signature-validator";
+// import { createPublicClient, defineChain } from "viem";
+
 export class Kettle {
 
   public contract: KettleContract;
@@ -79,7 +79,6 @@ export class Kettle {
   public lendingIface: any;
 
   private provider: Provider;
-  private signer?: Signer;
 
   public constructor(
     _providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner,
@@ -90,11 +89,6 @@ export class Kettle {
       "provider" in _providerOrSigner
         ? _providerOrSigner.provider
         : _providerOrSigner;
-
-    this.signer =
-      "getAddress" in _providerOrSigner
-        ? (_providerOrSigner as Signer)
-        : undefined;
 
     if (!provider) {
       throw new Error(
@@ -457,21 +451,23 @@ export class Kettle {
     offer: MarketOffer | LoanOffer,
     signature: string
   ): Promise<void> {
-    const domain = await this._getDomainData();
+    
+    const payload = offer.kind === OfferKind.MARKET
+      ? await this._marketOfferPayload(offer as MarketOffer)
+      : await this._loanOfferPayload(offer as LoanOffer);
 
-    const sig = Signature.from(signature);
-    if (sig.v !== 27 && sig.v !== 28) {
-      throw new Error("Invalid v parameter");
-    }
+    delete payload['types']['EIP712Domain'];
 
-    const _hash = TypedDataEncoder.hash(
-      domain,
-      offer.kind === OfferKind.MARKET ? MARKET_OFFER_TYPE : LOAN_OFFER_TYPE,
-      offer
-    );
+    const isValidSig = await verifyMessage({
+      signer: offer.maker,
+      typedData: payload,
+      signature,
 
-    const recovered = recoverAddress(_hash, signature);
-    if (!equalAddresses(recovered, offer.maker)) {
+      // @ts-ignore
+      provider: this.provider,
+    })
+
+    if (!isValidSig) {
       throw new Error("Invalid signature");
     }
   }
@@ -967,7 +963,7 @@ export class Kettle {
     return signer.signTypedData(domain, LOAN_OFFER_TYPE, offer);
   }
 
-  private async _marketOfferPayload(offer: MarketOffer): Promise<string> {
+  private async _marketOfferPayload(offer: MarketOffer): Promise<Payload> {
     const domain = await this._getDomainData();
 
     return TypedDataEncoder.getPayload(
@@ -977,7 +973,7 @@ export class Kettle {
     );
   }
 
-  private async _loanOfferPayload(offer: LoanOffer): Promise<string> {
+  private async _loanOfferPayload(offer: LoanOffer): Promise<Payload> {
     const domain = await this._getDomainData();
 
     return TypedDataEncoder.getPayload(
@@ -990,6 +986,34 @@ export class Kettle {
   // ==============================================
   //                    UTILS
   // ==============================================
+
+  // private async _viemProvider() {
+  //   const { chainId } = await this.provider.getNetwork();
+
+  //   return createPublicClient({
+  //     chain: defineChain({
+  //       id: Number(chainId),
+  //       name: "chain",
+  //     })
+  //     transport: http()
+  //   })
+
+
+  // }
+
+  public async hashToSign(offer: MarketOffer | LoanOffer): Promise<string> {
+    const domain = await this._getDomainData();
+
+    const domainHash = TypedDataEncoder.hashDomain(domain);
+
+    const messageHash = TypedDataEncoder.hash(
+      domain,
+      offer.kind === OfferKind.MARKET ? MARKET_OFFER_TYPE : LOAN_OFFER_TYPE,
+      offer
+    );
+
+    return solidityPacked(["bytes32", "bytes32"], [domainHash, messageHash]);
+  }
 
   public hashOffer(offer: MarketOffer | LoanOffer): string {
     return offer.kind === OfferKind.MARKET

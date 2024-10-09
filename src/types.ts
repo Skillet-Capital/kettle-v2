@@ -1,4 +1,4 @@
-import { Addressable, Signer, JsonRpcSigner } from "ethers";
+import { Addressable, Signer, JsonRpcSigner, TypedDataField } from "ethers";
 
 import { 
   Kettle as KettleContract, 
@@ -78,7 +78,7 @@ export type LoanOfferTerms = {
 }
 
 export type MarketOffer = {
-  kind: OfferKind;
+  kind: OfferKind.MARKET;
   soft: boolean;
   side: Side;
   maker: string;
@@ -92,7 +92,7 @@ export type MarketOffer = {
 }
 
 export type LoanOffer = {
-  kind: OfferKind;
+  kind: OfferKind.LOAN;
   soft: boolean;
   side: Side;
   maker: string;
@@ -240,6 +240,18 @@ export type CurrentDebt = {
 //                ACTION TYPES
 // ==============================================
 
+export type Payload = {
+  types: Record<string, TypedDataField[]>,
+  domain: {
+    readonly name: string;
+    readonly version: string;
+    readonly chainId: number | string;
+    readonly verifyingContract: string;
+  }
+  primaryType: string;
+  message: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
 export enum StepAction { SEND, SIGN };
 
 export type GenericStep = {
@@ -256,7 +268,7 @@ export type SendStep = GenericStep & {
 export type SignStep = GenericStep & {
   action: StepAction.SIGN;
   offer: MarketOffer | LoanOffer;
-  payload: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  payload: Payload;
   sign: (signer: Signer | JsonRpcSigner) => Promise<OfferWithSignature>;
 }
 
