@@ -1,5 +1,5 @@
 import { Signer, JsonRpcProvider, JsonRpcSigner, Addressable } from "ethers";
-import type { KettleContract, CreateMarketOfferInput, MarketOffer, CreateLoanOfferInput, LoanOffer, Numberish, Lien, EscrowStruct, CurrentDebt, TakeOfferInput, SendStep, SignStep } from "./types";
+import type { KettleContract, CreateMarketOfferInput, MarketOffer, CreateLoanOfferInput, LoanOffer, Numberish, Lien, EscrowStruct, CurrentDebt, TakeOfferInput, SendStep, SignStep, UserOp, ValidateTakeOfferInput } from "./types";
 export declare class Kettle {
     contract: KettleContract;
     contractAddress: string;
@@ -17,6 +17,8 @@ export declare class Kettle {
     claim(lienId: Numberish, lien: Lien, claimer: string | Addressable): Promise<SendStep[]>;
     validateSignature(offer: MarketOffer | LoanOffer, signature: string): Promise<void>;
     validateOffer(offer: MarketOffer | LoanOffer, lien?: Lien): Promise<void>;
+    validateTakeOffer(user: string, input: ValidateTakeOfferInput): Promise<void>;
+    validateCreateOffer(user: string, input: CreateMarketOfferInput | CreateLoanOfferInput): Promise<void>;
     private _matchTerms;
     private _executeValidations;
     currentDebt(lien: Lien): Promise<CurrentDebt>;
@@ -35,7 +37,6 @@ export declare class Kettle {
     private _signLoanOffer;
     private _marketOfferPayload;
     private _loanOfferPayload;
-    hashToSign(offer: MarketOffer | LoanOffer): Promise<string>;
     hashOffer(offer: MarketOffer | LoanOffer): string;
     hashMarketOffer(offer: MarketOffer): string;
     hashLoanOffer(offer: LoanOffer): string;
@@ -44,4 +45,6 @@ export declare class Kettle {
     blocktime(): Promise<any>;
     mulFee(amount: bigint | string | number, rate: bigint | string | number): bigint;
     safeFactorMul(amount: Numberish, factor: Numberish): bigint;
+    bundleSendTxns(steps: SendStep[], signer: Signer | JsonRpcSigner): Promise<string[]>;
+    bundleUserOps(steps: (SendStep)[]): UserOp[];
 }

@@ -61,24 +61,15 @@ export type CollateralStructOutput = [
 export type MarketOfferTermsStruct = {
     currency: AddressLike;
     amount: BigNumberish;
-    withLoan: boolean;
-    borrowAmount: BigNumberish;
-    loanOfferHash: BytesLike;
     rebate: BigNumberish;
 };
 export type MarketOfferTermsStructOutput = [
     currency: string,
     amount: bigint,
-    withLoan: boolean,
-    borrowAmount: bigint,
-    loanOfferHash: string,
     rebate: bigint
 ] & {
     currency: string;
     amount: bigint;
-    withLoan: boolean;
-    borrowAmount: bigint;
-    loanOfferHash: string;
     rebate: bigint;
 };
 export type FeeTermsStruct = {

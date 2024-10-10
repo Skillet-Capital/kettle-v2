@@ -15,9 +15,6 @@ exports.FEE_TERMS_TYPE = [
 exports.MARKET_OFFER_TERMS_TYPE = [
     { name: "currency", type: "address" },
     { name: "amount", type: "uint256" },
-    { name: "withLoan", type: "bool" },
-    { name: "borrowAmount", type: "uint256" },
-    { name: "loanOfferHash", type: "bytes32" },
     { name: "rebate", type: "uint256" }
 ];
 exports.LOAN_OFFER_TERMS_TYPE = [

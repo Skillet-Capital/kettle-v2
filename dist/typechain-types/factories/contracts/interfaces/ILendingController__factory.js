@@ -100,6 +100,394 @@ const _abi = [
         name: "LienOpened",
         type: "event",
     },
+    {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "lienId",
+                type: "uint256",
+            },
+        ],
+        name: "closeLien",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+    {
+        inputs: [
+            {
+                components: [
+                    {
+                        internalType: "address",
+                        name: "borrower",
+                        type: "address",
+                    },
+                    {
+                        internalType: "contract IERC721",
+                        name: "collection",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "tokenId",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "contract IERC20",
+                        name: "currency",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "principal",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "rate",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "defaultRate",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "duration",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "gracePeriod",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "address",
+                        name: "recipient",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "fee",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "startTime",
+                        type: "uint256",
+                    },
+                ],
+                internalType: "struct Lien",
+                name: "lien",
+                type: "tuple",
+            },
+        ],
+        name: "computeCurrentDebt",
+        outputs: [
+            {
+                internalType: "uint256",
+                name: "debt",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "fee",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "interest",
+                type: "uint256",
+            },
+        ],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "lienId",
+                type: "uint256",
+            },
+        ],
+        name: "currentLender",
+        outputs: [
+            {
+                internalType: "address",
+                name: "",
+                type: "address",
+            },
+        ],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "tokenId",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "principal",
+                type: "uint256",
+            },
+            {
+                internalType: "address",
+                name: "lender",
+                type: "address",
+            },
+            {
+                internalType: "address",
+                name: "borrower",
+                type: "address",
+            },
+            {
+                components: [
+                    {
+                        internalType: "enum OfferKind",
+                        name: "kind",
+                        type: "uint8",
+                    },
+                    {
+                        internalType: "bool",
+                        name: "soft",
+                        type: "bool",
+                    },
+                    {
+                        internalType: "enum Side",
+                        name: "side",
+                        type: "uint8",
+                    },
+                    {
+                        internalType: "address",
+                        name: "maker",
+                        type: "address",
+                    },
+                    {
+                        internalType: "address",
+                        name: "taker",
+                        type: "address",
+                    },
+                    {
+                        components: [
+                            {
+                                internalType: "enum Criteria",
+                                name: "criteria",
+                                type: "uint8",
+                            },
+                            {
+                                internalType: "contract IERC721",
+                                name: "collection",
+                                type: "address",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "identifier",
+                                type: "uint256",
+                            },
+                        ],
+                        internalType: "struct Collateral",
+                        name: "collateral",
+                        type: "tuple",
+                    },
+                    {
+                        components: [
+                            {
+                                internalType: "contract IERC20",
+                                name: "currency",
+                                type: "address",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "amount",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "maxAmount",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "minAmount",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "rate",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "defaultRate",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "duration",
+                                type: "uint256",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "gracePeriod",
+                                type: "uint256",
+                            },
+                        ],
+                        internalType: "struct LoanOfferTerms",
+                        name: "terms",
+                        type: "tuple",
+                    },
+                    {
+                        components: [
+                            {
+                                internalType: "address",
+                                name: "recipient",
+                                type: "address",
+                            },
+                            {
+                                internalType: "uint256",
+                                name: "rate",
+                                type: "uint256",
+                            },
+                        ],
+                        internalType: "struct FeeTerms",
+                        name: "fee",
+                        type: "tuple",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "expiration",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "salt",
+                        type: "uint256",
+                    },
+                ],
+                internalType: "struct LoanOffer",
+                name: "offer",
+                type: "tuple",
+            },
+        ],
+        name: "openLien",
+        outputs: [
+            {
+                internalType: "uint256",
+                name: "",
+                type: "uint256",
+            },
+        ],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+    {
+        inputs: [
+            {
+                internalType: "contract IERC721",
+                name: "collection",
+                type: "address",
+            },
+            {
+                internalType: "uint256",
+                name: "tokenId",
+                type: "uint256",
+            },
+            {
+                internalType: "address",
+                name: "recipient",
+                type: "address",
+            },
+        ],
+        name: "releaseCollateral",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+    {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "lienId",
+                type: "uint256",
+            },
+            {
+                components: [
+                    {
+                        internalType: "address",
+                        name: "borrower",
+                        type: "address",
+                    },
+                    {
+                        internalType: "contract IERC721",
+                        name: "collection",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "tokenId",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "contract IERC20",
+                        name: "currency",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "principal",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "rate",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "defaultRate",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "duration",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "gracePeriod",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "address",
+                        name: "recipient",
+                        type: "address",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "fee",
+                        type: "uint256",
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "startTime",
+                        type: "uint256",
+                    },
+                ],
+                internalType: "struct Lien",
+                name: "lien",
+                type: "tuple",
+            },
+        ],
+        name: "verifyLienIsCurrent",
+        outputs: [],
+        stateMutability: "view",
+        type: "function",
+    },
 ];
 class ILendingController__factory {
     static createInterface() {

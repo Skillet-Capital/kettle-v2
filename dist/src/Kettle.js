@@ -37,7 +37,7 @@ class Kettle {
         }
         const createOfferAction = {
             action: types_1.StepAction.SIGN,
-            type: "create-market-offer",
+            type: "sign-offer",
             offer: offer,
             payload: await this._marketOfferPayload(offer),
             sign: async (signer) => {
@@ -56,7 +56,7 @@ class Kettle {
         const approvalActions = await this._getCreateApprovalActions(input.side, _maker, offer.terms, offer.collateral);
         const createOfferAction = {
             action: types_1.StepAction.SIGN,
-            type: "create-loan-offer",
+            type: "sign-offer",
             offer: offer,
             payload: await this._loanOfferPayload(offer),
             sign: async (signer) => {
@@ -80,7 +80,7 @@ class Kettle {
             action: types_1.StepAction.SEND,
             type: "take-market-offer",
             userOp: (input.lien && input.lienId) ? {
-                target: this.contractAddress,
+                to: this.contractAddress,
                 data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillMarketOfferInLien"), [
                     input.lienId,
                     input.lien,
@@ -89,7 +89,7 @@ class Kettle {
                     input.proof ?? []
                 ])
             } : {
-                target: this.contractAddress,
+                to: this.contractAddress,
                 data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillMarketOffer"), [
                     input.tokenId,
                     input.offer,
@@ -120,7 +120,7 @@ class Kettle {
             action: types_1.StepAction.SEND,
             type: "take-loan-offer",
             userOp: (input.lien && input.lienId) ? {
-                target: this.contractAddress,
+                to: this.contractAddress,
                 data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillLoanOfferInLien"), [
                     input.lienId,
                     input?.amount ?? input.offer.terms.maxAmount,
@@ -130,7 +130,7 @@ class Kettle {
                     input.proof ?? []
                 ])
             } : {
-                target: this.contractAddress,
+                to: this.contractAddress,
                 data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillLoanOffer"), [
                     input.tokenId,
                     input?.amount ?? input.offer.terms.maxAmount,
@@ -162,7 +162,7 @@ class Kettle {
             action: types_1.StepAction.SEND,
             type: "escrow-market-offer",
             userOp: {
-                target: this.contractAddress,
+                to: this.contractAddress,
                 data: this.iface.encodeFunctionData(this.iface.getFunction("escrowMarketOffer"), [
                     input.offer.collateral.identifier,
                     input.offer,
@@ -188,7 +188,7 @@ class Kettle {
             action: types_1.StepAction.SEND,
             type: "repay-loan",
             userOp: {
-                target: await this.contract.lending(),
+                to: await this.contract.lending(),
                 data: this.lendingIface.encodeFunctionData(this.lendingIface.getFunction("repay"), [lienId, lien])
             },
             send: async (signer) => {
@@ -205,7 +205,7 @@ class Kettle {
             action: types_1.StepAction.SEND,
             type: "claim-default",
             userOp: {
-                target: await this.contract.lending(),
+                to: await this.contract.lending(),
                 data: this.lendingIface.encodeFunctionData(this.lendingIface.getFunction("claim"), [lienId, lien])
             },
             send: async (signer) => {
@@ -220,17 +220,6 @@ class Kettle {
     //                 VALIDATIONS
     // ==============================================
     async validateSignature(offer, signature) {
-        // const domain = await this._getDomainData();
-        // console.log(domain);
-        // const sig = Signature.from(signature);
-        // if (sig.v !== 27 && sig.v !== 28) {
-        //   throw new Error("Invalid v parameter");
-        // }
-        // const _hash = TypedDataEncoder.hash(
-        //   domain,
-        //   offer.kind === OfferKind.MARKET ? MARKET_OFFER_TYPE : LOAN_OFFER_TYPE,
-        //   offer
-        // );
         const payload = offer.kind === types_1.OfferKind.MARKET
             ? await this._marketOfferPayload(offer)
             : await this._loanOfferPayload(offer);
@@ -245,12 +234,6 @@ class Kettle {
         if (!isValidSig) {
             throw new Error("Invalid signature");
         }
-        // console.log(offer);
-        // const recovered = recoverAddress(_hash, signature);
-        // console.log(recovered);
-        // if (!equalAddresses(recovered, offer.maker)) {
-        //   throw new Error("Invalid signature");
-        // }
     }
     async validateOffer(offer, lien) {
         const operator = await this.contract.conduit();
@@ -326,7 +309,7 @@ class Kettle {
                         .then((approved) => ({
                         check: "approval",
                         valid: approved,
-                        reason: "Collateral not approved"
+                        reason: "Maker has not approved collateral"
                     }))
                 ]);
             }
@@ -336,47 +319,126 @@ class Kettle {
                     .then((allowance) => ({
                     check: "allowance",
                     valid: allowance >= rebateAmount,
-                    reason: "Insufficient allowance for rebate"
+                    reason: "Maker has insufficient allowance for rebate"
                 })), (0, utils_1.currencyBalance)(offer.maker, offer.terms.currency, this.provider)
                     .then((balance) => ({
                     check: "balance",
                     valid: balance >= rebateAmount,
-                    reason: "Insufficient balance for rebate"
+                    reason: "Maker has insufficient balance for rebate"
                 })));
             }
-            if (lien) {
-                this._matchTerms(offer.maker, offer.collateral, offer.terms, lien);
+        }
+        if (lien) {
+            if ((0, utils_1.lienDefaulted)(lien.startTime, lien.duration, lien.gracePeriod)) {
+                throw new Error("[match-terms]: Lien is defaulted");
+            }
+            this._matchTerms({
+                currency: offer.terms.currency,
+                collection: offer.collateral.collection,
+                tokenId: offer.side === types_1.Side.ASK ? offer.collateral.identifier : undefined
+            }, lien);
+            if (offer.side === types_1.Side.ASK) {
                 const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
                 validationPromises.push(this.currentDebt(lien)
                     .then(({ debt }) => ({
                     check: "debt-covers-ask",
                     valid: BigInt(debt) >= netAmount,
-                    reason: "Current debt exceeds ask amount"
+                    reason: "Current lien debt exceeds ask amount"
                 })));
             }
         }
-        return this._executeValidations(validationPromises);
+        await this._executeValidations(validationPromises);
     }
-    _matchTerms(maker, collateral, terms, lien) {
-        if (!(0, utils_1.equalAddresses)(maker, lien.borrower)) {
-            throw new Error("[match-terms]: Borrower mismatch");
+    async validateTakeOffer(user, input) {
+        // validate offer maker params
+        await this.validateOffer(input.offer);
+        const validationPromises = [];
+        if (input.lien) {
+            this._matchTerms({
+                currency: input.offer.terms.currency,
+                collection: input.offer.collateral.collection,
+                tokenId: input.tokenId
+            }, input.lien);
         }
-        if (!(0, utils_1.equalAddresses)(terms.currency, lien.currency)) {
+        if (input.offer.side === types_1.Side.BID && !input.lien) {
+            validationPromises.push(types_1.TestERC721__factory.connect(input.offer.collateral.collection, this.provider)
+                .ownerOf(input.tokenId)
+                .then((owner) => ({
+                check: "ownership",
+                valid: (0, utils_1.equalAddresses)(owner, input.offer.maker),
+                reason: "Taker bot owner of token"
+            })));
+            if (input.offer.kind === types_1.OfferKind.LOAN) {
+                if (!input.amount) {
+                    throw new Error("Take loan offer bid requires amount");
+                }
+                if (BigInt(input.amount) > BigInt(input.offer.terms.maxAmount)) {
+                    throw new Error("Amount exceeds loan max amount");
+                }
+            }
+            if (input.offer.soft) {
+                throw new Error("Cannot take soft offer as bid");
+            }
+        }
+        else {
+            // TODO: validate amount needed if lender is buying asset in lien
+            validationPromises.push((0, utils_1.currencyBalance)(user, input.offer.terms.currency, this.provider)
+                .then((balance) => ({
+                check: "balance",
+                valid: balance >= BigInt(input.offer.terms.amount),
+                reason: "Taker has insufficient balance for rebate"
+            })));
+        }
+        await this._executeValidations(validationPromises);
+    }
+    async validateCreateOffer(user, input) {
+        console.log(user, input);
+        const validationPromises = [];
+        if (input.side === types_1.Side.BID) {
+            validationPromises.push((0, utils_1.currencyBalance)(user, await this._resolveAddress(input.currency), this.provider)
+                .then((balance) => ({
+                check: "balance",
+                valid: balance >= BigInt(input.amount),
+                reason: "Insufficient balance"
+            })));
+        }
+        else {
+            if (input.lien) {
+                if ((0, utils_1.lienDefaulted)(input.lien.startTime, input.lien.duration, input.lien.gracePeriod)) {
+                    throw new Error("[match-terms]: Lien is defaulted");
+                }
+                this._matchTerms({
+                    currency: await this._resolveAddress(input.currency),
+                    collection: await this._resolveAddress(input.collection),
+                    tokenId: input.side === types_1.Side.ASK ? input.identifier : undefined
+                }, input.lien);
+            }
+            else {
+                validationPromises.push((0, utils_1.collateralBalance)(user, await this._resolveAddress(input.collection), input.identifier, this.provider)
+                    .then((owns) => ({
+                    check: "ownership",
+                    valid: owns,
+                    reason: "Maker does not own collateral"
+                })));
+            }
+        }
+        await this._executeValidations(validationPromises);
+    }
+    _matchTerms(input, lien) {
+        if (!(0, utils_1.equalAddresses)(input.currency, lien.currency)) {
             throw new Error("[match-terms]: Currency mismatch");
         }
-        if (!(0, utils_1.equalAddresses)(collateral.collection, lien.collection)) {
+        if (!(0, utils_1.equalAddresses)(input.collection, lien.collection)) {
             throw new Error("[match-terms]: Collection mismatch");
         }
-        if (collateral.identifier !== lien.tokenId) {
+        if (input.tokenId && input.tokenId != lien.tokenId) {
             throw new Error("[match-terms]: TokenId mismatch");
-        }
-        if ((0, utils_1.lienDefaulted)(lien.startTime, lien.duration, lien.gracePeriod)) {
-            throw new Error("[match-terms]: Lien is defaulted");
         }
     }
     async _executeValidations(validations) {
         const results = await Promise.all(validations);
         for (const result of results) {
+            console.log(result);
             if (!result.valid) {
                 throw new Error(`[${result.check}]: ${result.reason ?? "Validation failed"}`);
             }
@@ -407,9 +469,6 @@ class Kettle {
             terms: {
                 currency: await this._resolveAddress(input.currency),
                 amount: input.amount,
-                withLoan: false,
-                borrowAmount: 0,
-                loanOfferHash: constants_1.BYTES_ZERO,
                 rebate: input.rebate ?? 0,
             },
             fee: {
@@ -462,9 +521,9 @@ class Kettle {
         if (allowance < BigInt(amount)) {
             approvalActions.push({
                 action: types_1.StepAction.SEND,
-                type: "erc20-approval",
+                type: "approve-erc20",
                 userOp: {
-                    target: currency,
+                    to: currency,
                     data: types_1.TestERC20__factory.createInterface().encodeFunctionData("approve", [operator, useMax ? ethers_1.MaxUint256 : BigInt(amount) - allowance])
                 },
                 send: async (signer) => {
@@ -484,9 +543,9 @@ class Kettle {
         if (!approved) {
             approvalActions.push({
                 action: types_1.StepAction.SEND,
-                type: "erc721-approval",
+                type: "approve-erc721",
                 userOp: {
-                    target: collection,
+                    to: collection,
                     data: types_1.TestERC721__factory.createInterface().encodeFunctionData("setApprovalForAll", [operator, true])
                 },
                 send: async (signer) => {
@@ -553,19 +612,6 @@ class Kettle {
     // ==============================================
     //           SIGNER AND PROVIDER METHODS
     // ==============================================
-    // private async _getSigner(
-    //   accountAddress?: string,
-    // ): Promise<Signer | JsonRpcSigner> {
-    //   if (this.signer) {
-    //     return this.signer;
-    //   }
-    //   if (!("send" in this.provider)) {
-    //     throw new Error(
-    //       "Either signer or JsonRpcProvider with signer must be provided",
-    //     );
-    //   }
-    //   return (this.provider as JsonRpcProvider).getSigner(accountAddress);
-    // }
     async _confirmTransaction(hash, confirmations, timeout) {
         try {
             await this.provider.waitForTransaction(hash, confirmations, timeout);
@@ -618,22 +664,6 @@ class Kettle {
     // ==============================================
     //                    UTILS
     // ==============================================
-    // private async _viemProvider() {
-    //   const { chainId } = await this.provider.getNetwork();
-    //   return createPublicClient({
-    //     chain: defineChain({
-    //       id: Number(chainId),
-    //       name: "chain",
-    //     })
-    //     transport: http()
-    //   })
-    // }
-    async hashToSign(offer) {
-        const domain = await this._getDomainData();
-        const domainHash = ethers_1.TypedDataEncoder.hashDomain(domain);
-        const messageHash = ethers_1.TypedDataEncoder.hash(domain, offer.kind === types_1.OfferKind.MARKET ? constants_1.MARKET_OFFER_TYPE : constants_1.LOAN_OFFER_TYPE, offer);
-        return (0, ethers_1.solidityPacked)(["bytes32", "bytes32"], [domainHash, messageHash]);
-    }
     hashOffer(offer) {
         return offer.kind === types_1.OfferKind.MARKET
             ? this.hashMarketOffer(offer)
@@ -666,6 +696,28 @@ class Kettle {
     }
     safeFactorMul(amount, factor) {
         return (BigInt(amount) * (10000n + BigInt(factor))) / 10000n;
+    }
+    // ==============================================
+    //                    EXECUTION
+    // ==============================================
+    async bundleSendTxns(steps, signer) {
+        const results = [];
+        for (const step of steps) {
+            if (step.action === types_1.StepAction.SEND) {
+                const txn = await step.send(signer);
+                results.push(txn);
+            }
+        }
+        return results;
+    }
+    bundleUserOps(steps) {
+        const ops = [];
+        for (const step of steps) {
+            if (step.action === types_1.StepAction.SEND) {
+                ops.push(step.userOp);
+            }
+        }
+        return ops;
     }
 }
 exports.Kettle = Kettle;

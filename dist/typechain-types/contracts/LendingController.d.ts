@@ -134,7 +134,7 @@ export interface LendingControllerInterface extends Interface {
     encodeFunctionData(functionFragment: "__LendingController_init", values: [AddressLike, AddressLike, AddressLike]): string;
     encodeFunctionData(functionFragment: "acceptOwnership", values?: undefined): string;
     encodeFunctionData(functionFragment: "claim", values: [BigNumberish, LienStruct]): string;
-    encodeFunctionData(functionFragment: "closeLien", values: [BigNumberish, LienStruct]): string;
+    encodeFunctionData(functionFragment: "closeLien", values: [BigNumberish]): string;
     encodeFunctionData(functionFragment: "closeLienWithPayments", values: [BigNumberish, BigNumberish, AddressLike, AddressLike, LienStruct]): string;
     encodeFunctionData(functionFragment: "computeCurrentDebt", values: [LienStruct]): string;
     encodeFunctionData(functionFragment: "computeDebtAt", values: [LienStruct, BigNumberish]): string;
@@ -271,12 +271,7 @@ export interface LendingController extends BaseContract {
     ], [
         void
     ], "nonpayable">;
-    closeLien: TypedContractMethod<[
-        lienId: BigNumberish,
-        lien: LienStruct
-    ], [
-        void
-    ], "nonpayable">;
+    closeLien: TypedContractMethod<[lienId: BigNumberish], [void], "nonpayable">;
     closeLienWithPayments: TypedContractMethod<[
         amount: BigNumberish,
         lienId: BigNumberish,
@@ -380,12 +375,7 @@ export interface LendingController extends BaseContract {
     ], [
         void
     ], "nonpayable">;
-    getFunction(nameOrSignature: "closeLien"): TypedContractMethod<[
-        lienId: BigNumberish,
-        lien: LienStruct
-    ], [
-        void
-    ], "nonpayable">;
+    getFunction(nameOrSignature: "closeLien"): TypedContractMethod<[lienId: BigNumberish], [void], "nonpayable">;
     getFunction(nameOrSignature: "closeLienWithPayments"): TypedContractMethod<[
         amount: BigNumberish,
         lienId: BigNumberish,

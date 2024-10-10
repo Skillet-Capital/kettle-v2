@@ -11,7 +11,7 @@ import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721H
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-import { LendingController } from "./LendingController.sol";
+import "./interfaces/ILendingController.sol";
 import { EscrowController } from "./EscrowController.sol";
 import { OfferController } from "./OfferController.sol";
 
@@ -27,7 +27,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
     uint256 private constant _BASIS_POINTS = 10_000;
 
     ITransferConduit public conduit;
-    LendingController public lending;
+    ILendingController public lending;
     EscrowController public escrow;
 
     uint256[50] private _gap;
@@ -41,7 +41,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
         __OfferController_init();
 
         conduit = ITransferConduit(conduitController);
-        lending = LendingController(lendingController);
+        lending = ILendingController(lendingController);
         escrow = EscrowController(escrowController);
 
         __Ownable2Step_init();
@@ -130,6 +130,8 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
             offer.collateral.collection
         );
 
+
+
         address lender = lending.currentLender(lienId);
         address borrower = offer.side == Side.BID ? msg.sender : offer.maker;
         address buyer = offer.side == Side.BID ? offer.maker : msg.sender;
@@ -197,7 +199,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
             marketFee
         );
 
-        lending.closeLien(lienId, lien);
+        lending.closeLien(lienId);
 
         // netAmount = _transferFees(
         //     offer.terms.currency, 
@@ -222,11 +224,11 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
         //     lien
         // );
 
-        lending.releaseCollateral(
-            lien.collection, 
-            lien.tokenId, 
-            offer.side == Side.BID ? offer.maker : msg.sender
-        );
+        // lending.releaseCollateral(
+        //     lien.collection, 
+        //     lien.tokenId, 
+        //     offer.side == Side.BID ? offer.maker : msg.sender
+        // );
     }
 
     function fulfillLoanOfferInLien(
@@ -312,7 +314,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
             fee
         );
 
-        lending.closeLien(lienId, lien);
+        lending.closeLien(lienId);
 
         // lending.closeLienWithPayments(
         //     principal, 
@@ -420,15 +422,15 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController {
         _;
     }
 
-    modifier requireMarketOffer(OfferType kind) {
-        if (kind != OfferType.MARKET) {
+    modifier requireMarketOffer(OfferKind kind) {
+        if (kind != OfferKind.MARKET) {
             revert InvalidMarketOffer();
         }
         _;
     }
 
-    modifier requireLoanOffer(OfferType kind) {
-        if (kind != OfferType.LOAN) {
+    modifier requireLoanOffer(OfferKind kind) {
+        if (kind != OfferKind.LOAN) {
             revert InvalidLoanOffer();
         }
         _;

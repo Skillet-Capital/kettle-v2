@@ -143,8 +143,7 @@ contract LendingController is ILendingController, Initializable, Ownable2StepUpg
     }
 
     function closeLien(
-        uint256 lienId,
-        Lien calldata lien
+        uint256 lienId
     ) external onlyKettle() {
         _closeLien(lienId);
     }
