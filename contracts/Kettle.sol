@@ -53,7 +53,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -91,7 +91,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external nonReentrant() requireLoanOffer(offer.kind) returns (uint256 lienId) {
+    ) external nonReentrant requireLoanOffer(offer.kind) returns (uint256 lienId) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -130,7 +130,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof  
-    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -191,7 +191,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external nonReentrant() requireLoanOffer(offer.kind) returns (uint256 newLienId) {
+    ) external nonReentrant requireLoanOffer(offer.kind) returns (uint256 newLienId) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -249,7 +249,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 escrowId) {
+    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 escrowId) {
         if (!offer.soft) {
             revert CannotTakeHardOffer();
         }
@@ -296,7 +296,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
     function repayLien(
         uint256 lienId,
         Lien calldata lien
-    ) external nonReentrant() returns (uint256) {
+    ) external nonReentrant returns (uint256) {
         (
             address lender,
             uint256 debt,
@@ -328,7 +328,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
     function claimLien(
         uint256 lienId,
         Lien calldata lien
-    ) external nonReentrant() {
+    ) external nonReentrant {
         address lender = LENDING_CONTROLLER.claimLien(lienId, lien);
 
         lien.collection.safeTransferFrom(
@@ -375,7 +375,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
     function claimEscrow(
         uint256 escrowId,
         Escrow calldata escrow
-    ) external nonReentrant() {
+    ) external nonReentrant {
         escrow.currency.transfer(
             escrow.buyer,
             escrow.amount + escrow.rebate
