@@ -10,7 +10,7 @@
     "outDir": "./dist",
     "rootDir": ".",
     "declaration": true,
-    "types": ["node", "hardhat"],
+    "types": ["node", "hardhat", "@nomiclabs/hardhat-ethers"],
   },
   "include": ["src/**/*", "typechain-types/**/*"],
   "exclude": ["node_modules", "dist", "contracts", "test"],

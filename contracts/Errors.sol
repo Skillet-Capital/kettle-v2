@@ -48,3 +48,5 @@ error OnlyKettle();
 
 error InvalidMarketOffer();
 error InvalidLoanOffer();
+
+error PlaceholderAlreadyEscrowed();

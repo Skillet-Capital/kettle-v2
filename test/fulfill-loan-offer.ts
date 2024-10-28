@@ -96,7 +96,7 @@ describe("Fulfill Loan Offer", function () {
     const receipt = await getReceipt(borrower.provider!, txnHash);
     const { lienId } = parseLienOpenedLog(receipt);
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
+    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower)).to.equal(amount);
 
@@ -154,7 +154,7 @@ describe("Fulfill Loan Offer", function () {
       signature
     }, borrower).then(s => executeTakeSteps(borrower, s));
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
+    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower))
       .to.equal(amount)
@@ -218,7 +218,7 @@ describe("Fulfill Loan Offer", function () {
       proof
     }, borrower).then(s => executeTakeSteps(borrower, s));
 
-    expect(await collection.ownerOf(tokenId)).to.equal(_lending);
+    expect(await collection.ownerOf(tokenId)).to.equal(_kettle);
     expect(await currency.balanceOf(lender)).to.equal(0);
     expect(await currency.balanceOf(borrower))
       .to.equal(amount)

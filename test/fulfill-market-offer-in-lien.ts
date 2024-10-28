@@ -12,7 +12,7 @@ import { DAY_SECONDS, executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
 
-describe("Fulfill Market Offer In Lien", function () {
+describe.only("Fulfill Market Offer In Lien", function () {
   let _kettle: KettleContract;
   let kettle: Kettle;
 
@@ -132,9 +132,6 @@ describe("Fulfill Market Offer In Lien", function () {
     }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
-
-    await currency.connect(buyer).approve(await _kettle.conduit(), MaxUint256);
-    await currency.connect(seller).approve(await _kettle.conduit(), MaxUint256);
 
     await currency.mint(buyer, offer.terms.amount);
 

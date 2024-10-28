@@ -2,14 +2,10 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 
 import { ethers, upgrades } from "hardhat";
-import { EscrowController__factory, Kettle__factory, LenderReceipt, LenderReceipt__factory, LendingController__factory, TransferConduit__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
+import { EscrowController__factory, Kettle__factory, LenderReceipt__factory, LendingController__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export async function deployKettle() {
   const [owner, recipient, ...accounts] = await ethers.getSigners();
-
-  // Deploy Transfer Conduit
-  const Conduit = await ethers.getContractFactory("TransferConduit");
-  const _conduit = await Conduit.deploy();
 
   // Deploy Lender Receipt
   const _receipt = await ethers.deployContract("LenderReceipt");
@@ -17,9 +13,8 @@ export async function deployKettle() {
   // Deploy Lending Controller
   const LendingController = await ethers.getContractFactory("LendingController");
   const _lending = await upgrades.deployProxy(LendingController, [
-    await _conduit.getAddress(),
-    await _receipt.getAddress(),
     await owner.getAddress(),
+    await _receipt.getAddress()
   ], { initializer: "__LendingController_init" });
 
   await _receipt.setSupplier(_lending, 1);
@@ -33,21 +28,16 @@ export async function deployKettle() {
   // Deploy Kettle
   const Kettle = await ethers.getContractFactory("Kettle");
   const _kettle = await upgrades.deployProxy(Kettle, [
-    await _conduit.getAddress(),
+    await owner.getAddress(),
     await _lending.getAddress(),
     await _escrow.getAddress(),
-    await owner.getAddress(),
   ], { initializer: "__Kettle_init" });
 
   // Set Kettle in Lending Controller
   await _lending.setKettle(_kettle);
   await _escrow.setKettle(_kettle);
 
-  // set conduit channels
-  await _conduit.updateChannel(_kettle, true);
-  await _conduit.updateChannel(_lending, true);
-
-  // deploy test currencies and collections
+  // Deploy test currencies and assets
   const _currency = await ethers.deployContract("TestERC20", [18]);
   const _currency2 = await ethers.deployContract("TestERC20", [18]);
 
@@ -61,25 +51,20 @@ export async function deployKettle() {
   const collection2 = TestERC721__factory.connect(await _collection2.getAddress(), owner);
 
   const kettle  =   Kettle__factory.connect(await _kettle.getAddress(), owner);
-  const conduit =   TransferConduit__factory.connect(await _conduit.getAddress(), owner);
   const lending =   LendingController__factory.connect(await _lending.getAddress(), owner);
   const escrow  =   EscrowController__factory.connect(await _escrow.getAddress(), owner);
 
-  return { owner, accounts, recipient, kettle, lending, escrow, conduit, receipt, currency, currency2, collection, collection2 };
+  return { owner, accounts, recipient, kettle, lending, escrow, receipt, currency, currency2, collection, collection2 };
 }
 
 describe("Deployment", function () {
   it("should deploy", async function () {
-    const { owner, kettle, lending, conduit } = await loadFixture(deployKettle);
+    const { owner, kettle, lending, escrow } = await loadFixture(deployKettle);
 
     expect(await kettle.owner()).to.equal(owner);
     expect(await lending.owner()).to.equal(owner);
-    expect(await conduit.owner()).to.equal(owner);
 
-    expect(await kettle.conduit()).to.equal(conduit);
-    expect(await lending.conduit()).to.equal(conduit);
-
-    expect(await conduit.channelOpen(kettle)).to.equal(true);
-    expect(await conduit.channelOpen(lending)).to.equal(true);
+    expect(await kettle.LENDING_CONTROLLER()).to.equal(await lending.getAddress());
+    expect(await kettle.ESCROW_CONTROLLER()).to.equal(await escrow.getAddress());
   })
 });

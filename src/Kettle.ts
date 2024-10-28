@@ -14,8 +14,7 @@ import {
   JsonRpcSigner,
   TypedDataEncoder,
   Addressable,
-  MaxUint256,
-  Interface
+  MaxUint256
 } from "ethers";
 
 import type {
@@ -398,15 +397,14 @@ export class Kettle {
       action: StepAction.SEND,
       type: "repay-loan",
       userOp: {
-        to: await this.contract.lending(),
-        data: this.lendingIface.encodeFunctionData(
-          this.lendingIface.getFunction("repay"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("claimLien"),
           [lienId, lien]
         )
       },
       send: async (signer: Signer) => {
-        const controller = await this._lendingController();
-        const txn = await controller.connect(signer).repay(lienId, lien as LienStruct);
+        const txn = await this.contract.connect(signer).repayLien(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -425,15 +423,14 @@ export class Kettle {
       action: StepAction.SEND,
       type: "claim-default",
       userOp: {
-        to: await this.contract.lending(),
-        data: this.lendingIface.encodeFunctionData(
-          this.lendingIface.getFunction("claim"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("claimLien"),
           [lienId, lien]
         )
       },
       send: async (signer: Signer) => {
-        const controller = await this._lendingController();
-        const txn = await controller.connect(signer).claim(lienId, lien as LienStruct);
+        const txn = await this.contract.connect(signer).claimLien(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -474,7 +471,7 @@ export class Kettle {
     offer: MarketOffer | LoanOffer,
     lien?: Lien
   ): Promise<void> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     if (offerExpired(offer.expiration)) {
       throw new Error("Offer expired");
@@ -838,7 +835,7 @@ export class Kettle {
     amount: Numberish,
     useMax?: boolean
   ): Promise<SendStep[]> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     const approvalActions: SendStep[] = [];
 
@@ -872,7 +869,7 @@ export class Kettle {
     user: string,
     collection: string,
   ): Promise<SendStep[]> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     const approvalActions: SendStep[] = [];
 
@@ -990,12 +987,12 @@ export class Kettle {
   // ==============================================
 
   private async _lendingController() {
-    const lendingController = await this.contract.lending();
+    const lendingController = await this.contract.LENDING_CONTROLLER();
     return LendingController__factory.connect(lendingController, this.provider);
   }
 
   private async _escrowController() {
-    const escrowController = await this.contract.escrow();
+    const escrowController = await this.contract.ESCROW_CONTROLLER();
     return EscrowController__factory.connect(escrowController, this.provider);
   }
 
