@@ -6,7 +6,6 @@ const ethers_1 = require("ethers");
 const types_1 = require("./types");
 const utils_1 = require("./utils");
 const signature_validator_1 = require("@ambire/signature-validator");
-// import { createPublicClient, defineChain } from "viem";
 class Kettle {
     constructor(_providerOrSigner, _contractAddress) {
         const provider = "provider" in _providerOrSigner
@@ -18,7 +17,7 @@ class Kettle {
         this.provider = provider;
         this.contractAddress = _contractAddress;
         this.contract = types_1.Kettle__factory.connect(_contractAddress, this.provider);
-        this.iface = types_1.Kettle__factory.createInterface();
+        this.kettleInterface = types_1.Kettle__factory.createInterface();
         this.lendingIface = types_1.LendingController__factory.createInterface();
     }
     connect(_providerOrSigner) {
@@ -81,7 +80,7 @@ class Kettle {
             type: "take-market-offer",
             userOp: (input.lien && input.lienId) ? {
                 to: this.contractAddress,
-                data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillMarketOfferInLien"), [
+                data: this.kettleInterface.encodeFunctionData(this.kettleInterface.getFunction("fulfillMarketOfferInLien"), [
                     input.lienId,
                     input.lien,
                     input.offer,
@@ -90,7 +89,7 @@ class Kettle {
                 ])
             } : {
                 to: this.contractAddress,
-                data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillMarketOffer"), [
+                data: this.kettleInterface.encodeFunctionData(this.kettleInterface.getFunction("fulfillMarketOffer"), [
                     input.tokenId,
                     input.offer,
                     input.signature,
@@ -121,7 +120,7 @@ class Kettle {
             type: "take-loan-offer",
             userOp: (input.lien && input.lienId) ? {
                 to: this.contractAddress,
-                data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillLoanOfferInLien"), [
+                data: this.kettleInterface.encodeFunctionData(this.kettleInterface.getFunction("fulfillLoanOfferInLien"), [
                     input.lienId,
                     input?.amount ?? input.offer.terms.maxAmount,
                     input.lien,
@@ -131,7 +130,7 @@ class Kettle {
                 ])
             } : {
                 to: this.contractAddress,
-                data: this.iface.encodeFunctionData(this.iface.getFunction("fulfillLoanOffer"), [
+                data: this.kettleInterface.encodeFunctionData(this.kettleInterface.getFunction("fulfillLoanOffer"), [
                     input.tokenId,
                     input?.amount ?? input.offer.terms.maxAmount,
                     input.offer,
@@ -163,7 +162,7 @@ class Kettle {
             type: "escrow-market-offer",
             userOp: {
                 to: this.contractAddress,
-                data: this.iface.encodeFunctionData(this.iface.getFunction("escrowMarketOffer"), [
+                data: this.kettleInterface.encodeFunctionData(this.kettleInterface.getFunction("escrowMarketOffer"), [
                     input.offer.collateral.identifier,
                     input.offer,
                     input.signature,

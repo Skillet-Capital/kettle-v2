@@ -32,6 +32,9 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        if (offer.taker != address(0) && offer.taker != msg.sender) {
+            revert("InvalidTaker");
+        }
 
         if (!offer.soft) {
              _verifyCollateral(
@@ -55,6 +58,9 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        if (offer.taker != address(0) && offer.taker != msg.sender) {
+            revert("InvalidTaker");
+        }
         
         _verifyCollateral(
             offer.collateral.criteria,

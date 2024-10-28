@@ -3,7 +3,7 @@ import type { KettleContract, CreateMarketOfferInput, MarketOffer, CreateLoanOff
 export declare class Kettle {
     contract: KettleContract;
     contractAddress: string;
-    iface: any;
+    kettleInterface: any;
     lendingIface: any;
     private provider;
     constructor(_providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner, _contractAddress: string);

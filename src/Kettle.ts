@@ -1,5 +1,4 @@
 import {
-  BYTES_ZERO,
   ADDRESS_ZERO,
   BASIS_POINTS_DIVISOR,
   KETTLE_CONTRACT_NAME,
@@ -16,7 +15,7 @@ import {
   TypedDataEncoder,
   Addressable,
   MaxUint256,
-  solidityPacked
+  Interface
 } from "ethers";
 
 import type {
@@ -68,14 +67,13 @@ import {
 import {
   verifyMessage
 } from "@ambire/signature-validator";
-import { ERC721__factory } from "../typechain-types";
-// import { createPublicClient, defineChain } from "viem";
 
 export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
-  public iface: any;
+  
+  public kettleInterface: any;
   public lendingIface: any;
 
   private provider: Provider;
@@ -104,7 +102,7 @@ export class Kettle {
       this.provider
     );
 
-    this.iface = Kettle__factory.createInterface();
+    this.kettleInterface = Kettle__factory.createInterface();
     this.lendingIface = LendingController__factory.createInterface();
   }
 
@@ -207,8 +205,8 @@ export class Kettle {
       type: "take-market-offer",
       userOp: (input.lien && input.lienId) ? {
         to: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillMarketOfferInLien"),
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillMarketOfferInLien"),
           [
             input.lienId,
             input.lien,
@@ -219,8 +217,8 @@ export class Kettle {
         )
       } : {
         to: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillMarketOffer"),
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillMarketOffer"),
           [
             input.tokenId!,
             input.offer,
@@ -277,8 +275,8 @@ export class Kettle {
       type: "take-loan-offer",
       userOp: (input.lien && input.lienId) ? {
         to: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillLoanOfferInLien"),
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillLoanOfferInLien"),
           [
             input.lienId,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
@@ -290,8 +288,8 @@ export class Kettle {
         )
       } : {
         to: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillLoanOffer"),
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillLoanOffer"),
           [
             input.tokenId,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
@@ -351,8 +349,8 @@ export class Kettle {
       type: "escrow-market-offer",
       userOp: {
         to: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("escrowMarketOffer"),
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("escrowMarketOffer"),
           [
             input.offer.collateral.identifier,
             input.offer as MarketOffer,
@@ -635,8 +633,8 @@ export class Kettle {
           .ownerOf(input.tokenId)
           .then((owner) => ({
             check: "ownership",
-            valid: equalAddresses(owner, input.offer.maker),
-            reason: "Taker bot owner of token"
+            valid: equalAddresses(owner, user),
+            reason: "Taker not owner of token"
           }))
       );
 
@@ -661,7 +659,7 @@ export class Kettle {
             .then((balance) => ({
               check: "balance",
               valid: balance >= BigInt(input.offer.terms.amount),
-              reason: "Taker has insufficient balance for rebate"
+              reason: "Taker has insufficient balance"
             }) as Validation)
         );
       }
