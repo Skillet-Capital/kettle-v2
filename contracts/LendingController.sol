@@ -40,7 +40,7 @@ contract LendingController is ILendingController, Initializable, Ownable2StepUpg
         address lender,
         address borrower,
         LoanOffer calldata offer
-    ) external onlyKettle() returns (uint256 lienId) {
+    ) external onlyKettle returns (uint256 lienId) {
 
         Lien memory lien = Lien({
             borrower: borrower,

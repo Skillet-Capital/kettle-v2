@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -19,11 +20,10 @@ import "./OfferController.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC721Holder {
+contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable, OfferController, ERC721Holder {
     using SafeERC20 for IERC20;
 
-    // @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 private constant _BASIS_POINTS = 10_000;
+    uint256 private immutable _BASIS_POINTS = 10_000;
 
     ILendingController public LENDING_CONTROLLER;
     IEscrowController public ESCROW_CONTROLLER;
@@ -53,7 +53,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 netAmount) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -91,7 +91,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireLoanOffer(offer.kind) returns (uint256 lienId) {
+    ) external nonReentrant() requireLoanOffer(offer.kind) returns (uint256 lienId) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -130,7 +130,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof  
-    ) external requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 netAmount) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -191,7 +191,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         LoanOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireLoanOffer(offer.kind) returns (uint256 newLienId) {
+    ) external nonReentrant() requireLoanOffer(offer.kind) returns (uint256 newLienId) {
         if (offer.soft) {
             revert CannotTakeSoftOffer();
         }
@@ -249,7 +249,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
-    ) external requireMarketOffer(offer.kind) returns (uint256 escrowId) {
+    ) external nonReentrant() requireMarketOffer(offer.kind) returns (uint256 escrowId) {
         if (!offer.soft) {
             revert CannotTakeHardOffer();
         }
@@ -296,7 +296,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
     function repayLien(
         uint256 lienId,
         Lien calldata lien
-    ) external returns (uint256) {
+    ) external nonReentrant() returns (uint256) {
         (
             address lender,
             uint256 debt,
@@ -328,7 +328,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
     function claimLien(
         uint256 lienId,
         Lien calldata lien
-    ) external {
+    ) external nonReentrant() {
         address lender = LENDING_CONTROLLER.claimLien(lienId, lien);
 
         lien.collection.safeTransferFrom(
@@ -375,7 +375,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
     function claimEscrow(
         uint256 escrowId,
         Escrow calldata escrow
-    ) external {
+    ) external nonReentrant() {
         escrow.currency.transfer(
             escrow.buyer,
             escrow.amount + escrow.rebate
