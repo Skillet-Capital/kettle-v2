@@ -12,7 +12,7 @@ import { DAY_SECONDS, executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
 
-describe.only("Fulfill Market Offer In Lien", function () {
+describe("Fulfill Market Offer In Lien", function () {
   let _kettle: KettleContract;
   let kettle: Kettle;
 
