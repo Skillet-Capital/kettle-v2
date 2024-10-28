@@ -94,6 +94,10 @@ describe("Fulfill Loan Offer In Lien", function () {
     await time.increase(BigInt(lien.duration) / 2n)
   });
 
+  afterEach(async function () {
+    expect(await currency.balanceOf(_kettle)).to.equal(0);
+  })
+
   it("should reject if lien is invalid or defaulted", async function () {
     const _borrower = await kettle.connect(borrower);
 

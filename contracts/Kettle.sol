@@ -148,6 +148,9 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
 
         address buyer = offer.side == Side.BID ? offer.maker : msg.sender;
         uint256 marketFee = Math.mulDiv(offer.terms.amount, offer.fee.rate, _BASIS_POINTS);
+        if (marketFee > offer.terms.amount) {
+            revert InvalidFee();
+        }
 
         (
             address lender,
@@ -156,7 +159,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
             uint256 interest
         ) = LENDING_CONTROLLER.repayLien(lienId, lien);
 
-        if (offer.side == Side.ASK && offer.terms.amount - marketFee < debt) {
+        if (offer.side == Side.ASK && (offer.terms.amount - marketFee) < debt) {
             revert InsufficientAskAmount();
         }
 
@@ -206,7 +209,6 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         _takeLoanOffer(lien.tokenId, principal, offer, signature, proof);
 
         address refinancer = offer.side == Side.BID ? offer.maker : msg.sender;
-        address borrower = offer.side == Side.BID ? msg.sender : offer.maker;
 
         (
             address lender,
@@ -254,19 +256,26 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
 
         _takeMarketOffer(placeholder, offer, signature, proof);
 
+        bool isBid = offer.side == Side.BID;
+        address buyer = isBid ? offer.maker : msg.sender;
+        address seller = isBid ? msg.sender : offer.maker;
+
         uint256 rebate = 0;
         if (offer.terms.rebate > 0) {
             rebate = Math.mulDiv(offer.terms.amount, offer.terms.rebate, _BASIS_POINTS);
+            if (rebate > offer.terms.amount) {
+                revert InvalidRebate();
+            }
 
             offer.terms.currency.safeTransferFrom(
-                offer.side == Side.BID ? msg.sender : offer.maker,
+                seller,
                 address(this),
                 rebate
             );
         }
 
         offer.terms.currency.safeTransferFrom(
-            offer.side == Side.BID ? offer.maker : msg.sender,
+            buyer,
             address(this),
             offer.terms.amount
         );
@@ -274,8 +283,8 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         escrowId = ESCROW_CONTROLLER.openEscrow(
             placeholder,
             rebate,
-            offer.side == Side.BID ? offer.maker : msg.sender,
-            offer.side == Side.BID ? msg.sender : offer.maker,
+            buyer,
+            seller,
             offer
         );
     }
@@ -342,12 +351,12 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
 
         uint256 netAmount = escrow.amount;
         if (escrow.fee > 0) {
-            uint256 fee = Math.mulDiv(escrow.amount, escrow.fee, _BASIS_POINTS);
-            netAmount -= fee;
-
-            escrow.currency.transfer(
+            netAmount = _transferFees(
+                escrow.currency,
+                address(this),
                 escrow.recipient,
-                fee
+                escrow.amount,
+                escrow.fee
             );
         }
 
@@ -414,11 +423,18 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         uint256 feeAmount = Math.mulDiv(amount, fee, _BASIS_POINTS);
         if (feeAmount > amount) revert InvalidFee();
 
-        currency.safeTransferFrom(
-            payer,
-            recipient,
-            feeAmount
-        );
+        if (payer == address(this)) {
+            currency.transfer(
+                recipient,
+                feeAmount
+            );
+        } else {
+            currency.safeTransferFrom(
+                payer,
+                recipient,
+                feeAmount
+            );
+        }
 
         netAmount = amount - feeAmount;
     }

@@ -50,3 +50,5 @@ error InvalidMarketOffer();
 error InvalidLoanOffer();
 
 error PlaceholderAlreadyEscrowed();
+
+error InvalidRebate();
