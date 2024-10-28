@@ -451,60 +451,45 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, OfferController, ERC7
         uint256 marketFee
     ) internal {
         uint256 debt = principal + interest + lendingFee;
-        uint256 lenderOut = principal + interest;
-        bool financerIsLender = financer == lender;
-
-        uint256 financerIn = amount;
-        if (financerIsLender) {
-            financerIn = amount > lenderOut
-                ? amount - lenderOut
-                : 0;
-
-            lenderOut = lenderOut > amount
-                ? lenderOut - amount
-                : 0;
-        }
-        
         uint256 netProceeds = amount - marketFee;
-        uint256 borrowerIn = (debt > netProceeds)
-            ? debt - netProceeds
-            : 0;
+        uint256 lenderOut = principal + interest;
+        uint256 financerIn = amount;
+        uint256 borrowerIn = debt > netProceeds ? debt - netProceeds : 0;
+        uint256 borrowerOut = debt < netProceeds ? netProceeds - debt : 0;
 
-        uint256 borrowerOut = (debt < netProceeds)
-            ? netProceeds - debt
-            : 0;
+        if (financer == lender) {
+            if (amount >= lenderOut) {
+                financerIn -= lenderOut;
+                lenderOut = 0;
+            } else {
+                lenderOut -= amount;
+                financerIn = 0;
+            }
+        }
 
-        currency.safeTransferFrom(
-            financer,
-            address(this),
-            financerIn
-        );
+        if (financerIn > 0) {
+            currency.safeTransferFrom(financer, address(this), financerIn);
+        }
 
-        currency.safeTransferFrom(
-            borrower,
-            address(this),
-            borrowerIn
-        );
+        if (borrowerIn > 0) {
+            currency.safeTransferFrom(borrower, address(this), borrowerIn);
+        }
 
-        currency.transfer(
-            borrower, 
-            borrowerOut
-        );
+        if (borrowerOut > 0) {
+            currency.transfer(borrower, borrowerOut);
+        }
 
-        currency.transfer(
-            lender,
-            lenderOut
-        );
+        if (lenderOut > 0) {
+            currency.transfer(lender, lenderOut);
+        }
 
-        currency.transfer(
-            lendingFeeRecipient,
-            lendingFee
-        );
+        if (lendingFee > 0) {
+            currency.transfer(lendingFeeRecipient, lendingFee);
+        }
 
-        currency.transfer(
-            marketFeeRecipient,
-            marketFee
-        );
+        if (marketFee > 0) {
+            currency.transfer(marketFeeRecipient, marketFee);
+        }
     }
 
     function _matchTerms(
