@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -20,10 +20,11 @@ import "./OfferController.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable, OfferController, ERC721Holder {
+contract Kettle is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, OfferController, ERC721Holder {
     using SafeERC20 for IERC20;
 
-    uint256 private immutable _BASIS_POINTS = 10_000;
+    // @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    uint256 private constant _BASIS_POINTS = 10_000;
 
     ILendingController public LENDING_CONTROLLER;
     IEscrowController public ESCROW_CONTROLLER;
@@ -35,10 +36,8 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         address _lendingController, 
         address _escrowController
     ) external initializer {
+        __Ownable_init(owner);
         __OfferController_init();
-
-        __Ownable2Step_init();
-        _transferOwnership(owner);
 
         LENDING_CONTROLLER = ILendingController(_lendingController);
         ESCROW_CONTROLLER = IEscrowController(_escrowController);
@@ -58,9 +57,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
             revert CannotTakeSoftOffer();
         }
 
-        bool isBid = offer.side == Side.BID;
-        address buyer = isBid ? offer.maker : msg.sender;
-        address seller = isBid ? msg.sender : offer.maker;
+        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
 
         _takeMarketOffer(tokenId, offer, signature, proof);
 
@@ -96,10 +93,8 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
             revert CannotTakeSoftOffer();
         }
 
-        bool isBid = offer.side == Side.BID;
-        uint256 principal = isBid ? amount : offer.terms.amount;
-        address borrower = isBid ? msg.sender : offer.maker;
-        address lender = isBid ? offer.maker : msg.sender;
+        (address lender, address borrower) = _findBuyerAndSeller(offer.side, offer.maker);
+        uint256 principal = _findPrincipal(offer.side, offer.terms.amount, amount);
         
         _takeLoanOffer(tokenId, principal, offer, signature, proof);
 
@@ -147,10 +142,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         _takeMarketOffer(lien.tokenId, offer, signature, proof);
 
         address buyer = offer.side == Side.BID ? offer.maker : msg.sender;
-        uint256 marketFee = Math.mulDiv(offer.terms.amount, offer.fee.rate, _BASIS_POINTS);
-        if (marketFee > offer.terms.amount) {
-            revert InvalidFee();
-        }
+        uint256 marketFee = _calculateFee(offer.terms.amount, offer.fee.rate);
 
         (
             address lender,
@@ -205,7 +197,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
             offer.collateral.collection
         );
 
-        uint256 principal = offer.side == Side.BID ? amount : offer.terms.amount;
+        uint256 principal = _findPrincipal(offer.side, offer.terms.amount, amount);
         _takeLoanOffer(lien.tokenId, principal, offer, signature, proof);
 
         address refinancer = offer.side == Side.BID ? offer.maker : msg.sender;
@@ -256,16 +248,11 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
 
         _takeMarketOffer(placeholder, offer, signature, proof);
 
-        bool isBid = offer.side == Side.BID;
-        address buyer = isBid ? offer.maker : msg.sender;
-        address seller = isBid ? msg.sender : offer.maker;
+        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
 
         uint256 rebate = 0;
         if (offer.terms.rebate > 0) {
-            rebate = Math.mulDiv(offer.terms.amount, offer.terms.rebate, _BASIS_POINTS);
-            if (rebate > offer.terms.amount) {
-                revert InvalidRebate();
-            }
+            rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
 
             offer.terms.currency.safeTransferFrom(
                 seller,
@@ -420,8 +407,7 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         uint256 amount,
         uint256 fee
     ) internal returns (uint256 netAmount) {
-        uint256 feeAmount = Math.mulDiv(amount, fee, _BASIS_POINTS);
-        if (feeAmount > amount) revert InvalidFee();
+        uint256 feeAmount = _calculateFee(amount, fee);
 
         if (payer == address(this)) {
             currency.transfer(
@@ -470,8 +456,6 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
         uint256 netProceeds = amount - marketFee;
         uint256 lenderOut = principal + interest;
         uint256 financerIn = amount;
-        uint256 borrowerIn = debt > netProceeds ? debt - netProceeds : 0;
-        uint256 borrowerOut = debt < netProceeds ? netProceeds - debt : 0;
 
         if (financer == lender) {
             if (amount >= lenderOut) {
@@ -483,28 +467,33 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
             }
         }
 
-        if (financerIn > 0) {
-            currency.safeTransferFrom(financer, address(this), financerIn);
+        _processTransfer(currency, financer, address(this), financerIn);
+
+        if (debt > netProceeds) {
+            currency.safeTransferFrom(borrower, address(this), debt - netProceeds);
         }
 
-        if (borrowerIn > 0) {
-            currency.safeTransferFrom(borrower, address(this), borrowerIn);
+        if (debt < netProceeds) {
+            currency.transfer(borrower, netProceeds - debt);
         }
 
-        if (borrowerOut > 0) {
-            currency.transfer(borrower, borrowerOut);
-        }
+        _processTransfer(currency, address(this), lender, lenderOut);
+        _processTransfer(currency, address(this), lendingFeeRecipient, lendingFee);
+        _processTransfer(currency, address(this), marketFeeRecipient, marketFee);
+    }
 
-        if (lenderOut > 0) {
-            currency.transfer(lender, lenderOut);
-        }
-
-        if (lendingFee > 0) {
-            currency.transfer(lendingFeeRecipient, lendingFee);
-        }
-
-        if (marketFee > 0) {
-            currency.transfer(marketFeeRecipient, marketFee);
+    function _processTransfer(
+        IERC20 currency,
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        if (amount == 0) return;
+        if (from == to) return;
+        if (from == address(this)) {
+            currency.transfer(to, amount);
+        } else {
+            currency.safeTransferFrom(from, to, amount);
         }
     }
 
@@ -520,6 +509,41 @@ contract Kettle is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgrad
 
         if (collection1 != collection2) {
             revert CollectionMismatch();
+        }
+    }
+
+    function _calculateFee(
+        uint256 amount,
+        uint256 rate
+    ) internal pure returns (uint256 fee) {
+        fee = Math.mulDiv(amount, rate, _BASIS_POINTS);
+        if (fee > amount) {
+            revert InvalidFee();
+        }
+    }
+
+    function _findBuyerAndSeller(
+        Side side,
+        address maker
+    ) internal view returns (address buyer, address seller) {
+        if (side == Side.BID) {
+            buyer = maker;
+            seller = msg.sender;
+        } else {
+            buyer = msg.sender;
+            seller = maker;
+        }
+    }
+
+    function _findPrincipal(
+        Side side,
+        uint256 offerAmount,
+        uint256 amount
+    ) internal view returns (uint256 principal) {
+        if (side == Side.BID) {
+            principal = amount;
+        } else {
+            principal = offerAmount;
         }
     }
 

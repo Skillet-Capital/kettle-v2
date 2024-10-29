@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./interfaces/IOfferController.sol";
@@ -10,7 +10,7 @@ import "./Signatures.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract OfferController is IOfferController, Ownable2StepUpgradeable, Signatures {
+contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
@@ -33,7 +33,7 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
         if (offer.taker != address(0) && offer.taker != msg.sender) {
-            revert("InvalidTaker");
+            revert InvalidTaker();
         }
 
         if (!offer.soft) {
@@ -59,7 +59,7 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
         if (offer.taker != address(0) && offer.taker != msg.sender) {
-            revert("InvalidTaker");
+            revert InvalidTaker();
         }
         
         _verifyCollateral(

@@ -52,3 +52,5 @@ error InvalidLoanOffer();
 error PlaceholderAlreadyEscrowed();
 
 error InvalidRebate();
+
+error InvalidTaker();
