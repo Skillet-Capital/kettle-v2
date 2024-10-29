@@ -104,6 +104,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         }
 
         emit LoanOfferTaken({
+            principal: amount,
             tokenId: tokenId,
             taker: msg.sender,
             offer: offer

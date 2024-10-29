@@ -21,14 +21,15 @@ interface IOfferController {
     );
 
     event MarketOfferTaken(
-        uint256 tokenId,
-        address taker,
+        uint256 indexed tokenId,
+        address indexed taker,
         MarketOffer offer
     );
 
     event LoanOfferTaken(
-        uint256 tokenId,
-        address taker,
+        uint256 indexed tokenId,
+        address indexed taker,
+        uint256 principal,
         LoanOffer offer
     );
 }

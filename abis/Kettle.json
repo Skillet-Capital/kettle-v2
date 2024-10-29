@@ -1,69 +1,195 @@
 [
   {
     "inputs": [
-      { "internalType": "address", "name": "target", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "target",
+        "type": "address"
+      }
     ],
     "name": "AddressEmptyCode",
     "type": "error"
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
     "name": "AddressInsufficientBalance",
     "type": "error"
   },
-  { "inputs": [], "name": "CannotTakeHardOffer", "type": "error" },
-  { "inputs": [], "name": "CannotTakeSoftOffer", "type": "error" },
-  { "inputs": [], "name": "CollectionMismatch", "type": "error" },
-  { "inputs": [], "name": "CurrencyMismatch", "type": "error" },
   {
-    "inputs": [{ "internalType": "bytes", "name": "err", "type": "bytes" }],
+    "inputs": [],
+    "name": "CannotTakeHardOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CannotTakeSoftOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CollectionMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CurrencyMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "err",
+        "type": "bytes"
+      }
+    ],
     "name": "ERC6492DeployFailed",
     "type": "error"
   },
-  { "inputs": [], "name": "FailedInnerCall", "type": "error" },
-  { "inputs": [], "name": "InsufficientAskAmount", "type": "error" },
-  { "inputs": [], "name": "InsufficientOffer", "type": "error" },
-  { "inputs": [], "name": "InvalidCriteria", "type": "error" },
-  { "inputs": [], "name": "InvalidFee", "type": "error" },
-  { "inputs": [], "name": "InvalidInitialization", "type": "error" },
-  { "inputs": [], "name": "InvalidLoanAmount", "type": "error" },
-  { "inputs": [], "name": "InvalidLoanOffer", "type": "error" },
-  { "inputs": [], "name": "InvalidMarketOffer", "type": "error" },
-  { "inputs": [], "name": "InvalidRate", "type": "error" },
-  { "inputs": [], "name": "InvalidSignature", "type": "error" },
-  { "inputs": [], "name": "InvalidTaker", "type": "error" },
-  { "inputs": [], "name": "InvalidToken", "type": "error" },
-  { "inputs": [], "name": "InvalidVParameter", "type": "error" },
-  { "inputs": [], "name": "MakerIsNotBorrower", "type": "error" },
-  { "inputs": [], "name": "MathOverflowedMulDiv", "type": "error" },
-  { "inputs": [], "name": "NotInitializing", "type": "error" },
-  { "inputs": [], "name": "OfferExpired", "type": "error" },
-  { "inputs": [], "name": "OfferUnavailable", "type": "error" },
+  {
+    "inputs": [],
+    "name": "FailedInnerCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientAskAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCriteria",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFee",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLoanAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLoanOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidMarketOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTaker",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidToken",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidVParameter",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MakerIsNotBorrower",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MathOverflowedMulDiv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotInitializing",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OfferExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OfferUnavailable",
+    "type": "error"
+  },
   {
     "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
     ],
     "name": "OwnableInvalidOwner",
     "type": "error"
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
     "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
-  { "inputs": [], "name": "ReentrancyGuardReentrantCall", "type": "error" },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
   {
     "inputs": [
-      { "internalType": "address", "name": "token", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
     ],
     "name": "SafeERC20FailedOperation",
     "type": "error"
   },
-  { "inputs": [], "name": "TakerIsNotBorrower", "type": "error" },
+  {
+    "inputs": [],
+    "name": "TakerIsNotBorrower",
+    "type": "error"
+  },
   {
     "anonymous": false,
     "inputs": [
@@ -81,24 +207,50 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "taker",
         "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "principal",
+        "type": "uint256"
+      },
+      {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -143,7 +295,11 @@
                 "name": "minAmount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              },
               {
                 "internalType": "uint256",
                 "name": "defaultRate",
@@ -171,7 +327,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -182,7 +342,11 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "indexed": false,
         "internalType": "struct LoanOffer",
@@ -197,24 +361,44 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "taker",
         "type": "address"
       },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -249,7 +433,11 @@
                 "name": "amount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rebate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct MarketOfferTerms",
             "name": "terms",
@@ -262,7 +450,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -273,7 +465,11 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "indexed": false,
         "internalType": "struct MarketOffer",
@@ -394,7 +590,11 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
       {
         "internalType": "address",
         "name": "_lendingController",
@@ -413,16 +613,30 @@
   },
   {
     "inputs": [
-      { "internalType": "bytes32", "name": "offerHash", "type": "bytes32" }
+      {
+        "internalType": "bytes32",
+        "name": "offerHash",
+        "type": "bytes32"
+      }
     ],
     "name": "amountTaken",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256[]", "name": "salts", "type": "uint256[]" }
+      {
+        "internalType": "uint256[]",
+        "name": "salts",
+        "type": "uint256[]"
+      }
     ],
     "name": "cancelOffers",
     "outputs": [],
@@ -431,8 +645,16 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "user", "type": "address" },
-      { "internalType": "uint256[]", "name": "salts", "type": "uint256[]" }
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "salts",
+        "type": "uint256[]"
+      }
     ],
     "name": "cancelOffersForUser",
     "outputs": [],
@@ -441,20 +663,42 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "", "type": "address" },
-      { "internalType": "uint256", "name": "", "type": "uint256" }
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
     "name": "cancelledOrFulfilled",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "escrowId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
           {
             "internalType": "uint256",
             "name": "placeholder",
@@ -465,8 +709,16 @@
             "name": "identifier",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "buyer", "type": "address" },
-          { "internalType": "address", "name": "seller", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
@@ -477,12 +729,36 @@
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "amount", "type": "uint256" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "rebate", "type": "uint256" },
-          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
-          { "internalType": "uint256", "name": "lockTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Escrow",
         "name": "escrow",
@@ -496,37 +772,73 @@
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "lienId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "lienId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "address", "name": "borrower", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "borrower",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
           {
             "internalType": "contract IERC20",
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "principal", "type": "uint256" },
-          { "internalType": "uint256", "name": "rate", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "principal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rate",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "defaultRate",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "duration", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "gracePeriod",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "startTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Lien",
         "name": "lien",
@@ -540,14 +852,38 @@
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "placeholder", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "placeholder",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -582,7 +918,11 @@
                 "name": "amount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rebate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct MarketOfferTerms",
             "name": "terms",
@@ -595,7 +935,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -606,33 +950,77 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct MarketOffer",
         "name": "offer",
         "type": "tuple"
       },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" },
-      { "internalType": "bytes32[]", "name": "proof", "type": "bytes32[]" }
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
     ],
     "name": "escrowMarketOffer",
     "outputs": [
-      { "internalType": "uint256", "name": "escrowId", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -677,7 +1065,11 @@
                 "name": "minAmount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              },
               {
                 "internalType": "uint256",
                 "name": "defaultRate",
@@ -705,7 +1097,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -716,56 +1112,112 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct LoanOffer",
         "name": "offer",
         "type": "tuple"
       },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" },
-      { "internalType": "bytes32[]", "name": "proof", "type": "bytes32[]" }
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
     ],
     "name": "fulfillLoanOffer",
     "outputs": [
-      { "internalType": "uint256", "name": "lienId", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "lienId",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "lienId", "type": "uint256" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "lienId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "address", "name": "borrower", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "borrower",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
           {
             "internalType": "contract IERC20",
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "principal", "type": "uint256" },
-          { "internalType": "uint256", "name": "rate", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "principal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rate",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "defaultRate",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "duration", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "gracePeriod",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "startTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Lien",
         "name": "lien",
@@ -773,11 +1225,31 @@
       },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -822,7 +1294,11 @@
                 "name": "minAmount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              },
               {
                 "internalType": "uint256",
                 "name": "defaultRate",
@@ -850,7 +1326,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -861,32 +1341,72 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct LoanOffer",
         "name": "offer",
         "type": "tuple"
       },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" },
-      { "internalType": "bytes32[]", "name": "proof", "type": "bytes32[]" }
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
     ],
     "name": "fulfillLoanOfferInLien",
     "outputs": [
-      { "internalType": "uint256", "name": "newLienId", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "newLienId",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -921,7 +1441,11 @@
                 "name": "amount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rebate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct MarketOfferTerms",
             "name": "terms",
@@ -934,7 +1458,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -945,55 +1473,107 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct MarketOffer",
         "name": "offer",
         "type": "tuple"
       },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" },
-      { "internalType": "bytes32[]", "name": "proof", "type": "bytes32[]" }
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
     ],
     "name": "fulfillMarketOffer",
     "outputs": [
-      { "internalType": "uint256", "name": "netAmount", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "netAmount",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "lienId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "lienId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "address", "name": "borrower", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "borrower",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
           {
             "internalType": "contract IERC20",
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "principal", "type": "uint256" },
-          { "internalType": "uint256", "name": "rate", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "principal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rate",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "defaultRate",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "duration", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "gracePeriod",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "startTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Lien",
         "name": "lien",
@@ -1001,11 +1581,31 @@
       },
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -1040,7 +1640,11 @@
                 "name": "amount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rebate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct MarketOfferTerms",
             "name": "terms",
@@ -1053,7 +1657,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -1064,18 +1672,34 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct MarketOffer",
         "name": "offer",
         "type": "tuple"
       },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" },
-      { "internalType": "bytes32[]", "name": "proof", "type": "bytes32[]" }
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
     ],
     "name": "fulfillMarketOfferInLien",
     "outputs": [
-      { "internalType": "uint256", "name": "netAmount", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "netAmount",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1084,11 +1708,31 @@
     "inputs": [
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -1133,7 +1777,11 @@
                 "name": "minAmount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              },
               {
                 "internalType": "uint256",
                 "name": "defaultRate",
@@ -1161,7 +1809,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -1172,7 +1824,11 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct LoanOffer",
         "name": "offer",
@@ -1180,7 +1836,13 @@
       }
     ],
     "name": "hashLoanOffer",
-    "outputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1188,11 +1850,31 @@
     "inputs": [
       {
         "components": [
-          { "internalType": "enum OfferKind", "name": "kind", "type": "uint8" },
-          { "internalType": "bool", "name": "soft", "type": "bool" },
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
-          { "internalType": "address", "name": "maker", "type": "address" },
-          { "internalType": "address", "name": "taker", "type": "address" },
+          {
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
           {
             "components": [
               {
@@ -1227,7 +1909,11 @@
                 "name": "amount",
                 "type": "uint256"
               },
-              { "internalType": "uint256", "name": "rebate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct MarketOfferTerms",
             "name": "terms",
@@ -1240,7 +1926,11 @@
                 "name": "recipient",
                 "type": "address"
               },
-              { "internalType": "uint256", "name": "rate", "type": "uint256" }
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
             ],
             "internalType": "struct FeeTerms",
             "name": "fee",
@@ -1251,7 +1941,11 @@
             "name": "expiration",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "salt", "type": "uint256" }
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct MarketOffer",
         "name": "offer",
@@ -1259,7 +1953,13 @@
       }
     ],
     "name": "hashMarketOffer",
-    "outputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1271,38 +1971,90 @@
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "name": "nonces",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "", "type": "address" },
-      { "internalType": "address", "name": "", "type": "address" },
-      { "internalType": "uint256", "name": "", "type": "uint256" },
-      { "internalType": "bytes", "name": "", "type": "bytes" }
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
     ],
     "name": "onERC721Received",
-    "outputs": [{ "internalType": "bytes4", "name": "", "type": "bytes4" }],
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "owner",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "bool", "name": "returnRebate", "type": "bool" },
-      { "internalType": "uint256", "name": "escrowId", "type": "uint256" },
+      {
+        "internalType": "bool",
+        "name": "returnRebate",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
           {
             "internalType": "uint256",
             "name": "placeholder",
@@ -1313,8 +2065,16 @@
             "name": "identifier",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "buyer", "type": "address" },
-          { "internalType": "address", "name": "seller", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
@@ -1325,12 +2085,36 @@
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "amount", "type": "uint256" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "rebate", "type": "uint256" },
-          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
-          { "internalType": "uint256", "name": "lockTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Escrow",
         "name": "escrow",
@@ -1351,37 +2135,73 @@
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "lienId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "lienId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "address", "name": "borrower", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "borrower",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
           {
             "internalType": "contract IERC20",
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "uint256", "name": "principal", "type": "uint256" },
-          { "internalType": "uint256", "name": "rate", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "principal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rate",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "defaultRate",
             "type": "uint256"
           },
-          { "internalType": "uint256", "name": "duration", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
           {
             "internalType": "uint256",
             "name": "gracePeriod",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "startTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Lien",
         "name": "lien",
@@ -1389,17 +2209,35 @@
       }
     ],
     "name": "repayLien",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "internalType": "uint256", "name": "escrowId", "type": "uint256" },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
       {
         "components": [
-          { "internalType": "enum Side", "name": "side", "type": "uint8" },
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
           {
             "internalType": "uint256",
             "name": "placeholder",
@@ -1410,8 +2248,16 @@
             "name": "identifier",
             "type": "uint256"
           },
-          { "internalType": "address", "name": "buyer", "type": "address" },
-          { "internalType": "address", "name": "seller", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
           {
             "internalType": "contract IERC721",
             "name": "collection",
@@ -1422,12 +2268,36 @@
             "name": "currency",
             "type": "address"
           },
-          { "internalType": "address", "name": "recipient", "type": "address" },
-          { "internalType": "uint256", "name": "amount", "type": "uint256" },
-          { "internalType": "uint256", "name": "fee", "type": "uint256" },
-          { "internalType": "uint256", "name": "rebate", "type": "uint256" },
-          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
-          { "internalType": "uint256", "name": "lockTime", "type": "uint256" }
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockTime",
+            "type": "uint256"
+          }
         ],
         "internalType": "struct Escrow",
         "name": "escrow",
@@ -1441,7 +2311,11 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
     ],
     "name": "transferOwnership",
     "outputs": [],
