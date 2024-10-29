@@ -1,0 +1,44 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Kettle
+    network: base
+    source:
+      address: "0xC46071bD560A36D7C31f14091d878e916cDd2d95"
+      abi: Kettle
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Initialized
+        - LoanOfferTaken
+        - MarketOfferTaken
+        - NonceIncremented
+        - OfferCancelled
+        - OwnershipTransferred
+        - Refinance
+      abis:
+        - name: Kettle
+          file: ./abis/Kettle.json
+      eventHandlers:
+        - event: Initialized(uint64)
+          handler: handleInitialized
+        - event: LoanOfferTaken(uint256,address,(uint8,bool,uint8,address,address,(uint8,address,uint256),(address,uint256,uint256,uint256,uint256,uint256,uint256,uint256),(address,uint256),uint256,uint256))
+          handler: handleLoanOfferTaken
+        - event: MarketOfferTaken(uint256,address,(uint8,bool,uint8,address,address,(uint8,address,uint256),(address,uint256,uint256),(address,uint256),uint256,uint256))
+          handler: handleMarketOfferTaken
+        - event: NonceIncremented(indexed address,indexed uint256)
+          handler: handleNonceIncremented
+        - event: OfferCancelled(indexed address,indexed address,indexed uint256)
+          handler: handleOfferCancelled
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: Refinance(indexed uint256,indexed uint256)
+          handler: handleRefinance
+      file: ./src/kettle.ts
