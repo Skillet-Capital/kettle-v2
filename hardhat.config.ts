@@ -35,12 +35,14 @@ const config: HardhatUserConfig = {
       allowBlocksWithSameTimestamp: true,
       allowUnlimitedContractSize: true
     },
-    blast: {
-      url: 'https://lingering-indulgent-replica.blast-mainnet.quiknode.pro/6667a8f4be701cb6549b415d567bc706fb2f13a8/',
-      accounts: [
-        process.env.PK!
-      ]
-    }
+    ...(process.env.PK && {
+      blast: {
+        url: 'https://lingering-indulgent-replica.blast-mainnet.quiknode.pro/6667a8f4be701cb6549b415d567bc706fb2f13a8/',
+        accounts: [
+          process.env.PK!
+        ]
+      }
+    })
   },
   etherscan: {
     apiKey: {
