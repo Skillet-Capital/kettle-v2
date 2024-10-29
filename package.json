@@ -4,7 +4,8 @@
   "types": "dist/src/index.d.ts",
   "version": "0.1.0",
   "scripts": {
-    "build": "hardhat compile && tsc"
+    "build": "hardhat compile && tsc",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
