@@ -33,8 +33,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowBlocksWithSameTimestamp: true,
-      allowUnlimitedContractSize: true,
-      chainId: 81457
+      allowUnlimitedContractSize: true
     },
     blast: {
       url: 'https://lingering-indulgent-replica.blast-mainnet.quiknode.pro/6667a8f4be701cb6549b415d567bc706fb2f13a8/',
