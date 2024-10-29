@@ -49,6 +49,12 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
 
         cancelledOrFulfilled[offer.maker][offer.salt] = 1;
+
+        emit MarketOfferTaken({
+            tokenId: tokenId,
+            taker: msg.sender,
+            offer: offer
+        });
     }
 
     function _takeLoanOffer(
@@ -96,6 +102,12 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         } else {
             cancelledOrFulfilled[offer.maker][offer.salt] = 1;
         }
+
+        emit LoanOfferTaken({
+            tokenId: tokenId,
+            taker: msg.sender,
+            offer: offer
+        });
     }
 
     function _validateOffer(

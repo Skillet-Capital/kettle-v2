@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+import "./interfaces/IKettle.sol";
 import "./interfaces/ILendingController.sol";
 import "./interfaces/IEscrowController.sol";
 import "./OfferController.sol";
@@ -20,7 +21,7 @@ import "./OfferController.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract Kettle is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, OfferController, ERC721Holder {
+contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, OfferController, ERC721Holder {
     using SafeERC20 for IERC20;
 
     // @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -234,6 +235,11 @@ contract Kettle is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable
             lien.borrower, 
             offer
         );
+
+        emit Refinance({
+            oldLienId: lienId,
+            newLienId: newLienId
+        });
     }
 
     function escrowMarketOffer(
