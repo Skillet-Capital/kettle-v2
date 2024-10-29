@@ -1,37 +1,29 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "./interfaces/IEscrowController.sol";
 
-import { IEscrowController } from "./interfaces/IEscrowController.sol";
-import { IKettleAssetFactory } from "./interfaces/IKettleAssetFactory.sol";
-import { IKettleAsset } from "./interfaces/IKettleAsset.sol";
+import "./KettleAccess.sol";
 
-import { MarketOffer, Escrow, Side } from "./Structs.sol";
+import "./Structs.sol";
+import "./Errors.sol";
 
-import { InvalidEscrow, EscrowLocked, SellerNotAskWhitelisted, SellerNotBidWhitelisted, OnlyKettle, InvalidAssetFactory } from "./Errors.sol";
+contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgradeable, KettleAccess {
+    address public TOKEN_SUPPLIER;
 
-contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgradeable {
-    using SafeERC20 for IERC20;
-
-    uint256 private constant _BASIS_POINTS = 10_000;
-
-    address public kettle;
     uint256 public escrowIndex;
     uint256 public lockTime;
     bool public whitelistOnly;
 
     mapping(uint256 => bytes32) public escrows;
-
     mapping(uint256 => bool) public escrowedTokens;
     mapping(address => bool) public whitelistedAskMakers;
     mapping(address => bool) public whitelistedBidTakers;
+
+    uint256[50] private _gap;
 
     function __EscrowController_init(address owner) public initializer {
         __Ownable2Step_init();
@@ -42,13 +34,13 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         whitelistOnly = true;
     }
 
-    function setKettle(address _kettle) external onlyOwner() {
-        kettle = _kettle;
-    }
-
     // ===============================
     //             SETTERS
     // ===============================
+
+    function setTokenSupplier(address _tokenSupplier) external onlyOwner {
+        TOKEN_SUPPLIER = _tokenSupplier;
+    }
 
     function setLockTime(uint256 time) external onlyOwner {
         lockTime = time;
@@ -60,103 +52,21 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
 
     function whitelistedAskMaker(address user, bool whitelisted) external onlyOwner {
         whitelistedAskMakers[user] = whitelisted;
+        emit AskMakerWhitelisted(user, whitelisted);
     }
 
     function whitelistBidTaker(address user, bool whitelisted) external onlyOwner {
         whitelistedBidTakers[user] = whitelisted;
+        emit BidTakerWhitelisted(user, whitelisted);
+    }
+
+    function setEscrowedToken(uint256 placeholder, bool escrowed) external onlyOwner {
+        escrowedTokens[placeholder] = escrowed;
+        emit PlaceholderEscrowed(placeholder, escrowed);
     }
 
     // ===============================
-    //             EXTERNAL
-    // ===============================
-
-    function settleEscrow(
-        uint256 escrowId, 
-        uint256 tokenId, 
-        Escrow calldata escrow,
-        address assetFactory
-    ) external onlyOwner validEscrow(escrowId, escrow) {
-
-        if (address(assetFactory).code.length == 0) {
-            revert InvalidAssetFactory();
-        }
-
-        if (IKettleAssetFactory(assetFactory).isKettleAsset(address(escrow.collection))) {
-            IKettleAssetFactory(assetFactory).mint(address(escrow.collection), escrow.buyer, tokenId);
-        } else {
-            IKettleAsset(address(escrow.collection)).mint(escrow.buyer, tokenId);
-        }
-
-        uint256 netAmount = escrow.amount;
-        if (escrow.fee > 0) {
-            uint256 fee = Math.mulDiv(escrow.amount, escrow.fee, _BASIS_POINTS);
-            netAmount -= fee;
-
-            escrow.currency.transfer(
-                escrow.recipient,
-                fee
-            );
-        }
-
-        escrow.currency.transfer(
-            escrow.seller, 
-            netAmount + escrow.rebate
-        );
-
-        delete escrows[escrowId];
-
-        emit EscrowSettled({ escrowId: escrowId, tokenId: tokenId });
-    }
-
-    function rejectEscrow(
-        bool returnRebate,
-        uint256 escrowId, 
-        Escrow calldata escrow
-    ) external onlyOwner validEscrow(escrowId, escrow) {
-
-        if (returnRebate) {
-            escrow.currency.transfer(
-                escrow.seller,
-                escrow.rebate
-            );
-
-            escrow.currency.transfer(
-                escrow.buyer,
-                escrow.amount
-            );
-        } else {
-            escrow.currency.transfer(
-                escrow.buyer,
-                escrow.amount + escrow.rebate
-            );
-        }
-
-        delete escrows[escrowId];
-
-        emit EscrowRejected({ escrowId: escrowId, rebateReturned: returnRebate });
-    }
-
-    function claimEscrow(
-        uint256 escrowId,
-        Escrow calldata escrow
-    ) external validEscrow(escrowId, escrow) escrowUnlocked(escrow) {
-
-        IERC20(escrow.currency).transfer(
-            escrow.buyer,
-            escrow.amount + escrow.rebate
-        );
-
-        delete escrows[escrowId];
-
-        emit EscrowClaimed({ escrowId: escrowId });
-    }
-
-    function setEscrowedToken(uint256 tokenId, bool escrowed) external onlyOwner {
-        escrowedTokens[tokenId] = escrowed;
-    }
-
-    // ===============================
-    //        ACCESS CONTROL
+    //        EXTERNAL METHODS
     // ===============================
 
     function openEscrow(
@@ -166,6 +76,8 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         address seller,
         MarketOffer calldata offer
     ) external onlyKettle returns (uint256 escrowId) {
+        if (escrowedTokens[placeholder]) revert PlaceholderAlreadyEscrowed();
+
         if (whitelistOnly) {
             if (offer.side == Side.ASK && !whitelistedAskMakers[seller]) revert SellerNotAskWhitelisted();
             if (offer.side == Side.BID && !whitelistedBidTakers[buyer]) revert SellerNotBidWhitelisted();
@@ -200,13 +112,28 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
         });
     }
 
-    // ===============================
-    //             HELPERS
-    // ===============================
+    function settleEscrow(uint256 escrowId, Escrow calldata escrow, uint256 tokenId) external onlyKettle validEscrow(escrowId, escrow) {
+        delete escrows[escrowId];
+        emit EscrowSettled({ escrowId: escrowId, tokenId: tokenId });
+    }
+
+    function claimEscrow(uint256 escrowId, Escrow calldata escrow) external onlyKettle validEscrow(escrowId, escrow) escrowUnlocked(escrow) {
+        delete escrows[escrowId];
+        emit EscrowClaimed({ escrowId: escrowId });
+    }
+
+    function rejectEscrow(uint256 escrowId, Escrow calldata escrow, bool returnRebate) external onlyKettle validEscrow(escrowId, escrow) {
+        delete escrows[escrowId];
+        emit EscrowRejected({ escrowId: escrowId, rebateReturned: returnRebate });
+    }
 
     function hashEscrow(Escrow memory escrow) external pure returns (bytes32 _hash) {
         _hash = _hashEscrow(escrow);
     }
+
+    // ===============================
+    //             HELPERS
+    // ===============================
 
     function _hashEscrow(Escrow memory escrow) internal pure returns (bytes32 _hash) {
         _hash = keccak256(abi.encode(escrow));
@@ -215,13 +142,6 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
     // ===============================
     //             MODIFIERS
     // ===============================
-
-    modifier onlyKettle() {
-        if (msg.sender != kettle) {
-            revert OnlyKettle();
-        }
-        _;
-    }
 
     modifier validEscrow(uint256 escrowId, Escrow memory escrow) {
         if (!(escrows[escrowId] == _hashEscrow(escrow))) revert InvalidEscrow();

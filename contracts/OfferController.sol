@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./interfaces/IOfferController.sol";
@@ -10,7 +10,7 @@ import "./Signatures.sol";
 import "./Errors.sol";
 import "./Structs.sol";
 
-contract OfferController is IOfferController, Ownable2StepUpgradeable, Signatures {
+contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
@@ -32,6 +32,9 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        if (offer.taker != address(0) && offer.taker != msg.sender) {
+            revert InvalidTaker();
+        }
 
         if (!offer.soft) {
              _verifyCollateral(
@@ -46,6 +49,12 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
 
         cancelledOrFulfilled[offer.maker][offer.salt] = 1;
+
+        emit MarketOfferTaken({
+            tokenId: tokenId,
+            taker: msg.sender,
+            offer: offer
+        });
     }
 
     function _takeLoanOffer(
@@ -55,6 +64,9 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
+        if (offer.taker != address(0) && offer.taker != msg.sender) {
+            revert InvalidTaker();
+        }
         
         _verifyCollateral(
             offer.collateral.criteria,
@@ -90,6 +102,12 @@ contract OfferController is IOfferController, Ownable2StepUpgradeable, Signature
         } else {
             cancelledOrFulfilled[offer.maker][offer.salt] = 1;
         }
+
+        emit LoanOfferTaken({
+            tokenId: tokenId,
+            taker: msg.sender,
+            offer: offer
+        });
     }
 
     function _validateOffer(

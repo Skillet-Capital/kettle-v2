@@ -1,46 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Escrow } from "../Structs.sol";
+import "../Structs.sol";
 
 interface IEscrowController {
 
-    event SellerWhitelisted(
-        address indexed maker,
-        bool indexed whitelisted
-    );
+    function TOKEN_SUPPLIER() external view returns (address);
 
-    event EscrowOpened(
-        uint256 indexed escrowId,
-        Escrow escrow
-    );
+    function openEscrow(
+        uint256 placeholder,
+        uint256 rebate,
+        address buyer,
+        address seller,
+        MarketOffer calldata offer
+    ) external returns (uint256);
 
-    event EscrowSettled(
-        uint256 indexed escrowId,
-        uint256 indexed tokenId
-    );
+    function settleEscrow(uint256 escrowId, Escrow calldata escrow, uint256 tokenId) external;
+    function claimEscrow(uint256 escrowId, Escrow calldata escrow) external;
+    function rejectEscrow(uint256 escrowId, Escrow calldata escrow, bool returnRebate) external;
 
-    event EscrowRejected(
-        uint256 indexed escrowId,
-        bool indexed rebateReturned
-    );
+    event EscrowOpened(uint256 indexed escrowId, Escrow escrow);
+    event EscrowSettled(uint256 indexed escrowId, uint256 indexed tokenId);
+    event EscrowClaimed(uint256 indexed escrowId);
+    event EscrowRejected(uint256 indexed escrowId, bool indexed rebateReturned);
 
-    event EscrowClaimed(
-        uint256 indexed escrowId
-    );
-
-    // // Setters
-    // function setLockTime(uint256 time) external;
-    // function setWhitelistOnly(bool _whitelistOnly) external;
-    // function setWhitelistMaker(address maker, bool whitelisted) external;
-
-    // // Escrow Management
-    // function takeListing(Listing calldata listing, bytes calldata signature) external;
-    // function settleEscrow(uint256 escrowId, uint256 tokenId, Escrow calldata escrow) external;
-    // function rejectEscrow(uint256 escrowId, Escrow calldata escrow) external;
-    // function rejectEscrowReturnRebate(uint256 escrowId, Escrow calldata escrow) external;
-    // function claimEscrow(uint256 escrowId, Escrow calldata escrow) external;
-
-    // // Getters
-    // function hashEscrow(Escrow calldata escrow) external view returns (bytes32 _hash);
+    event AskMakerWhitelisted(address indexed maker, bool indexed whitelisted);
+    event BidTakerWhitelisted(address indexed taker, bool indexed whitelisted);
+    event PlaceholderEscrowed(uint256 indexed placeholder, bool indexed escrowed);
 }

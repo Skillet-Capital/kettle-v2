@@ -1,5 +1,4 @@
 import {
-  BYTES_ZERO,
   ADDRESS_ZERO,
   BASIS_POINTS_DIVISOR,
   KETTLE_CONTRACT_NAME,
@@ -15,8 +14,7 @@ import {
   JsonRpcSigner,
   TypedDataEncoder,
   Addressable,
-  MaxUint256,
-  solidityPacked
+  MaxUint256
 } from "ethers";
 
 import type {
@@ -38,7 +36,8 @@ import type {
   SendStep,
   SignStep,
   UserOp,
-  Payload
+  Payload,
+  ValidateTakeOfferInput
 } from "./types";
 
 import {
@@ -67,13 +66,13 @@ import {
 import {
   verifyMessage
 } from "@ambire/signature-validator";
-// import { createPublicClient, defineChain } from "viem";
 
 export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
-  public iface: any;
+  
+  public kettleInterface: any;
   public lendingIface: any;
 
   private provider: Provider;
@@ -102,7 +101,7 @@ export class Kettle {
       this.provider
     );
 
-    this.iface = Kettle__factory.createInterface();
+    this.kettleInterface = Kettle__factory.createInterface();
     this.lendingIface = LendingController__factory.createInterface();
   }
 
@@ -135,7 +134,7 @@ export class Kettle {
 
     const createOfferAction: SignStep = {
       action: StepAction.SIGN,
-      type: "create-market-offer",
+      type: "sign-offer",
       offer: offer,
       payload: await this._marketOfferPayload(offer),
       sign: async (signer: Signer): Promise<OfferWithSignature> => {
@@ -167,7 +166,7 @@ export class Kettle {
 
     const createOfferAction: SignStep = {
       action: StepAction.SIGN,
-      type: "create-loan-offer",
+      type: "sign-offer",
       offer: offer,
       payload: await this._loanOfferPayload(offer),
       sign: async (signer: Signer): Promise<OfferWithSignature> => {
@@ -204,9 +203,9 @@ export class Kettle {
       action: StepAction.SEND,
       type: "take-market-offer",
       userOp: (input.lien && input.lienId) ? {
-        target: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillMarketOfferInLien"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillMarketOfferInLien"),
           [
             input.lienId,
             input.lien,
@@ -216,9 +215,9 @@ export class Kettle {
           ]
         )
       } : {
-        target: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillMarketOffer"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillMarketOffer"),
           [
             input.tokenId!,
             input.offer,
@@ -274,9 +273,9 @@ export class Kettle {
       action: StepAction.SEND,
       type: "take-loan-offer",
       userOp: (input.lien && input.lienId) ? {
-        target: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillLoanOfferInLien"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillLoanOfferInLien"),
           [
             input.lienId,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
@@ -287,9 +286,9 @@ export class Kettle {
           ]
         )
       } : {
-        target: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("fulfillLoanOffer"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillLoanOffer"),
           [
             input.tokenId,
             input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
@@ -348,9 +347,9 @@ export class Kettle {
       action: StepAction.SEND,
       type: "escrow-market-offer",
       userOp: {
-        target: this.contractAddress,
-        data: this.iface.encodeFunctionData(
-          this.iface.getFunction("escrowMarketOffer"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("escrowMarketOffer"),
           [
             input.offer.collateral.identifier,
             input.offer as MarketOffer,
@@ -398,15 +397,14 @@ export class Kettle {
       action: StepAction.SEND,
       type: "repay-loan",
       userOp: {
-        target: await this.contract.lending(),
-        data: this.lendingIface.encodeFunctionData(
-          this.lendingIface.getFunction("repay"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("claimLien"),
           [lienId, lien]
         )
       },
       send: async (signer: Signer) => {
-        const controller = await this._lendingController();
-        const txn = await controller.connect(signer).repay(lienId, lien as LienStruct);
+        const txn = await this.contract.connect(signer).repayLien(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -425,15 +423,14 @@ export class Kettle {
       action: StepAction.SEND,
       type: "claim-default",
       userOp: {
-        target: await this.contract.lending(),
-        data: this.lendingIface.encodeFunctionData(
-          this.lendingIface.getFunction("claim"),
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("claimLien"),
           [lienId, lien]
         )
       },
       send: async (signer: Signer) => {
-        const controller = await this._lendingController();
-        const txn = await controller.connect(signer).claim(lienId, lien as LienStruct);
+        const txn = await this.contract.connect(signer).claimLien(lienId, lien as LienStruct);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -474,7 +471,7 @@ export class Kettle {
     offer: MarketOffer | LoanOffer,
     lien?: Lien
   ): Promise<void> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     if (offerExpired(offer.expiration)) {
       throw new Error("Offer expired");
@@ -557,7 +554,7 @@ export class Kettle {
             .then((approved) => ({
               check: "approval",
               valid: approved,
-              reason: "Collateral not approved"
+              reason: "Maker has not approved collateral"
             }) as Validation)
         ]);
       }
@@ -570,59 +567,170 @@ export class Kettle {
             .then((allowance) => ({
               check: "allowance",
               valid: allowance >= rebateAmount,
-              reason: "Insufficient allowance for rebate"
+              reason: "Maker has insufficient allowance for rebate"
             }) as Validation),
           currencyBalance(offer.maker, offer.terms.currency, this.provider)
             .then((balance) => ({
               check: "balance",
               valid: balance >= rebateAmount,
-              reason: "Insufficient balance for rebate"
+              reason: "Maker has insufficient balance for rebate"
             }) as Validation)
         );
       }
+    }
 
-      if (lien) {
-        this._matchTerms(offer.maker, offer.collateral, offer.terms, lien);
+    if (lien) {
+      if (lienDefaulted(lien.startTime, lien.duration, lien.gracePeriod)) {
+        throw new Error("[match-terms]: Lien is defaulted");
+      }
+      
+      this._matchTerms({
+        currency: offer.terms.currency,
+        collection: offer.collateral.collection,
+        tokenId: offer.side === Side.ASK ? offer.collateral.identifier : undefined
+      }, lien);
 
+      if (offer.side === Side.ASK) {
         const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
         validationPromises.push(
           this.currentDebt(lien)
             .then(({ debt }) => ({
               check: "debt-covers-ask",
               valid: BigInt(debt) >= netAmount,
-              reason: "Current debt exceeds ask amount"
+              reason: "Current lien debt exceeds ask amount"
             }) as Validation)
         );
       }
     }
 
-    return this._executeValidations(validationPromises);
+    await this._executeValidations(validationPromises);
+  }
+
+  public async validateTakeOffer(
+    user: string,
+    input: ValidateTakeOfferInput
+  ): Promise<void>{
+
+    // validate offer maker params
+    await this.validateOffer(input.offer);
+
+    const validationPromises: Promise<Validation>[] = [];
+
+    if (input.lien) {
+      this._matchTerms({
+        currency: input.offer.terms.currency,
+        collection: input.offer.collateral.collection,
+        tokenId: input.tokenId
+      }, input.lien);
+    }
+
+    if (input.offer.side === Side.BID && !input.lien) {
+      validationPromises.push(
+        TestERC721__factory.connect(input.offer.collateral.collection, this.provider)
+          .ownerOf(input.tokenId)
+          .then((owner) => ({
+            check: "ownership",
+            valid: equalAddresses(owner, user),
+            reason: "Taker not owner of token"
+          }))
+      );
+
+      if (input.offer.kind === OfferKind.LOAN) {
+        if (!input.amount) {
+          throw new Error("Take loan offer bid requires amount");
+        }
+
+        if (BigInt(input.amount) > BigInt((input.offer as LoanOffer).terms.maxAmount)) {
+          throw new Error("Amount exceeds loan max amount");
+        }
+      }
+
+      if (input.offer.soft) {
+        throw new Error("Cannot take soft offer as bid");
+      }
+    } else {
+        // TODO: validate amount needed if lender is buying asset in lien
+
+        validationPromises.push(
+          currencyBalance(user, input.offer.terms.currency, this.provider)
+            .then((balance) => ({
+              check: "balance",
+              valid: balance >= BigInt(input.offer.terms.amount),
+              reason: "Taker has insufficient balance"
+            }) as Validation)
+        );
+      }
+    
+    await this._executeValidations(validationPromises);
+  }
+
+  public async validateCreateOffer(
+    user: string,
+    input: CreateMarketOfferInput | CreateLoanOfferInput
+  ): Promise<void> {
+
+    console.log(user, input)
+    
+    const validationPromises: Promise<Validation>[] = [];
+
+    if (input.side === Side.BID) {
+      validationPromises.push(
+        currencyBalance(user, await this._resolveAddress(input.currency), this.provider)
+          .then((balance) => ({
+            check: "balance",
+            valid: balance >= BigInt(input.amount),
+            reason: "Insufficient balance"
+          }) as Validation)
+      );
+    } else {
+
+      if (input.lien) {
+        if (lienDefaulted(input.lien.startTime, input.lien.duration, input.lien.gracePeriod)) {
+          throw new Error("[match-terms]: Lien is defaulted");
+        }
+
+        this._matchTerms(
+          {
+            currency: await this._resolveAddress(input.currency),
+            collection: await this._resolveAddress(input.collection),
+            tokenId: input.side === Side.ASK ? input.identifier : undefined
+          },
+          input.lien
+        );
+      } else {
+        
+        validationPromises.push(
+          collateralBalance(user, await this._resolveAddress(input.collection), input.identifier, this.provider)
+            .then((owns) => ({
+              check: "ownership",
+              valid: owns,
+              reason: "Maker does not own collateral"
+            }) as Validation)
+        );
+      }
+    }
+
+    await this._executeValidations(validationPromises);
   }
 
   private _matchTerms(
-    maker: string,
-    collateral: CollateralTerms,
-    terms: GenericOfferTerms,
-    lien: Lien
+    input: {
+      tokenId?: Numberish,
+      currency: string,
+      collection: string,
+    },
+    lien: Lien,
   ): void {
-    if (!equalAddresses(maker, lien.borrower)) {
-      throw new Error("[match-terms]: Borrower mismatch");
-    }
-
-    if (!equalAddresses(terms.currency, lien.currency)) {
+    if (!equalAddresses(input.currency, lien.currency)) {
       throw new Error("[match-terms]: Currency mismatch");
     }
 
-    if (!equalAddresses(collateral.collection, lien.collection)) {
+    if (!equalAddresses(input.collection, lien.collection)) {
       throw new Error("[match-terms]: Collection mismatch");
     }
 
-    if (collateral.identifier !== lien.tokenId) {
+    if (input.tokenId && input.tokenId != lien.tokenId) {
       throw new Error("[match-terms]: TokenId mismatch");
-    }
-
-    if (lienDefaulted(lien.startTime, lien.duration, lien.gracePeriod)) {
-      throw new Error("[match-terms]: Lien is defaulted");
     }
   }
 
@@ -630,6 +738,7 @@ export class Kettle {
     const results = await Promise.all(validations);
 
     for (const result of results) {
+      console.log(result);
       if (!result.valid) {
         throw new Error(`[${result.check}]: ${result.reason ?? "Validation failed" }`);
       }
@@ -726,7 +835,7 @@ export class Kettle {
     amount: Numberish,
     useMax?: boolean
   ): Promise<SendStep[]> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     const approvalActions: SendStep[] = [];
 
@@ -735,9 +844,9 @@ export class Kettle {
     if (allowance < BigInt(amount)) {
       approvalActions.push({
         action: StepAction.SEND,
-        type: "erc20-approval",
+        type: "approve-erc20",
         userOp: {
-          target: currency,
+          to: currency,
           data: TestERC20__factory.createInterface().encodeFunctionData(
             "approve",
             [operator, useMax ? MaxUint256 : BigInt(amount) - allowance]
@@ -760,7 +869,7 @@ export class Kettle {
     user: string,
     collection: string,
   ): Promise<SendStep[]> {
-    const operator = await this.contract.conduit();
+    const operator = this.contractAddress;
 
     const approvalActions: SendStep[] = [];
 
@@ -769,9 +878,9 @@ export class Kettle {
     if (!approved) {
       approvalActions.push({
         action: StepAction.SEND,
-        type: "erc721-approval",
+        type: "approve-erc721",
         userOp: {
-          target: collection,
+          to: collection,
           data: TestERC721__factory.createInterface().encodeFunctionData("setApprovalForAll", [operator, true])
         },
         send: async (signer: Signer) => {
@@ -878,34 +987,18 @@ export class Kettle {
   // ==============================================
 
   private async _lendingController() {
-    const lendingController = await this.contract.lending();
+    const lendingController = await this.contract.LENDING_CONTROLLER();
     return LendingController__factory.connect(lendingController, this.provider);
   }
 
   private async _escrowController() {
-    const escrowController = await this.contract.escrow();
+    const escrowController = await this.contract.ESCROW_CONTROLLER();
     return EscrowController__factory.connect(escrowController, this.provider);
   }
 
   // ==============================================
   //           SIGNER AND PROVIDER METHODS
   // ==============================================
-
-  // private async _getSigner(
-  //   accountAddress?: string,
-  // ): Promise<Signer | JsonRpcSigner> {
-  //   if (this.signer) {
-  //     return this.signer;
-  //   }
-
-  //   if (!("send" in this.provider)) {
-  //     throw new Error(
-  //       "Either signer or JsonRpcProvider with signer must be provided",
-  //     );
-  //   }
-
-  //   return (this.provider as JsonRpcProvider).getSigner(accountAddress);
-  // }
 
   private async _confirmTransaction(
     hash: string,
@@ -982,34 +1075,6 @@ export class Kettle {
   //                    UTILS
   // ==============================================
 
-  // private async _viemProvider() {
-  //   const { chainId } = await this.provider.getNetwork();
-
-  //   return createPublicClient({
-  //     chain: defineChain({
-  //       id: Number(chainId),
-  //       name: "chain",
-  //     })
-  //     transport: http()
-  //   })
-
-
-  // }
-
-  public async hashToSign(offer: MarketOffer | LoanOffer): Promise<string> {
-    const domain = await this._getDomainData();
-
-    const domainHash = TypedDataEncoder.hashDomain(domain);
-
-    const messageHash = TypedDataEncoder.hash(
-      domain,
-      offer.kind === OfferKind.MARKET ? MARKET_OFFER_TYPE : LOAN_OFFER_TYPE,
-      offer
-    );
-
-    return solidityPacked(["bytes32", "bytes32"], [domainHash, messageHash]);
-  }
-
   public hashOffer(offer: MarketOffer | LoanOffer): string {
     return offer.kind === OfferKind.MARKET
       ? this.hashMarketOffer(offer as MarketOffer)
@@ -1055,33 +1120,33 @@ export class Kettle {
   //                    EXECUTION
   // ==============================================
 
-  // public async executeSendTxns(
-  //   steps: (SendStep)[],
-  //   signer: Signer | JsonRpcSigner
-  // ): Promise<string[]> {
-  //   const results: string[] = [];
+  public async bundleSendTxns(
+    steps: SendStep[],
+    signer: Signer | JsonRpcSigner
+  ): Promise<string[]> {
+    const results: string[] = [];
 
-  //   for (const step of steps) {
-  //     if (step.action === StepAction.SEND) {
-  //       const txn = await step.send(signer);
-  //       results.push(txn);
-  //     }
-  //   }
+    for (const step of steps) {
+      if (step.action === StepAction.SEND) {
+        const txn = await step.send(signer);
+        results.push(txn);
+      }
+    }
 
-  //   return results;
-  // }
+    return results;
+  }
 
-  // public bundleUserOps(
-  //   steps: (SendStep)[]
-  // ): Promise<string[]> {
-  //   const ops: UserOp[] = [];
+  public bundleUserOps(
+    steps: (SendStep)[]
+  ): UserOp[] {
+    const ops: UserOp[] = [];
 
-  //   for (const step of steps) {
-  //     if (step.action === StepAction.SEND) {
-  //       ops.push(step.userOp);
-  //     }
-  //   }
+    for (const step of steps) {
+      if (step.action === StepAction.SEND) {
+        ops.push(step.userOp);
+      }
+    }
 
-  //   return results;
-  // }
+    return ops;
+  }
 }

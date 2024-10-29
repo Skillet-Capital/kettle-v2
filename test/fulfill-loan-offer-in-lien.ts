@@ -94,14 +94,18 @@ describe("Fulfill Loan Offer In Lien", function () {
     await time.increase(BigInt(lien.duration) / 2n)
   });
 
-  it("should reject lien is invalid or defaulted", async function () {
-    const _lender = await kettle.connect(lender);
+  afterEach(async function () {
+    expect(await currency.balanceOf(_kettle)).to.equal(0);
+  })
 
-    const { debt } = await _lender.currentDebt(lien);
+  it("should reject if lien is invalid or defaulted", async function () {
+    const _borrower = await kettle.connect(borrower);
 
-    const { offer, signature } = await _lender.createLoanOffer({
+    const { debt } = await _borrower.currentDebt(lien);
+
+    const { offer, signature } = await _borrower.createLoanOffer({
       side: Side.ASK,
-      collection: collection2,
+      collection,
       currency,
       identifier: lien.tokenId,
       amount: BigInt(debt) / 2n,
@@ -111,8 +115,8 @@ describe("Fulfill Loan Offer In Lien", function () {
       defaultRate: 2000,
       duration: DAY_SECONDS * 30,
       gracePeriod: DAY_SECONDS * 30,
-      expiration: await time.latest() + 60
-    }, lender).then(s => executeCreateSteps(lender, s));
+      expiration: await time.latest() + 1e9
+    }, borrower).then(s => executeCreateSteps(borrower, s));
 
     const _refinancer = await kettle.connect(refinancer);
     await currency.mint(refinancer, offer.terms.amount);

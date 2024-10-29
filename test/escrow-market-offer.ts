@@ -107,7 +107,7 @@ describe("Escrow Market Offer", function () {
       signature
     }, buyer).then(s => executeTakeSteps(buyer, s));
 
-    expect(await currency.balanceOf(_escrow)).to.equal(offer.terms.amount);
+    expect(await currency.balanceOf(_kettle)).to.equal(offer.terms.amount);
   });
 
   it("buyer should escrow ask offer (WITH REBATE)", async function () {
@@ -142,6 +142,6 @@ describe("Escrow Market Offer", function () {
       signature
     }, buyer).then(s => executeTakeSteps(buyer, s));
 
-    expect(await currency.balanceOf(_escrow)).to.equal(BigInt(offer.terms.amount) + rebateAmount);
+    expect(await currency.balanceOf(_kettle)).to.equal(BigInt(offer.terms.amount) + rebateAmount);
   });
 });

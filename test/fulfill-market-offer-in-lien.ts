@@ -88,6 +88,10 @@ describe("Fulfill Market Offer In Lien", function () {
     await time.increase(BigInt(lien.duration) / 2n)
   });
 
+  afterEach(async function () {
+    expect(await currency.balanceOf(_kettle)).to.equal(0);
+  })
+
   it("buyer should reject ask (offer < debt)", async function () {
     const _seller = await kettle.connect(seller);
 
@@ -132,9 +136,6 @@ describe("Fulfill Market Offer In Lien", function () {
     }, seller).then(s => executeCreateSteps(seller, s));
 
     const _buyer = await kettle.connect(buyer);
-
-    await currency.connect(buyer).approve(await _kettle.conduit(), MaxUint256);
-    await currency.connect(seller).approve(await _kettle.conduit(), MaxUint256);
 
     await currency.mint(buyer, offer.terms.amount);
 

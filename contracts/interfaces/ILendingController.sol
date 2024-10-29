@@ -1,10 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Lien } from "../Structs.sol";
+import "../Structs.sol";
 
 interface ILendingController {
 
-    event LienOpened(uint256 lienId, Lien lien);
-    event LienClosed(uint256 lienId);
+    function openLien(
+        uint256 tokenId,
+        uint256 principal,
+        address lender,
+        address borrower,
+        LoanOffer calldata offer
+    ) external returns (uint256);
+
+    function claimLien(uint256 lienId, Lien calldata lien) external returns (address);
+    function repayLien(uint256 lienId, Lien calldata lien) external returns (address, uint256, uint256, uint256);
+
+    event LienOpened(uint256 indexed lienId, Lien lien);
+    event LienRepaid(uint256 indexed lienId);
+    event LienDefaulted(uint256 indexed lienId);
 }

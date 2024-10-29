@@ -15,7 +15,7 @@ library CompoundInterest {
       uint256 fee,
       uint256 rate,
       uint256 defaultRate
-    ) external pure returns (
+    ) internal pure returns (
         uint256 debt,
         uint256 feeInterest,
         uint256 lenderInterest

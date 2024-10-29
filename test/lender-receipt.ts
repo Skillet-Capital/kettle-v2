@@ -3,20 +3,25 @@ import { ethers } from "hardhat";
 
 import { expect } from "chai";
 
+import { deployKettle } from "./fixture";
+import { LenderReceipt } from "../typechain-types";
+import { Signer } from "ethers";
+
 describe("Lender Receipt", function () {
+  let receipt: LenderReceipt;
+  let owner: Signer;
+  let supplier: Signer;
+  let attacker: Signer;
 
-  async function deployLenderReceipt() {
-    const [owner, supplier, attacker] = await ethers.getSigners();
-
-    const LenderReceipt = await ethers.getContractFactory("LenderReceipt");
-    const receipt = await LenderReceipt.deploy();
-
-    return { owner, supplier, attacker, receipt };
-  }
+  beforeEach(async () => {
+    const fixture = await loadFixture(deployKettle);
+    receipt = fixture.receipt;
+    owner = fixture.owner;
+    supplier = fixture.accounts[0];
+    attacker = fixture.accounts[1];
+  });
 
   it("should set roles", async function () {
-    const { owner, supplier, attacker, receipt } = await loadFixture(deployLenderReceipt);
-
     const ADMIN_ROLE = await receipt.ADMIN_ROLE();
     const SUPPLIER_ROLE = await receipt.LENDER_RECEIPT_SUPPLIER();
 
@@ -41,8 +46,6 @@ describe("Lender Receipt", function () {
   });
 
   it("should only let supplier mint", async function () {
-    const { owner, supplier, attacker, receipt } = await loadFixture(deployLenderReceipt);
-
     const ADMIN_ROLE = await receipt.ADMIN_ROLE();
     const SUPPLIER_ROLE = await receipt.LENDER_RECEIPT_SUPPLIER();
 
@@ -65,8 +68,6 @@ describe("Lender Receipt", function () {
   });
 
   it("should set token uri", async function () {
-    const { owner, receipt } = await loadFixture(deployLenderReceipt);
-
     const tokenId = 1;
     const baseURI = "https://example.com";
 

@@ -196,6 +196,7 @@ export type CreateLoanOfferInput = {
   fee: Numberish;
   recipient: string | Addressable;
   expiration: Numberish;
+  lien?: LienWithLender;
 }
 
 export type TakeOfferInput = {
@@ -208,12 +209,19 @@ export type TakeOfferInput = {
   lien?: Lien;
 }
 
+export type ValidateTakeOfferInput = {
+  tokenId: Numberish;
+  amount?: Numberish;
+  offer: MarketOffer | LoanOffer;
+  lien?: Lien;
+}
+
 // ==============================================
 //                OUTPUT TYPES
 // ==============================================
 
 export type UserOp = {
-  target: string;
+  to: string;
   data: string;
 }
 
@@ -240,11 +248,11 @@ export type CurrentDebt = {
 export type Payload = {
   types: Record<string, TypedDataField[]>,
   domain: {
-    readonly name: string;
-    readonly version: string;
-    readonly chainId: number | string;
-    readonly verifyingContract: string;
-  }
+    readonly name: string | undefined;
+    readonly version: string | undefined;
+    readonly chainId: number | undefined;
+    readonly verifyingContract: string | `0x${string}`;
+  };
   primaryType: string;
   message: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
@@ -258,12 +266,14 @@ export type GenericStep = {
 
 export type SendStep = GenericStep & {
   action: StepAction.SEND;
+  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}`;
   userOp: UserOp;
   send: (signer: Signer | JsonRpcSigner) => Promise<string>;
 }
 
 export type SignStep = GenericStep & {
   action: StepAction.SIGN;
+  type: "sign-offer",
   offer: MarketOffer | LoanOffer;
   payload: Payload;
   sign: (signer: Signer | JsonRpcSigner) => Promise<OfferWithSignature>;
@@ -274,7 +284,14 @@ export type SignStep = GenericStep & {
 // ==============================================
 
 export type Validation = {
-  check: "cancelled" | "nonce" | "balance" | "allowance" | "ownership" | "approval" | "debt-covers-ask" | "loan-max-amount"
+  check: "cancelled" 
+    | "nonce" 
+    | "balance" 
+    | "allowance" 
+    | "ownership" 
+    | "approval" 
+    | "debt-covers-ask" 
+    | "loan-max-amount"
   valid: boolean;
   reason?: string;
 }
