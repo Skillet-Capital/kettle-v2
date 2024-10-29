@@ -26,7 +26,6 @@
     "@ambire/signature-validator": "^1.4.1",
     "@ethersproject/bignumber": "^5.7.0",
     "ethers": "^6.13.2",
-    "merkletreejs": "^0.4.0",
-    "viem": "^2.21.19"
+    "merkletreejs": "^0.4.0"
   }
 }
