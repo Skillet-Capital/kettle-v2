@@ -8,7 +8,7 @@ dataSources:
     name: Kettle
     network: blast
     source:
-      address: "0xC46071bD560A36D7C31f14091d878e916cDd2d95"
+      address: "0x926121b60475f6dce15c300238A154349B12BbCd"
       abi: Kettle
       startBlock: 0
     mapping:
@@ -30,7 +30,7 @@ dataSources:
     name: LendingController
     network: blast
     source:
-      address: "0xacEaB5f454Bb0a0FEa35e43878Fa4669f105f403"
+      address: "0x85cf242C5cE826Ce19A6f2c39B2aD418f5C224F1"
       abi: LendingController
       startBlock: 0
     mapping:
@@ -43,7 +43,7 @@ dataSources:
         - name: LendingController
           file: ./abis/LendingController.json
       eventHandlers:
-        - event: LienOpened(indexed uint256,(address,address,uint256,address,uint256,uint256,uint256,uint256,uint256,address,uint256,uint256))
+        - event: LienOpened(indexed uint256,indexed address,(address,address,uint256,address,uint256,uint256,uint256,uint256,uint256,address,uint256,uint256))
           handler: handleLienOpened
         - event: LienRepaid(indexed uint256)
           handler: handleLienRepaid

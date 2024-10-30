@@ -1,15 +1,15 @@
 {
-  "Kettle#EscrowControllerImplementation": "0xd5dD01d46A5748ff935C093CcB4337ACA533181f",
-  "Kettle#KettleImplementation": "0x64D7b6f319275162d499164112C384e28837aE68",
-  "Kettle#LenderReceipt": "0x0AE93c06817c953EdcC6810A5C0f62364B72F39d",
-  "Kettle#LendingControllerImplementation": "0x5f8b8e2691A58d735362cBc25b8CE58c345B2Ec0",
-  "Kettle#EscrowControllerProxy": "0xFC5BB75B6329DF982117b281d3a55041Bd808405",
-  "Kettle#KettleProxy": "0xC46071bD560A36D7C31f14091d878e916cDd2d95",
-  "Kettle#LendingControllerProxy": "0xacEaB5f454Bb0a0FEa35e43878Fa4669f105f403",
-  "Kettle#EscrowController": "0xFC5BB75B6329DF982117b281d3a55041Bd808405",
-  "Kettle#Kettle": "0xC46071bD560A36D7C31f14091d878e916cDd2d95",
-  "Kettle#LendingController": "0xacEaB5f454Bb0a0FEa35e43878Fa4669f105f403",
-  "Kettle#EscrowControllerProxyAdmin": "0x2924a36Ed65bbD8Ea5A6e99B21344D689275c767",
-  "Kettle#KettleProxyAdmin": "0x0205D746c682984CF3895A56a9FCD86cbFa7e2D7",
-  "Kettle#LendingControllerProxyAdmin": "0xD4f1de063F1805bDb28267C25423419eb0E34acf"
+  "Kettle#EscrowControllerImplementation": "0x289bf9afE7C72a0161dfFf19A0b32d3768512e1c",
+  "Kettle#KettleImplementation": "0xcfc6108C5b793461306061A102a0437765c8895e",
+  "Kettle#LenderReceipt": "0x6a95108F247C498866C668cDb37e0026C7B196fb",
+  "Kettle#LendingControllerImplementation": "0x596BeC6F56a17548654EEbdD82428C86cA805156",
+  "Kettle#EscrowControllerProxy": "0x45941AB4AF41117F16b716A5d984f089fcf2222C",
+  "Kettle#KettleProxy": "0x926121b60475f6dce15c300238A154349B12BbCd",
+  "Kettle#LendingControllerProxy": "0x85cf242C5cE826Ce19A6f2c39B2aD418f5C224F1",
+  "Kettle#EscrowController": "0x45941AB4AF41117F16b716A5d984f089fcf2222C",
+  "Kettle#Kettle": "0x926121b60475f6dce15c300238A154349B12BbCd",
+  "Kettle#LendingController": "0x85cf242C5cE826Ce19A6f2c39B2aD418f5C224F1",
+  "Kettle#EscrowControllerProxyAdmin": "0x23b178A7E4d564c9008CB70aa5Ed861acc8bD821",
+  "Kettle#KettleProxyAdmin": "0x54C839c12950a302a08aF8a82Ef9555F289B5823",
+  "Kettle#LendingControllerProxyAdmin": "0x2d01C5b9e354e4985CF9d3b97D539605d6CD2267"
 }
