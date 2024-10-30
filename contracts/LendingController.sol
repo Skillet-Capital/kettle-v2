@@ -65,7 +65,8 @@ contract LendingController is ILendingController, Initializable, Ownable2StepUpg
         LENDER_RECEIPT.mint(lender, lienId);
 
         emit LienOpened({
-            lienId: lienId, 
+            lienId: lienId,
+            lender: lender,
             lien: lien 
         });
     }

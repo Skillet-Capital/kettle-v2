@@ -16,6 +16,7 @@ import {
 export function handleLienOpened(event: LienOpenedEvent): void {
   const lien = new Lien(formatLienId(event.address, event.params.lienId));
   lien.lienId = event.params.lienId;
+  lien.lender = event.params.lender;
   lien.borrower = event.params.lien.borrower;
   
   lien.collateralId = formatCollateralId(event.params.lien.collection, event.params.lien.tokenId);

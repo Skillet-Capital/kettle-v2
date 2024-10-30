@@ -16,7 +16,7 @@ interface ILendingController {
     function claimLien(uint256 lienId, Lien calldata lien) external returns (address);
     function repayLien(uint256 lienId, Lien calldata lien) external returns (address, uint256, uint256, uint256);
 
-    event LienOpened(uint256 indexed lienId, Lien lien);
+    event LienOpened(uint256 indexed lienId, address indexed lender, Lien lien);
     event LienRepaid(uint256 indexed lienId);
     event LienDefaulted(uint256 indexed lienId);
 }

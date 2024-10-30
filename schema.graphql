@@ -18,6 +18,7 @@ type Lien @entity {
   id: String!
   lienId: BigInt!
   borrower: Bytes!
+  lender: Bytes!
   collateralId: String!
   collection: Bytes!
   tokenId: BigInt!
