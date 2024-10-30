@@ -176,6 +176,7 @@ export type CreateMarketOfferInput = {
   expiration: Numberish;
   rebate?: Numberish;
   lien?: LienWithLender;
+  salt?: Numberish;
 }
 
 export type CreateLoanOfferInput = {
@@ -197,6 +198,7 @@ export type CreateLoanOfferInput = {
   recipient: string | Addressable;
   expiration: Numberish;
   lien?: LienWithLender;
+  salt?: Numberish;
 }
 
 export type TakeOfferInput = {
@@ -266,7 +268,7 @@ export type GenericStep = {
 
 export type SendStep = GenericStep & {
   action: StepAction.SEND;
-  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}`;
+  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}` | `cancel-${string}`;
   userOp: UserOp;
   send: (signer: Signer | JsonRpcSigner) => Promise<string>;
 }
