@@ -590,7 +590,7 @@ export class Kettle {
           this.contract.amountTaken(this.hashLoanOffer(offer as LoanOffer))
             .then((amountTaken) => ({
               check: "loan-max-amount",
-              valid: BigInt(offer.terms.amount) - BigInt(amountTaken) > BigInt((offer as LoanOffer).terms.maxAmount),
+              valid: BigInt(offer.terms.amount) - BigInt(amountTaken) >= BigInt((offer as LoanOffer).terms.maxAmount),
               reason: "Loan offer max amount exceeded"
             }))
           );
