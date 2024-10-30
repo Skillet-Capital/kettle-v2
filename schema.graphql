@@ -10,9 +10,27 @@ type Activity @entity {
   amount: BigInt!
   duration: BigInt
   rate: BigInt
-  price: BigInt!
   timestamp: BigInt!
   txn: Bytes!
+}
+
+type Lien @entity {
+  id: String!
+  lienId: BigInt!
+  borrower: Bytes!
+  collateralId: String!
+  collection: Bytes!
+  tokenId: BigInt!
+  currency: Bytes!
+  principal: BigInt!
+  rate: BigInt!
+  defaultRate: BigInt!
+  duration: BigInt!
+  gracePeriod: BigInt!
+  recipient: Bytes!
+  fee: BigInt!
+  startTime: BigInt!
+  status: String!
 }
 
 

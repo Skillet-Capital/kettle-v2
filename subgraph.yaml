@@ -6,7 +6,7 @@ schema:
 dataSources:
   - kind: ethereum
     name: Kettle
-    network: base
+    network: blast
     source:
       address: "0xC46071bD560A36D7C31f14091d878e916cDd2d95"
       abi: Kettle
@@ -25,12 +25,28 @@ dataSources:
           handler: handleLoanOfferTaken
         - event: MarketOfferTaken(indexed uint256,indexed address,(uint8,bool,uint8,address,address,(uint8,address,uint256),(address,uint256,uint256),(address,uint256),uint256,uint256))
           handler: handleMarketOfferTaken
-        # - event: NonceIncremented(indexed address,indexed uint256)
-        #   handler: handleNonceIncremented
-        # - event: OfferCancelled(indexed address,indexed address,indexed uint256)
-        #   handler: handleOfferCancelled
-        # - event: OwnershipTransferred(indexed address,indexed address)
-        #   handler: handleOwnershipTransferred
-        # - event: Refinance(indexed uint256,indexed uint256)
-        #   handler: handleRefinance
       file: ./handlers/activity.ts
+  - kind: ethereum
+    name: LendingController
+    network: blast
+    source:
+      address: "0xacEaB5f454Bb0a0FEa35e43878Fa4669f105f403"
+      abi: LendingController
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Lien
+      abis:
+        - name: LendingController
+          file: ./abis/LendingController.json
+      eventHandlers:
+        - event: LienOpened(indexed uint256,(address,address,uint256,address,uint256,uint256,uint256,uint256,uint256,address,uint256,uint256))
+          handler: handleLienOpened
+        - event: LienRepaid(indexed uint256)
+          handler: handleLienRepaid
+        - event: LienDefaulted(indexed uint256)
+          handler: handleLienDefaulted
+      file: ./handlers/lien.ts
