@@ -27,7 +27,6 @@ import type {
   Numberish,
   Lien,
   LienStruct,
-  EscrowStruct,
   CurrentDebt,
   TakeOfferInput,
   Validation,
@@ -70,7 +69,10 @@ export class Kettle {
   public contract: KettleContract;
   public contractAddress: string;
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public kettleInterface: any;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public lendingIface: any;
 
   private provider: Provider;
@@ -134,7 +136,7 @@ export class Kettle {
 
     let cancelSteps: SendStep[] = [];
     if (input.salt) {
-      cancelSteps = await this.cancelOffers([input.salt], _maker);
+      cancelSteps = await this.cancelOffers([input.salt]);
     }
 
     // get sign step
@@ -179,7 +181,7 @@ export class Kettle {
 
     let cancelSteps: SendStep[] = [];
     if (input.salt) {
-      cancelSteps = await this.cancelOffers([input.salt], _maker);
+      cancelSteps = await this.cancelOffers([input.salt]);
     }
 
     // get sign step
@@ -449,11 +451,8 @@ export class Kettle {
    */
   public async claim(
     lienId: Numberish,
-    lien: Lien,
-    claimer: string | Addressable
+    lien: Lien
   ): Promise<SendStep[]> {
-    const _claimer = await this._resolveAddress(claimer);
-
     const claimAction: SendStep = {
       action: StepAction.SEND,
       type: "claim-default",
@@ -482,12 +481,7 @@ export class Kettle {
    * @param salts {string[]} salts of offers to cancel
    * @returns 
    */
-  public async cancelOffers(
-    salts: Numberish[],
-    maker: string | Addressable
-  ): Promise<SendStep[]> {
-    const _maker = await this._resolveAddress(maker);
-
+  public async cancelOffers(salts: Numberish[]): Promise<SendStep[]> {
     const cancelAction: SendStep = {
       action: StepAction.SEND,
       type: "cancel-offers",
@@ -527,7 +521,7 @@ export class Kettle {
       typedData: payload,
       signature,
 
-      // @ts-ignore
+      // @ts-expect-error provider is not in the interface
       provider: this.provider,
     })
 
@@ -1175,17 +1169,17 @@ export class Kettle {
     return TypedDataEncoder.hashStruct("LoanOffer", LOAN_OFFER_TYPE, offer);
   }
 
-  public hashLien(lien: Lien): string {
-    // TODO: implement abi coder
-    return "";
-  }
+  // public hashLien(lien: Lien): string {
+  //   // TODO: implement abi coder
+  //   return "";
+  // }
 
-  public hashEscrow(escrow: EscrowStruct): string {
-    // TODO: implement abi coder
-    return "";
-  }
+  // public hashEscrow(escrow: EscrowStruct): string {
+  //   // TODO: implement abi coder
+  //   return "";
+  // }
 
-  public blocktime(): Promise<any> {
+  public blocktime(): Promise<number> {
     return this.provider.getBlock("latest").then((block) => {
       if (!block) {
         throw new Error("Block not found");

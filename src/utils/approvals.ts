@@ -6,7 +6,7 @@ export const collateralApprovals = async (
   collection: string,
   operator: string,
   provider: ethers.Provider,
-): Promise<Boolean> => {
+): Promise<boolean> => {
   const contract = TestERC721__factory.connect(collection, provider);
   return contract.isApprovedForAll(owner, operator);
 }

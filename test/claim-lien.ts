@@ -97,14 +97,14 @@ describe("Claim Lien", function () {
   it("should reject if lien is not defaulted", async function () {
     const _borrower = await kettle.connect(borrower);
     await expect(
-      _borrower.claim(lienId, lien, borrower).then(s => executeClaimSteps(borrower, s))
+      _borrower.claim(lienId, lien).then(s => executeClaimSteps(borrower, s))
     ).to.be.revertedWithCustomError(_lending, "LienIsCurrent");
   });
 
   it("should reject if lien is invalid", async function () {
     const _borrower = await kettle.connect(borrower);
     await expect(
-      _borrower.claim(BigInt(lienId) + 1n, lien, borrower).then(s => executeClaimSteps(borrower, s))
+      _borrower.claim(BigInt(lienId) + 1n, lien).then(s => executeClaimSteps(borrower, s))
     ).to.be.revertedWithCustomError(_lending, "InvalidLien");
   });
 
@@ -113,7 +113,7 @@ describe("Claim Lien", function () {
 
     const _lender = await kettle.connect(lender);
 
-    await _lender.claim(lienId, lien, lender).then(s => executeClaimSteps(lender, s));
+    await _lender.claim(lienId, lien).then(s => executeClaimSteps(lender, s));
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(lender);
   });
@@ -125,7 +125,7 @@ describe("Claim Lien", function () {
 
     const _lender = await kettle.connect(newLender);
 
-    await _lender.claim(lienId, lien, lender).then(s => executeClaimSteps(lender, s));
+    await _lender.claim(lienId, lien).then(s => executeClaimSteps(lender, s));
 
     expect(await collection.ownerOf(lien.tokenId)).to.equal(newLender);
   });

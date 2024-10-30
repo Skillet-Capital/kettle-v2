@@ -37,11 +37,11 @@ export async function validateMarketOffers(kettleAddress: string, rpcUrl: string
   const results: ContractCallResults = await multicall.call(callContext);
 
   return Object.fromEntries(offers.map((offer: MarketOffer) => {
-    const { side, maker, terms, collateral } = offer;
+    const { maker, salt } = offer;
 
     const cancelledOrFulfilled = results.results["kettle"].callsReturnContext.find(
       (callReturn) => (
-        callReturn.reference === `${maker}-${offer.salt}`.toLowerCase()
+        callReturn.reference === `${maker}-${salt}`.toLowerCase()
         && callReturn.methodName === "cancelledOrFulfilled"
       )
     )?.returnValues[0];
