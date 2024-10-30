@@ -7,7 +7,10 @@
     "build": "hardhat compile && tsc",
     "prepare": "npm run build",
     "lint": "eslint src",
-    "lint-fix": "eslint src --fix"
+    "lint-fix": "eslint src --fix",
+    "codegen": "graph codegen",
+    "create-dev": "source .env && graph create --node ${GRAPH_URL}:8020/ kettle/kettle-v2-dev",
+    "deploy-dev": "source .env && graph deploy --node ${GRAPH_URL}:8020/ --ipfs ${GRAPH_URL}:5001 kettle/kettle-v2-dev subgraph.yaml --version-label v0.0.1"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
@@ -19,7 +22,9 @@
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@openzeppelin/hardhat-upgrades": "^3.4.0",
     "@types/eslint__js": "^8.42.3",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
+    "dotenv-cli": "^7.4.2",
     "eslint": "^9.13.0",
     "hardhat": "^2.22.12",
     "hardhat-contract-sizer": "^2.10.0",
