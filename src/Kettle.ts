@@ -24,8 +24,6 @@ import type {
   OfferWithSignature,
   CreateLoanOfferInput,
   LoanOffer,
-  GenericOfferTerms,
-  CollateralTerms,
   Numberish,
   Lien,
   LienStruct,
@@ -109,10 +107,17 @@ export class Kettle {
     return new Kettle(_providerOrSigner, this.contractAddress);
   }
 
-  // ==============================================
-  //                CREATE OFFERS
-  // ==============================================
+  // =============================================
+  //                 CREATE OFFERS                
+  // =============================================
 
+  /**
+   * Create a new Market Offer
+   * 
+   * @param input Offer parameters
+   * @param input.lien {Lien} (optional) lien structure
+   * @param input.salt {Numberish} (optional) salt to cancel existing offer
+   */
   public async createMarketOffer(
     input: CreateMarketOfferInput,
     maker: string | Addressable
@@ -120,18 +125,19 @@ export class Kettle {
     const _maker = await this._resolveAddress(maker);
     const offer = await this._formatMarketOffer(_maker, input);
 
-    const approvalActions: SendStep[] = [];
-    if (!(offer.side === Side.ASK && input.lien && equalAddresses(input.lien.borrower, _maker))) {
-      const _approvalActions = await this._getCreateApprovalActions(
-        input.side,
-        _maker,
-        offer.terms,
-        offer.collateral
-      );
+    // get approval steps
+    const approvalActions: SendStep[] = await this._getCreateApprovalActions(
+      offer,
+      _maker,
+      input.lien
+    );
 
-      approvalActions.push(..._approvalActions);
+    let cancelSteps: SendStep[] = [];
+    if (input.salt) {
+      cancelSteps = await this.cancelOffers([input.salt], _maker);
     }
 
+    // get sign step
     const createOfferAction: SignStep = {
       action: StepAction.SIGN,
       type: "sign-offer",
@@ -147,9 +153,16 @@ export class Kettle {
       }
     } as const;
 
-    return [...approvalActions, createOfferAction];
+    return [...cancelSteps, ...approvalActions, createOfferAction];
   }
 
+  /**
+   * Create a new Loan Offer
+   * 
+   * @param input Offer parameters
+   * @param input.lien {Lien} (optional) lien structure
+   * @param input.salt {Numberish} (optional) salt to cancel existing offer
+   */
   public async createLoanOffer(
     input: CreateLoanOfferInput,
     maker: string | Addressable
@@ -157,13 +170,19 @@ export class Kettle {
     const _maker = await this._resolveAddress(maker);
     const offer = await this._formatLoanOffer(_maker, input);
 
+    // get approval steps
     const approvalActions = await this._getCreateApprovalActions(
-      input.side,
+      offer,
       _maker,
-      offer.terms,
-      offer.collateral
+      input.lien
     );
 
+    let cancelSteps: SendStep[] = [];
+    if (input.salt) {
+      cancelSteps = await this.cancelOffers([input.salt], _maker);
+    }
+
+    // get sign step
     const createOfferAction: SignStep = {
       action: StepAction.SIGN,
       type: "sign-offer",
@@ -179,24 +198,29 @@ export class Kettle {
       }
     } as const;
 
-    return [...approvalActions, createOfferAction];
+    return [...cancelSteps, ...approvalActions, createOfferAction];
   }
 
-  // ==============================================
-  //                TAKE OFFERS
-  // ==============================================
+  // =============================================
+  //                  TAKE OFFERS                
+  // =============================================
 
+  /**
+   * Take a Market Offer
+   * 
+   * @param input Take Offer Input
+   * @param input.lienId {Numberish} (optional) lien id
+   * @param input.lien {Lien} (optional) lien structure
+   */
   public async takeMarketOffer(
     input: TakeOfferInput,
     taker: string | Addressable
   ): Promise<SendStep[]> {
     const _taker = await this._resolveAddress(taker);
 
-    const proceeds = BigInt(input.offer.terms.amount) - this.mulFee(input.offer.terms.amount, input.offer.fee.rate);
     const approvalActions = await this._getTakeApprovalActions(
-      proceeds,
-      _taker,
-      input
+      input,
+      _taker
     );
 
     const takeOfferAction: SendStep = {
@@ -253,20 +277,22 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
+  /**
+   * Take a Loan Offer
+   * 
+   * @param input Take Offer Input
+   * @param input.lienId {Numberish} (optional) lien id
+   * @param input.lien {Lien} (optional) lien structure
+   */
   public async takeLoanOffer(
     input: TakeOfferInput,
     taker: string | Addressable
   ): Promise<SendStep[]> {
     const _taker = await this._resolveAddress(taker);
 
-    const proceeds = input.amount ?? input.offer.side === Side.BID
-      ? (input.offer as LoanOffer).terms.maxAmount
-      : (input.offer as LoanOffer).terms.amount;
-
     const approvalActions = await this._getTakeApprovalActions(
-      proceeds,
-      _taker,
-      input
+      input,
+      _taker
     );
 
     const takeOfferAction: SendStep = {
@@ -327,6 +353,10 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
+  /**
+   * Escrow a Market Offer
+   * @notice The offer must be SOFT
+   */
   public async escrowMarketOffer(
     input: TakeOfferInput,
     taker: string | Addressable
@@ -338,9 +368,8 @@ export class Kettle {
     }
 
     const approvalActions = await this._getTakeApprovalActions(
-      0,
-      _taker,
-      input
+      input,
+      _taker
     );
 
     const takeOfferAction: SendStep = {
@@ -363,7 +392,7 @@ export class Kettle {
           input.offer.collateral.identifier,
           input.offer as MarketOffer,
           input.signature,
-          []
+          input.proof ?? []
         );
 
         return this._confirmTransaction(txn.hash);
@@ -377,6 +406,9 @@ export class Kettle {
   //                LENDING ACTIONS
   // ==============================================
 
+  /**
+   * Repay an existing lien
+   */
   public async repay(
     lienId: Numberish,
     lien: Lien,
@@ -412,6 +444,9 @@ export class Kettle {
     return [...approvalActions, repayAction];
   }
 
+  /**
+   * Claim a defaulted lien
+   */
   public async claim(
     lienId: Numberish,
     lien: Lien,
@@ -436,6 +471,40 @@ export class Kettle {
     } as const;
 
     return [claimAction];
+  }
+
+  // ==============================================
+  //                ORDER ACTIONS
+  // ==============================================
+
+  /**
+   * Cancel offers
+   * @param salts {string[]} salts of offers to cancel
+   * @returns 
+   */
+  public async cancelOffers(
+    salts: Numberish[],
+    maker: string | Addressable
+  ): Promise<SendStep[]> {
+    const _maker = await this._resolveAddress(maker);
+
+    const cancelAction: SendStep = {
+      action: StepAction.SEND,
+      type: "cancel-offers",
+      userOp: {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("cancelOffers"),
+          [salts]
+        )
+      },
+      send: async (signer: Signer) => {
+        const txn = await this.contract.connect(signer).cancelOffers(salts);
+        return this._confirmTransaction(txn.hash);
+      }
+    };
+
+    return [cancelAction];
   }
 
   // ==============================================
@@ -895,36 +964,39 @@ export class Kettle {
   }
 
   private async _getCreateApprovalActions(
-    side: Side,
-    user: string,
-    terms: GenericOfferTerms,
-    collateral: CollateralTerms
+    offer: MarketOffer | LoanOffer,
+    maker: string,
+    lien?: Lien
   ): Promise<SendStep[]> {
     const approvalActions: SendStep[] = [];
 
-    if (side === Side.BID) {
+    if (offer.side === Side.BID) {
       const _approvalActions = await this._erc20Approvals(
-        user,
-        terms.currency,
-        BigInt(terms.amount),
+        maker,
+        offer.terms.currency,
+        BigInt(offer.terms.amount),
         true
       );
 
       approvalActions.push(..._approvalActions);
 
     } else {
-      const _approvalActions = await this._erc721Approvals(
-        user,
-        collateral.collection
-      );
 
-      approvalActions.push(..._approvalActions);
+      // only get erc721 approvals if not in lien
+      if (!(lien && equalAddresses(lien.borrower, maker))) {
+        const _approvalActions = await this._erc721Approvals(
+          maker,
+          offer.collateral.collection
+        );
+  
+        approvalActions.push(..._approvalActions);
+      }
 
-      if (terms.rebate && BigInt(terms.rebate) > 0) {
-        const rebateAmount = this.mulFee(terms.amount, terms.rebate);
+      if (offer.kind == OfferKind.MARKET && offer.terms.rebate && BigInt(offer.terms.rebate) > 0) {
+        const rebateAmount = this.mulFee(offer.terms.amount, offer.terms.rebate);
         const _approvalActions = await this._erc20Approvals(
-          user,
-          terms.currency,
+          maker,
+          offer.terms.currency,
           rebateAmount
         );
 
@@ -936,10 +1008,24 @@ export class Kettle {
   }
 
   private async _getTakeApprovalActions(
-    proceeds: Numberish,
-    taker: string,
-    input: TakeOfferInput
+    input: TakeOfferInput,
+    taker: string
   ): Promise<SendStep[]> {
+
+    // calculate proceeds to taker
+    let proceeds = 0n;
+    if (input.offer.kind === OfferKind.MARKET) {
+      proceeds = BigInt(input.offer.terms.amount) - this.mulFee(input.offer.terms.amount, input.offer.fee.rate);
+    } else {
+      if (input.offer.side === Side.BID) {
+        proceeds = input.amount ?
+          BigInt(input.amount) :
+          BigInt((input.offer as LoanOffer).terms.maxAmount);
+      } else {
+        proceeds = BigInt((input.offer as LoanOffer).terms.amount);
+      }
+    }
+
     const approvalActions: SendStep[] = [];
 
     if (input.offer.side === Side.BID) {
@@ -954,7 +1040,7 @@ export class Kettle {
         approvalActions.push(..._approvalActions);
       }
 
-      // in lien,might need to approve extra amount
+      // in lien, might need to approve extra amount
       if (input.lien && input.lienId) {
         const { debt } = await this.currentDebt(input.lien);
 
