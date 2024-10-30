@@ -817,6 +817,11 @@ export class Kettle {
     return controller.computeCurrentDebt(lien);
   }
 
+  public async currentLender(lienId: Numberish): Promise<string> {
+    const controller = await this._lendingController();
+    return controller.currentLender(lienId);
+  }
+
   // ==============================================
   //                FORMAT METHODS
   // ==============================================
