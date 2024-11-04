@@ -158,6 +158,8 @@ export type LienWithLender = {
   startTime: Numberish;
 }
 
+export type OfferWithHash = (MarketOffer | LoanOffer) & { hash: string };
+
 // ==============================================
 //                INPUT TYPES
 // ==============================================
@@ -286,7 +288,9 @@ export type SignStep = GenericStep & {
 // ==============================================
 
 export type Validation = {
-  check: "cancelled" 
+  check?: 
+    | "validation"
+    | "cancelled" 
     | "nonce" 
     | "balance" 
     | "allowance" 
@@ -296,4 +300,8 @@ export type Validation = {
     | "loan-max-amount"
   valid: boolean;
   reason?: string;
+}
+
+export type MulticallValidation = {
+  [salt: string]: Validation;
 }

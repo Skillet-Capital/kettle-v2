@@ -1,17 +1,13 @@
 import { ContractCallContext } from "ethereum-multicall";
-
-interface OfferCancellationFulfillmentNonce {
-  maker: string;
-  salt: string | number | bigint;
-}
+import { OfferWithHash } from "../types";
 
 export function buildAvailabilityValidationsContext(
-  contexts: OfferCancellationFulfillmentNonce[],
+  offers: OfferWithHash[],
   kettleAddress: string
 ): ContractCallContext[] {
 
   return [{
-    reference: "kettle",
+    reference: "kettle-availability",
     contractAddress: kettleAddress,
     abi: [
       {
@@ -59,18 +55,18 @@ export function buildAvailabilityValidationsContext(
       },
     ],
     calls: [
-      ...contexts.map(
-        (_context) => ({
-          reference: `${_context.maker}-${_context.salt}`.toLowerCase(),
+      ...offers.map(
+        (offer) => ({
+          reference: `${offer.maker}-${offer.salt}`.toLowerCase(),
           methodName: "cancelledOrFulfilled",
-          methodParameters: [_context.maker, _context.salt]
+          methodParameters: [offer.maker, offer.salt]
         }),
       ),
-      ...contexts.map(
-        (_context) => ({
-          reference: _context.maker,
+      ...offers.map(
+        (offer) => ({
+          reference: offer.maker,
           methodName: "nonces",
-          methodParameters: [_context.maker]
+          methodParameters: [offer.maker]
         }),
       )
     ]
