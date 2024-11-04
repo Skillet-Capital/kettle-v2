@@ -26,6 +26,8 @@ export function buildAmountTakenContext(
             "type": "uint256"
           }
         ],
+        "stateMutability": "view",
+        "type": "function"
       }
     ],
     calls: offers.map(
