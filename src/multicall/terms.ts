@@ -1,10 +1,5 @@
 import { ContractCallContext } from "ethereum-multicall";
-import { GenericOfferTerms, Numberish } from "../types";
-
-interface OfferTerms {
-  maker: string;
-  terms: GenericOfferTerms;
-}
+import { LoanOffer, LoanOfferTerms, MarketOffer, Numberish, OfferKind } from "../types";
 
 interface TermsMapValue {
   maker: string;
@@ -16,23 +11,30 @@ interface TermsMap {
 }
 
 export function buildTermsValidationsContext(
-  terms: OfferTerms[],
+  offers: (MarketOffer | LoanOffer)[],
   operator: string
 ): ContractCallContext[] {
 
-  const currencies = terms.reduce(
-    (acc: TermsMap, _terms) => {
-      const { maker, terms } = _terms;
-      const { currency, amount } = terms;
+  const currencies = offers.reduce(
+    (acc: TermsMap, offer) => {
+      const { kind, maker, terms } = offer;
+      const { currency } = terms;
 
       if (!acc[currency]) {
         acc[currency] = [];
       }
 
-      acc[currency].push({
-        maker,
-        amount,
-      });
+      if (kind === OfferKind.LOAN) {
+        acc[currency].push({
+          maker,
+          amount: (terms as LoanOfferTerms).maxAmount
+        });
+      } else {
+        acc[currency].push({
+          maker,
+          amount: terms.amount
+        });
+      }
 
       return acc;
     },
@@ -60,12 +62,12 @@ export function buildTermsValidationsContext(
     ],
     calls: [
       ...terms.map(({ maker }) => ({
-        reference: maker,
+        reference: maker.toLowerCase(),
         methodName: 'allowance',
         methodParameters: [maker, operator]
       })),
       ...terms.map(({ maker }) => ({
-        reference: maker,
+        reference: maker.toLowerCase(),
         methodName: 'balanceOf',
         methodParameters: [maker]
       })),

@@ -1,14 +1,8 @@
 import { ContractCallContext } from "ethereum-multicall";
-import { CollateralTerms, Criteria, Numberish } from "../types";
-
-interface OfferCollateral {
-  maker: string;
-  collateral: CollateralTerms;
-}
+import { LoanOffer, MarketOffer, Numberish } from "../types";
 
 interface CollateralMapValue {
   maker: string;
-  criteria: Criteria;
   identifier: Numberish;
 }
 
@@ -17,14 +11,14 @@ interface CollateralMap {
 }
 
 export function buildCollateralValidationsContext(
-  collaterals: OfferCollateral[],
+  offers: (MarketOffer | LoanOffer)[],
   operator: string
 ): ContractCallContext[] {
 
-  const collections = collaterals.reduce(
-    (acc: CollateralMap, _collateral) => {
-      const { maker, collateral } = _collateral;
-      const { collection, identifier, criteria } = collateral;
+  const collections = offers.reduce(
+    (acc: CollateralMap, offer) => {
+      const { maker, collateral } = offer;
+      const { collection, identifier } = collateral;
 
       if (!acc[collection]) {
         acc[collection] = [];
@@ -33,7 +27,6 @@ export function buildCollateralValidationsContext(
       acc[collection].push({
         maker,
         identifier,
-        criteria
       });
 
       return acc;
@@ -62,11 +55,11 @@ export function buildCollateralValidationsContext(
     ],
     calls: [
       ...collaterals.map(({ maker }) => ({
-        reference: maker,
+        reference: maker.toLowerCase(),
         methodName: 'isApprovedForAll',
         methodParameters: [maker, operator]
       })),
-      ...collaterals.filter(({ criteria }) => criteria === Criteria.SIMPLE).map(({ identifier }) => ({
+      ...collaterals.map(({ identifier }) => ({
         reference: identifier.toString(),
         methodName: 'ownerOf',
         methodParameters: [identifier]
