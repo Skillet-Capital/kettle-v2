@@ -6,8 +6,8 @@
   "scripts": {
     "build": "hardhat compile && tsc",
     "prepare": "npm run build",
-    "lint": "eslint src",
-    "lint-fix": "eslint src --fix",
+    "lint": "eslint src/ handlers/",
+    "lint-fix": "eslint src/ handlers/ --fix",
     "codegen": "graph codegen",
     "create-dev": "source .env && graph create --node ${GRAPH_URL}:8020/ kettle/kettle-v2-dev",
     "deploy-dev": "source .env && graph deploy --node ${GRAPH_URL}:8020/ --ipfs ${GRAPH_URL}:5001 kettle/kettle-v2-dev subgraph.yaml --version-label v0.0.1"
