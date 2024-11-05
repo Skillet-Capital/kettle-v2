@@ -92,7 +92,7 @@ contract LendingController is ILendingController, Initializable, Ownable2StepUpg
 
         _closeLien(lienId);
 
-        emit LienRepaid({ lienId: lienId });   
+        emit LienRepaid({ lienId: lienId, debt: debt, fee: fee, interest: interest });   
     }
 
     function claimLien(
