@@ -5,5 +5,5 @@ export function formatCollateralId(collection: Address, tokenId: BigInt): string
 }
 
 export function formatLienId(address: Address, lienId: BigInt): string {
-  return [address.toHexString(), lienId.toString()].join("/");
+  return [address.toHexString(), lienId.toString()].join("-");
 }
