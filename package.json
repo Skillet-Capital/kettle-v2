@@ -8,9 +8,12 @@
     "prepare": "npm run build",
     "lint": "eslint src/ handlers/",
     "lint-fix": "eslint src/ handlers/ --fix",
-    "codegen": "graph codegen",
-    "create-dev": "source .env && graph create --node ${GRAPH_URL}:8020/ kettle/kettle-v2-dev",
-    "deploy-dev": "source .env && graph deploy --node ${GRAPH_URL}:8020/ --ipfs ${GRAPH_URL}:5001 kettle/kettle-v2-dev subgraph.yaml --version-label v0.0.1"
+    "codegen": "graph codegen blast.subgraph.yaml",
+    "graph:build": "graph build blast.subgraph.yaml",
+    "blast:create-dev": "source .env && graph create --node ${BLAST_GRAPH_URL}:8020/ kettle/kettle-v2-blast-dev",
+    "blast:deploy-dev": "source .env && graph deploy --node ${BLAST_GRAPH_URL}:8020/ --ipfs ${BLAST_GRAPH_URL}:5001 kettle/kettle-v2-blast-dev blast.subgraph.yaml --version-label v0.0.1",
+    "base:create-dev":  "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev",
+    "base:deploy-dev":  "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev base.subgraph.yaml --version-label v0.0.1"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",

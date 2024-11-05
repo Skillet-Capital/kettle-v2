@@ -13,6 +13,11 @@ import {
   formatCollateralId
 } from "./helpers";
 
+import {
+  storeRepay,
+  storeDefault
+} from "./activity";
+
 export function handleLienOpened(event: LienOpenedEvent): void {
   const lien = new Lien(formatLienId(event.address, event.params.lienId));
   lien.lienId = event.params.lienId;
@@ -42,10 +47,14 @@ export function handleLienRepaid(event: LienRepaidEvent): void {
   const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
   lien.status = "repaid";
   lien.save();
+
+  storeRepay(event);
 }
 
 export function handleLienDefaulted(event: LienDefaultedEvent): void {
   const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
   lien.status = "defaulted";
   lien.save();
+
+  storeDefault(event);
 }

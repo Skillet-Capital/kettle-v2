@@ -62,7 +62,7 @@ export function handleLoanOfferTaken(event: LoanOfferTakenEvent): void {
   activity.save();
 }
 
-export function handleLienRepaid(event: LienRepaidEvent): void {
+export function storeRepay(event: LienRepaidEvent): void {
   const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
 
   const debt = calculateDebt(
@@ -91,7 +91,7 @@ export function handleLienRepaid(event: LienRepaidEvent): void {
   activity.save();
 }
 
-export function handleLienDefaulted(event: LienDefaultedEvent): void {
+export function storeDefault(event: LienDefaultedEvent): void {
   const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
 
   const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
