@@ -42,6 +42,14 @@ const config: HardhatUserConfig = {
           process.env.PK!
         ]
       }
+    }),
+    ...(process.env.PK && process.env.BASE_RPC && {
+      base: {
+        url: process.env.BASE_RPC,
+        accounts: [
+          process.env.PK!
+        ]
+      }
     })
   },
   etherscan: {
