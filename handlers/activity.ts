@@ -1,12 +1,16 @@
-import { Address, BigInt, ethereum } from "@graphprotocol/graph-ts";
-
 import {
   MarketOfferTaken as MarketOfferTakenEvent,
   LoanOfferTaken as LoanOfferTakenEvent,
 } from "../generated/Kettle/Kettle";
 
 import {
-  Activity
+  LienRepaid as LienRepaidEvent,
+  LienDefaulted as LienDefaultedEvent
+} from "../generated/LendingController/LendingController";
+
+import {
+  Activity,
+  Lien
 } from "../generated/schema";
 
 import {
@@ -14,12 +18,21 @@ import {
 } from "./constants";
 
 import {
-  formatCollateralId
+  formatLienId,
+  formatCollateralId,
 } from "./helpers";
+
+import {
+  calculateDebt
+} from "./calculations";
+
+import {
+  ActivityType
+} from "./types";
 
 export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
   const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
-  activity.type = event.params.offer.side == Side.BID ? "bid" : "ask";
+  activity.type = event.params.offer.side == Side.BID ? ActivityType.BID_TAKEN : ActivityType.ASK_TAKEN;
   activity.maker = event.params.offer.maker;
   activity.taker = event.params.taker;
   activity.collateralId = formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
@@ -34,7 +47,7 @@ export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
 
 export function handleLoanOfferTaken(event: LoanOfferTakenEvent): void {
   const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
-  activity.type = event.params.offer.side == Side.BID ? "loan-offer" : "borrow-offer";
+  activity.type = event.params.offer.side == Side.BID ? ActivityType.LOAN_OFFER_TAKEN : ActivityType.BORROW_OFFER_TAKEN;
   activity.maker = event.params.offer.maker;
   activity.taker = event.params.taker;
   activity.collateralId = formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
@@ -44,6 +57,54 @@ export function handleLoanOfferTaken(event: LoanOfferTakenEvent): void {
   activity.amount = event.params.principal;
   activity.duration = event.params.offer.terms.duration;
   activity.rate = event.params.offer.terms.rate;
+  activity.timestamp = event.block.timestamp;
+  activity.txn = event.transaction.hash;
+  activity.save();
+}
+
+export function handleLienRepaid(event: LienRepaidEvent): void {
+  const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
+
+  const debt = calculateDebt(
+    lien.principal, 
+    lien.fee,
+    lien.rate,
+    lien.defaultRate,
+    lien.duration, 
+    lien.startTime,
+    event.block.timestamp
+  );
+
+  const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  activity.type = ActivityType.LOAN_REPAID;
+  activity.maker = lien.borrower;
+  activity.taker = lien.lender;
+  activity.collateralId = lien.collateralId;
+  activity.collection = lien.collection;
+  activity.tokenId = lien.tokenId;
+  activity.currency = lien.currency;
+  activity.amount = debt;
+  activity.duration = lien.duration;
+  activity.rate = lien.rate;
+  activity.timestamp = event.block.timestamp;
+  activity.txn = event.transaction.hash;
+  activity.save();
+}
+
+export function handleLienDefaulted(event: LienDefaultedEvent): void {
+  const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
+
+  const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  activity.type = ActivityType.LOAN_CLAIMED;
+  activity.maker = lien.borrower;
+  activity.taker = lien.lender;
+  activity.collateralId = lien.collateralId;
+  activity.collection = lien.collection;
+  activity.tokenId = lien.tokenId;
+  activity.currency = lien.currency;
+  activity.amount = lien.principal;
+  activity.duration = lien.duration;
+  activity.rate = lien.rate;
   activity.timestamp = event.block.timestamp;
   activity.txn = event.transaction.hash;
   activity.save();
