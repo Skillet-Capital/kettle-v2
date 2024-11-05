@@ -1193,6 +1193,36 @@ export class Kettle {
     });
   }
 
+  public async paymentData(lien: Lien, offer: (MarketOffer | LoanOffer)) {
+    let proceeds = 0n;
+    let fee = 0n;
+
+    if (offer.kind == OfferKind.MARKET) {
+      fee = this.mulFee(offer.terms.amount, offer.fee.rate);
+      proceeds = BigInt(offer.terms.amount) - fee;
+    } else {
+      proceeds = BigInt((offer as LoanOffer).terms.maxAmount)
+    }
+
+    const { debt } = await this.currentDebt(lien);
+    
+    let owed = 0n;
+    let payed = 0n;
+    
+    if (BigInt(debt) > proceeds) {
+      owed = BigInt(debt) - proceeds;
+    } else {
+      payed = proceeds - BigInt(debt);
+    }
+
+    return {
+      proceeds,
+      fee,
+      owed,
+      payed
+    }
+  }
+
   public mulFee(amount: bigint | string | number, rate: bigint | string | number) {
     return BigInt(amount) * BigInt(rate) / BASIS_POINTS_DIVISOR;
   }
