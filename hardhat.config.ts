@@ -55,7 +55,8 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       blast_sepolia: "blast_sepolia",
-      blast: "PTQ5343WRG7127WRWQUQMBABZHDSZUTPFW"
+      blast: "PTQ5343WRG7127WRWQUQMBABZHDSZUTPFW",
+      base: "228ZGK626T79PAIYKYFI631RIW2NMY52BT"
     },
     customChains: [
       {
@@ -72,6 +73,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.blastscan.io/api",
           browserURL: "https://blastscan.io"
+        }
+      },
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
         }
       }
     ]
