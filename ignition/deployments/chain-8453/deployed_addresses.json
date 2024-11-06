@@ -11,5 +11,6 @@
   "Kettle#LendingController": "0x4485c9b693B82164b5cFc111D223490d7d3B6779",
   "Kettle#EscrowControllerProxyAdmin": "0xD7EabE905E9Cb40B1E76F75A954Cf1eF23ca364A",
   "Kettle#KettleProxyAdmin": "0xb5e2aE9bEF742e435C364967eAb8bd458c5B6e12",
-  "Kettle#LendingControllerProxyAdmin": "0xC3CC8cD3a9De1cF2E91326e7A72e0aaC7bb4f4AE"
+  "Kettle#LendingControllerProxyAdmin": "0xC3CC8cD3a9De1cF2E91326e7A72e0aaC7bb4f4AE",
+  "Kettle#TestERC20": "0x2bB7C2237BBB173514928e6343aE77FD385763D8"
 }

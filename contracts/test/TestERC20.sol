@@ -11,14 +11,4 @@ contract TestERC20 is ERC20 {
         _mint(to, amount);
         return true;
     }
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override returns (bool ok) {
-        super.transferFrom(from, to, amount);
-
-        ok = true;
-    }
 }
