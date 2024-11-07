@@ -433,7 +433,7 @@ export class Kettle {
       userOp: {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("claimLien"),
+          this.kettleInterface.getFunction("repayLien"),
           [lienId, lien]
         )
       },
