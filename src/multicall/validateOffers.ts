@@ -22,7 +22,7 @@ export async function validateOffers(
   kettleAddress: string,
   rpcUrl: string,
   offers: OfferWithHash[],
-  liens: LienStruct[],
+  collateralLienMap: CollateralLienMap,
   soft: boolean = true
 ): Promise<MulticallValidation> {
 
@@ -36,18 +36,6 @@ export async function validateOffers(
   // remove duplicate offers
   const uniqueOffers = offers.filter(
     (offer, index, self) => self.findIndex((o) => o.salt === offer.salt) === index,
-  );
-
-  // map collateral to lien
-  const collateralLienMap = liens.reduce(
-    (acc: CollateralLienMap, lien) => {
-      const { collection, tokenId } = lien;
-      const collateralId = formatCollateralId(collection as string, tokenId as string);
-
-      acc[collateralId] = lien;
-      return acc;
-    },
-    {}
   );
 
   // build context for multicall
@@ -362,7 +350,7 @@ function checkCollateralValidations(
           valid: false
         }
       ];
-      
+
       if (!equalAddresses(owner, maker)) return [
         _salt,
         {
