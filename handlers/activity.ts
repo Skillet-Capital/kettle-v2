@@ -23,10 +23,6 @@ import {
 } from "./helpers";
 
 import {
-  calculateDebt
-} from "./calculations";
-
-import {
   ActivityType
 } from "./types";
 
@@ -65,16 +61,6 @@ export function handleLoanOfferTaken(event: LoanOfferTakenEvent): void {
 export function storeRepay(event: LienRepaidEvent): void {
   const lien = Lien.load(formatLienId(event.address, event.params.lienId)) as Lien;
 
-  const debt = calculateDebt(
-    lien.principal, 
-    lien.fee,
-    lien.rate,
-    lien.defaultRate,
-    lien.duration, 
-    lien.startTime,
-    event.block.timestamp
-  );
-
   const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
   activity.type = ActivityType.LOAN_REPAID;
   activity.maker = lien.borrower;
@@ -83,7 +69,7 @@ export function storeRepay(event: LienRepaidEvent): void {
   activity.collection = lien.collection;
   activity.tokenId = lien.tokenId;
   activity.currency = lien.currency;
-  activity.amount = debt;
+  activity.amount = event.params.debt;
   activity.duration = lien.duration;
   activity.rate = lien.rate;
   activity.timestamp = event.block.timestamp;

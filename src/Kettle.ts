@@ -423,7 +423,7 @@ export class Kettle {
     const approvalActions = await this._erc20Approvals(
       _payer,
       lien.currency,
-      this.safeFactorMul(debt, 10),
+      this.safeFactorMul(debt, 100),
       false
     );
 

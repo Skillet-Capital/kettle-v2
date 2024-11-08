@@ -38,8 +38,8 @@ export async function deployKettle() {
   await _escrow.setKettle(_kettle);
 
   // Deploy test currencies and assets
-  const _currency = await ethers.deployContract("TestERC20", [18]);
-  const _currency2 = await ethers.deployContract("TestERC20", [18]);
+  const _currency = await ethers.deployContract("TestERC20", [6]);
+  const _currency2 = await ethers.deployContract("TestERC20", [6]);
 
   const _collection = await ethers.deployContract("TestERC721");
   const _collection2 = await ethers.deployContract("TestERC721");

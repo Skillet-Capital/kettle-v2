@@ -10,7 +10,7 @@ dataSources:
     source:
       address: "0x5aBe43c199E67cA55061fc90fd29d8F0B4403175"
       abi: Kettle
-      startBlock: 0
+      startBlock: 22027000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -32,7 +32,7 @@ dataSources:
     source:
       address: "0x4485c9b693B82164b5cFc111D223490d7d3B6779"
       abi: LendingController
-      startBlock: 0
+      startBlock: 22027000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -45,7 +45,7 @@ dataSources:
       eventHandlers:
         - event: LienOpened(indexed uint256,indexed address,(address,address,uint256,address,uint256,uint256,uint256,uint256,uint256,address,uint256,uint256))
           handler: handleLienOpened
-        - event: LienRepaid(indexed uint256)
+        - event: LienRepaid(indexed uint256,uint256,uint256,uint256)
           handler: handleLienRepaid
         - event: LienDefaulted(indexed uint256)
           handler: handleLienDefaulted
