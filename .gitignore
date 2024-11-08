@@ -21,7 +21,8 @@ mochaOutput.json
 ignition/deployments/chain-31337
 
 /dist
+/scratch
 
 # graph code
-generated/
-build/
+/generated
+/build
