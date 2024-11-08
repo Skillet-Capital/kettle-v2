@@ -1,7 +1,7 @@
 import { ContractCallContext, ContractCallResults, Multicall } from "ethereum-multicall";
 import { BigNumber } from "@ethersproject/bignumber";
 
-import { LoanOffer, MarketOffer, MulticallValidation, OfferKind, OfferWithHash, Side } from "../types";
+import { LienStruct, LoanOffer, MarketOffer, MulticallValidation, OfferKind, OfferWithHash, Side } from "../types";
 import { equalAddresses } from "../utils/equalAddresses";
 
 import { buildAvailabilityValidationsContext } from "./availability";
@@ -10,10 +10,19 @@ import { buildTermsValidationsContext } from "./terms";
 import { buildAmountTakenContext } from "./lending";
 import { getEpoch } from "../utils";
 
+type CollateralLienMap = {
+  [collateralId: string]: LienStruct;
+}
+
+function formatCollateralId(collection: string, tokenId: string): string {
+  return `${collection}/${tokenId}`;
+}
+
 export async function validateOffers(
-  kettleAddress: string, 
-  rpcUrl: string, 
-  offers: OfferWithHash[], 
+  kettleAddress: string,
+  rpcUrl: string,
+  offers: OfferWithHash[],
+  collateralLienMap: CollateralLienMap,
   soft: boolean = true
 ): Promise<MulticallValidation> {
 
@@ -64,7 +73,7 @@ export async function validateOffers(
   const availabilityValidations = checkAvailabilityValidations(offers, results);
   const amountTakenValidations = checkAmountTakenValidations(offers, results);
 
-  const collateralValidations = soft ? checkCollateralValidations(offers, results) : {};
+  const collateralValidations = soft ? checkCollateralValidations(offers, collateralLienMap, results) : {};
   const termsValidations = soft ? checkTermsValidations(offers, results) : {};
 
   return Object.fromEntries(offers.map((offer) => {
@@ -178,7 +187,7 @@ export async function validateOffers(
 }
 
 function checkAvailabilityValidations(
-  offers: (MarketOffer | LoanOffer)[], 
+  offers: (MarketOffer | LoanOffer)[],
   _results: ContractCallResults
 ): MulticallValidation {
   const { results } = _results;
@@ -280,7 +289,8 @@ function checkAmountTakenValidations(
 }
 
 function checkCollateralValidations(
-  offers: (MarketOffer | LoanOffer)[], 
+  offers: (MarketOffer | LoanOffer)[],
+  collateralLienMap: CollateralLienMap,
   _results: ContractCallResults
 ): MulticallValidation {
   const { results } = _results;
@@ -314,23 +324,42 @@ function checkCollateralValidations(
       }
     ];
 
-    if (!approved) return [
-      _salt,
-      {
-        check: "approval",
-        reason: "Collateral not approved",
-        valid: false
-      }
-    ];
+    const collateralId = formatCollateralId(collection, identifier.toString());
+    const lien = collateralLienMap[collateralId];
 
-    if (!equalAddresses(owner, maker)) return [
-      _salt,
-      {
-        check: "ownership",
-        reason: "Collateral not owned by maker",
-        valid: false
+    if (lien) {
+      const { borrower } = lien;
+      if (!equalAddresses(maker, borrower as string)) {
+        return [
+          _salt,
+          {
+            check: "lien",
+            reason: "Collateral not owned by borrower",
+            valid: false
+          }
+        ];
       }
-    ];
+    }
+
+    else {
+      if (!approved) return [
+        _salt,
+        {
+          check: "approval",
+          reason: "Collateral not approved",
+          valid: false
+        }
+      ];
+
+      if (!equalAddresses(owner, maker)) return [
+        _salt,
+        {
+          check: "ownership",
+          reason: "Collateral not owned by maker",
+          valid: false
+        }
+      ];
+    }
 
     return [
       _salt,
