@@ -752,6 +752,13 @@ export class Kettle {
           throw new Error("[match-terms]: Lien is defaulted");
         }
 
+        const { debt } = await this.currentDebt(input.lien);
+        const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
+
+        if (BigInt(debt) < netAmount) {
+          throw new Error("[match-terms]: Ask amount must exceed debt");
+        }
+
         this._matchTerms(
           {
             currency: await this._resolveAddress(input.currency),
