@@ -659,7 +659,7 @@ export class Kettle {
           this.currentDebt(lien)
             .then(({ debt }) => ({
               check: "debt-covers-ask",
-              valid: BigInt(debt) >= netAmount,
+              valid: netAmount >= BigInt(debt),
               reason: "Current lien debt exceeds ask amount"
             }) as Validation)
         );
@@ -766,7 +766,7 @@ export class Kettle {
           this.currentDebt(input.lien)
             .then(({ debt }) => ({
               check: "debt-covers-ask",
-              valid: BigInt(debt) >= netAmount,
+              valid: netAmount >= BigInt(debt),
               reason: "Current lien debt exceeds ask amount"
             }) as Validation)
         );
