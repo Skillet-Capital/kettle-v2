@@ -1203,7 +1203,24 @@ export class Kettle {
     });
   }
 
-  public async paymentData(lien: Lien, offer: (MarketOffer | LoanOffer)) {
+  /**
+   * Calculate Payment Data for Taking an offer
+   * @param offer 
+   * @param lien 
+   * @returns {
+   *  proceeds: bigint,
+   *  fee: bigint,
+   *  owed: bigint,
+   *  payed: bigint
+   * }
+   * 
+   * @notice owed and payed are only calculated if lien is provided
+   * @notice proceeds: net amount provided by offer
+   * @notice fee: fee amount deducted from proceeds
+   * @notice owed: amount taker would owe if lien debt exceeds proceeds
+   * @notice payed: amount taker would pay if proceeds exceed lien debt
+   */
+  public async paymentData(offer: (MarketOffer | LoanOffer), lien?: Lien) {
     let proceeds = 0n;
     let fee = 0n;
 
@@ -1213,18 +1230,19 @@ export class Kettle {
     } else {
       proceeds = BigInt((offer as LoanOffer).terms.maxAmount)
     }
-
-    const { debt } = await this.currentDebt(lien);
     
     let owed = 0n;
     let payed = 0n;
-    
-    if (BigInt(debt) > proceeds) {
-      owed = BigInt(debt) - proceeds;
-    } else {
-      payed = proceeds - BigInt(debt);
-    }
 
+    if (lien) {
+      const { debt } = await this.currentDebt(lien);
+      if (BigInt(debt) > proceeds) {
+        owed = BigInt(debt) - proceeds;
+      } else {
+        payed = proceeds - BigInt(debt);
+      }
+    }
+  
     return {
       proceeds,
       fee,
