@@ -752,13 +752,6 @@ export class Kettle {
           throw new Error("[match-terms]: Lien is defaulted");
         }
 
-        const { debt } = await this.currentDebt(input.lien);
-        const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
-
-        if (BigInt(debt) < netAmount) {
-          throw new Error("[match-terms]: Ask amount must exceed debt");
-        }
-
         this._matchTerms(
           {
             currency: await this._resolveAddress(input.currency),
@@ -766,6 +759,16 @@ export class Kettle {
             tokenId: input.side === Side.ASK ? input.identifier : undefined
           },
           input.lien
+        );
+
+        const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
+        validationPromises.push(
+          this.currentDebt(input.lien)
+            .then(({ debt }) => ({
+              check: "debt-covers-ask",
+              valid: BigInt(debt) >= netAmount,
+              reason: "Current lien debt exceeds ask amount"
+            }) as Validation)
         );
       } else {
         
