@@ -6,3 +6,4 @@ export * from "./equalAddresses";
 export * from "./merkle";
 export * from "./events";
 export * from "./validations";
+export * from "./netAmount";
