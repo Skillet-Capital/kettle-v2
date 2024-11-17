@@ -54,3 +54,8 @@ error PlaceholderAlreadyEscrowed();
 error InvalidRebate();
 
 error InvalidTaker();
+
+error CannotRedeemFromBid();
+error InvalidAdmin();
+error InvalidCollection();
+error InvalidTokenId();

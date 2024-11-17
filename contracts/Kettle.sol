@@ -16,6 +16,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./interfaces/IKettle.sol";
 import "./interfaces/ILendingController.sol";
 import "./interfaces/IEscrowController.sol";
+// import "./interfaces/IRedemptionManager.sol";
 import "./OfferController.sol";
 
 import "./Errors.sol";
@@ -29,6 +30,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     ILendingController public LENDING_CONTROLLER;
     IEscrowController public ESCROW_CONTROLLER;
+    // IRedemptionManager public REDEMPTION_MANAGER;
 
     uint256[50] private _gap;
 
@@ -36,12 +38,14 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         address owner,
         address _lendingController, 
         address _escrowController
+        // address _redemptionManager
     ) external initializer {
         __Ownable_init(owner);
         __OfferController_init();
 
         LENDING_CONTROLLER = ILendingController(_lendingController);
         ESCROW_CONTROLLER = IEscrowController(_escrowController);
+        // REDEMPTION_MANAGER = IRedemptionManager(_redemptionManager);
     }
 
     // ==================================================
@@ -82,6 +86,45 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             tokenId
         );
     }
+
+    // function fulfillMarketOfferAndRedeem(
+    //     uint256 tokenId,
+    //     MarketOffer calldata offer,
+    //     RedemptionCharge calldata charge,
+    //     bytes calldata offerSignature,
+    //     bytes calldata chargeSignature,
+    //     bytes32[] calldata proof
+    // ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+    //     if (offer.soft) revert CannotTakeSoftOffer();
+    //     if (offer.side == Side.BID) revert CannotRedeemFromBid();
+
+    //     address buyer = msg.sender;
+    //     address seller = offer.maker;
+
+    //     _takeMarketOffer(tokenId, offer, offerSignature, proof);
+
+    //     netAmount = _transferFees(
+    //         offer.terms.currency, 
+    //         buyer,
+    //         offer.fee.recipient, 
+    //         offer.terms.amount, 
+    //         offer.fee.rate
+    //     );
+
+    //     offer.terms.currency.safeTransferFrom(
+    //         buyer,
+    //         seller,
+    //         netAmount
+    //     );
+
+    //     bytes memory data = abi.encode(buyer, charge, chargeSignature);
+    //     offer.collateral.collection.safeTransferFrom(
+    //         buyer,
+    //         address(REDEMPTION_MANAGER),
+    //         tokenId,
+    //         data
+    //     );
+    // }
 
     function fulfillLoanOffer(
         uint256 tokenId,

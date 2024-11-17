@@ -104,3 +104,22 @@ struct Escrow {
     uint256 timestamp;
     uint256 lockTime;
 }
+
+// ====================================
+//              REDEMPTION
+// ====================================
+
+struct RedemptionCharge {
+  address admin;
+  address redeemer;
+  Asset[] assets;
+  IERC20 currency;
+  uint256 amount;
+  uint256 expiration;
+  uint256 salt;
+}
+
+struct Asset {
+  IERC721 collection;
+  uint256 tokenId;
+}
