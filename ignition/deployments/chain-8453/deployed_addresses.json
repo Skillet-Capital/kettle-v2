@@ -13,5 +13,9 @@
   "Kettle#KettleProxyAdmin": "0xb5e2aE9bEF742e435C364967eAb8bd458c5B6e12",
   "Kettle#LendingControllerProxyAdmin": "0xC3CC8cD3a9De1cF2E91326e7A72e0aaC7bb4f4AE",
   "Kettle#TestERC20": "0x2bB7C2237BBB173514928e6343aE77FD385763D8",
-  "Kettle#WETH": "0x73d55C836B5676bb3a966fc12ac2B39FA36FEE5a"
+  "Kettle#WETH": "0x73d55C836B5676bb3a966fc12ac2B39FA36FEE5a",
+  "RedemptionManager#RedemptionManagerImplementation": "0x89BaAbf550Cf6ea1325a688A778892d080Bbe6fF",
+  "RedemptionManager#RedemptionManagerProxy": "0x962FB97954a5d9Cc6801a724Ce783Ea639D90D2E",
+  "RedemptionManager#RedemptionManager": "0x962FB97954a5d9Cc6801a724Ce783Ea639D90D2E",
+  "RedemptionManager#RedemptionManagerProxyAdmin": "0x38CE14fe3ac253f03c3C157f2620DfAF791BC522"
 }

@@ -1,6 +1,10 @@
 export const KETTLE_CONTRACT_NAME = "Kettle";
 export const KETTLE_CONTRACT_VERSION = "1";
 
+export const BASIS_POINTS_DIVISOR = 10_000n;
+export const BYTES_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+export const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000"
+
 export const COLLATERAL_TYPE = [
   { name: "criteria",       type: "uint8" },
   { name: "collection",     type: "address" },
@@ -79,6 +83,28 @@ export const PERMIT_TYPE = {
   ]
 }
 
-export const BASIS_POINTS_DIVISOR = 10_000n;
-export const BYTES_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
-export const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000"
+/////////////////////////////////////////////////
+//            Redemption Manager
+/////////////////////////////////////////////////
+
+export const REDEMPTION_MANAGER_NAME = "RedemptionManager";
+export const REDEMPTION_MANAGER_VERSION = "1";
+
+export const ASSET_TYPE = [
+  { name: "collection",     type: "address" },
+  { name: "tokenId",        type: "uint256" }
+];
+
+export const REDEMPTION_CHARGE_TYPE = {
+  RedemptionCharge: [
+    { name: "admin",          type: "address" },
+    { name: "redeemer",       type: "address" },
+    { name: "assets",         type: "Asset[]" },
+    { name: "currency",       type: "address" },
+    { name: "amount",         type: "uint256" },
+    { name: "expiration",     type: "uint256" },
+    { name: "salt",           type: "uint256" },
+    { name: "nonce",          type: "uint256" }
+  ],
+  Asset: ASSET_TYPE
+}

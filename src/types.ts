@@ -6,7 +6,9 @@ import {
   LendingController,
   Kettle__factory,
   EscrowController__factory,
-  LendingController__factory
+  LendingController__factory,
+  RedemptionManager as RedemptionManagerContract,
+  RedemptionManager__factory
 } from "../typechain-types";
 
 import { LienStruct } from "../typechain-types/contracts/LendingController";
@@ -16,6 +18,7 @@ import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export type {
   KettleContract,
+  RedemptionManagerContract,
   EscrowController,
   LendingController,
   LienStruct,
@@ -26,6 +29,7 @@ export {
   Kettle__factory,
   EscrowController__factory,
   LendingController__factory,
+  RedemptionManager__factory,
   TestERC20__factory,
   TestERC721__factory
 };
@@ -270,7 +274,7 @@ export type GenericStep = {
 
 export type SendStep = GenericStep & {
   action: StepAction.SEND;
-  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}` | `cancel-${string}`;
+  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}` | `cancel-${string}` | `redeem${string}`;
   userOp: UserOp;
   send: (signer: Signer | JsonRpcSigner) => Promise<string>;
 }
@@ -304,4 +308,40 @@ export type Validation = {
 
 export type MulticallValidation = {
   [salt: string]: Validation;
+}
+
+// ==============================================
+//            REDEMPTION MANAGER TYPES
+// ==============================================
+
+export type Asset = {
+  collection: Addressable;
+  tokenId: Numberish;
+}
+
+export type RedemptionCharge = {
+  admin: string,
+  redeemer: string,
+  currency: string,
+  amount: Numberish,
+  expiration: Numberish,
+  salt: Numberish,
+  nonce: Numberish,
+  assets: {
+    collection: string,
+    tokenId: Numberish
+  }[]
+}
+
+export type ChargeWithSignature = {
+  charge: RedemptionCharge;
+  signature: string;
+}
+
+export type RedemptionSignStep = GenericStep & {
+  action: StepAction.SIGN;
+  type: "sign-redemption-charge",
+  charge: RedemptionCharge;
+  payload: Payload;
+  sign: (signer: Signer | JsonRpcSigner) => Promise<ChargeWithSignature>;
 }

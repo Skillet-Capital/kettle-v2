@@ -6,7 +6,7 @@ import "./Errors.sol";
 
 contract KettleAccess is Ownable2StepUpgradeable {
 
-    address kettle;
+    address public kettle;
 
     function setKettle(address _kettle) onlyOwner external {
         kettle = _kettle;
