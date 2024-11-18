@@ -89,7 +89,7 @@ export class RedemptionManager {
     charge,
     signature
   }: ChargeWithSignature,
-    taker: Addressable
+    taker: string | Addressable
   ): Promise<SendStep[]> {
     const _taker = await this._resolveAddress(taker);
 
