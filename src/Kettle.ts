@@ -605,7 +605,7 @@ export class Kettle {
        * - check offer terms match lien (if lien)
        * - check lien debt covers ask amount (if lien)
        */
-      if (!lien) {
+      if (!lien || !offer.soft) {
         validationPromises.push(...[
           collateralBalance(offer.maker, offer.collateral.collection, offer.collateral.identifier, this.provider)
             .then((owns) => ({
@@ -731,8 +731,6 @@ export class Kettle {
     user: string,
     input: CreateMarketOfferInput | CreateLoanOfferInput
   ): Promise<void> {
-
-    console.log(user, input)
     
     const validationPromises: Promise<Validation>[] = [];
 
@@ -770,7 +768,7 @@ export class Kettle {
               reason: "Current lien debt exceeds ask amount"
             }) as Validation)
         );
-      } else {
+      } else if (!input.soft){
         
         validationPromises.push(
           collateralBalance(user, await this._resolveAddress(input.collection), input.identifier, this.provider)
