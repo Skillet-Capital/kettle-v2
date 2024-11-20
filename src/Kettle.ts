@@ -605,7 +605,7 @@ export class Kettle {
        * - check offer terms match lien (if lien)
        * - check lien debt covers ask amount (if lien)
        */
-      if (!lien || !offer.soft) {
+      if (!(lien || offer.soft)) {
         validationPromises.push(...[
           collateralBalance(offer.maker, offer.collateral.collection, offer.collateral.identifier, this.provider)
             .then((owns) => ({
