@@ -33,3 +33,22 @@ type Lien @entity {
   startTime: BigInt!
   status: String!
 }
+
+type Escrow @entity {
+  id: String!
+  escrowId: BigInt!
+  buyer: Bytes!
+  seller: Bytes!
+  collateralId: String!
+  collection: Bytes!
+  placeholder: Bytes!
+  tokenId: BigInt
+  currency: Bytes!
+  amount: BigInt!
+  recipient: Bytes!
+  fee: BigInt!
+  rebate: BigInt!
+  duration: BigInt!
+  startTime: BigInt!
+  status: String!
+}

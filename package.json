@@ -12,8 +12,8 @@
     "graph:build": "graph build base.subgraph.yaml",
     "blast:create-dev": "source .env && graph create --node ${BLAST_GRAPH_URL}:8020/ kettle/kettle-v2-blast-dev",
     "blast:deploy-dev": "source .env && graph deploy --node ${BLAST_GRAPH_URL}:8020/ --ipfs ${BLAST_GRAPH_URL}:5001 kettle/kettle-v2-blast-dev blast.subgraph.yaml --version-label v0.0.1",
-    "base:create-dev":  "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev",
-    "base:deploy-dev":  "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev base.subgraph.yaml --version-label v0.0.1"
+    "base:create-dev":  "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev-tmp",
+    "base:deploy-dev":  "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev-tmp base.subgraph.yaml --version-label v0.0.1"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
