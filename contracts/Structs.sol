@@ -110,7 +110,6 @@ struct Escrow {
 // ====================================
 
 struct RedemptionCharge {
-  address admin;
   address redeemer;
   Asset[] assets;
   IERC20 currency;

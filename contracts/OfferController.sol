@@ -25,7 +25,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     function amountTaken(bytes32 offerHash) external view returns (uint256) {
         return _amountTaken[offerHash];
     }
-
+    
     function _takeMarketOffer(
         uint256 tokenId,
         MarketOffer calldata offer,

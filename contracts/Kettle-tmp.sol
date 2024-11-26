@@ -52,8 +52,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     //               MARKETPLACE FUNCTIONS
     // ==================================================
 
-    function fulfillMarketOffer(
-        uint256 tokenId,
+    function takeAsk(
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
@@ -64,13 +63,13 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
 
-        _takeMarketOffer(tokenId, offer, signature, proof);
+        _takeMarketOffer(offer.collateral.identifier, offer, signature, proof);
 
         if (offer.soft) {
-            _escrowMarketOffer(buyer, seller, tokenId, offer);
+            _escrowMarketOffer(buyer, seller, offer.collateral.identifier, offer);
 
         } else {
-            _completeMarketOffer(buyer, seller, tokenId, offer);
+            _completeMarketOffer(buyer, seller, offer.collateral.identifier, offer);
         }
     }
 
@@ -148,207 +147,6 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         // open escrow
         ESCROW_CONTROLLER.openEscrow(
-            placeholder,
-            rebate,
-            buyer,
-            seller,
-            offer
-        );
-    } 
-
-
-
-    function fulfillLoanOffer(
-        uint256 tokenId,
-        uint256 amount,
-        LoanOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) external nonReentrant requireLoanOffer(offer.kind) returns (uint256 lienId) {
-        if (offer.soft) {
-            revert CannotTakeSoftOffer();
-        }
-
-        (address lender, address borrower) = _findBuyerAndSeller(offer.side, offer.maker);
-        uint256 principal = _findPrincipal(offer.side, offer.terms.amount, amount);
-        
-        _takeLoanOffer(tokenId, principal, offer, signature, proof);
-
-        offer.terms.currency.safeTransferFrom(
-            lender,
-            borrower,
-            principal
-        );
-
-        offer.collateral.collection.safeTransferFrom(
-            borrower,
-            address(this),
-            tokenId
-        );
-
-        lienId = LENDING_CONTROLLER.openLien(
-            tokenId, 
-            principal, 
-            lender, 
-            borrower, 
-            offer
-        );
-    }
-
-    function fulfillMarketOfferInLien(
-        uint256 lienId,
-        Lien calldata lien,
-        MarketOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof  
-    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
-        if (offer.soft) {
-            revert CannotTakeSoftOffer();
-        }
-
-        _verifyBorrower(offer.side, lien.borrower, offer.maker);
-
-        _matchTerms(
-            lien.currency, 
-            offer.terms.currency, 
-            lien.collection, 
-            offer.collateral.collection
-        );
-
-        _takeMarketOffer(lien.tokenId, offer, signature, proof);
-
-        address buyer = offer.side == Side.BID ? offer.maker : msg.sender;
-        uint256 marketFee = _calculateFee(offer.terms.amount, offer.fee.rate);
-
-        (
-            address lender,
-            uint256 debt,
-            uint256 fee,
-            uint256 interest
-        ) = LENDING_CONTROLLER.repayLien(lienId, lien);
-
-        if (offer.side == Side.ASK && (offer.terms.amount - marketFee) < debt) {
-            revert InsufficientAskAmount();
-        }
-
-        _loanPayments(
-            offer.terms.currency,
-            lien.borrower,
-            lender,
-            buyer,
-            lien.recipient,
-            offer.fee.recipient,
-            offer.terms.amount,
-            lien.principal,
-            interest,
-            fee,
-            marketFee
-        );
-
-        lien.collection.safeTransferFrom(
-            address(this),
-            buyer,
-            lien.tokenId
-        );
-    }
-
-    function fulfillLoanOfferInLien(
-        uint256 lienId,
-        uint256 amount,
-        Lien calldata lien,
-        LoanOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) external nonReentrant requireLoanOffer(offer.kind) returns (uint256 newLienId) {
-        if (offer.soft) {
-            revert CannotTakeSoftOffer();
-        }
-
-        _verifyBorrower(offer.side, lien.borrower, offer.maker);
-
-        _matchTerms(
-            lien.currency, 
-            offer.terms.currency, 
-            lien.collection, 
-            offer.collateral.collection
-        );
-
-        uint256 principal = _findPrincipal(offer.side, offer.terms.amount, amount);
-        _takeLoanOffer(lien.tokenId, principal, offer, signature, proof);
-
-        address refinancer = offer.side == Side.BID ? offer.maker : msg.sender;
-
-        (
-            address lender,
-            uint256 debt,
-            uint256 fee,
-            uint256 interest
-        ) = LENDING_CONTROLLER.repayLien(lienId, lien);
-
-        if (offer.side == Side.ASK && offer.terms.amount < debt) {
-            revert InsufficientAskAmount();
-        }
-
-        _loanPayments(
-            offer.terms.currency,
-            lien.borrower,
-            lender,
-            refinancer,
-            lien.recipient,
-            address(0),
-            principal,
-            lien.principal,
-            interest,
-            fee,
-            0
-        );
-
-        newLienId = LENDING_CONTROLLER.openLien(
-            lien.tokenId, 
-            principal, 
-            offer.side == Side.BID ? offer.maker : msg.sender, 
-            lien.borrower, 
-            offer
-        );
-
-        emit Refinance({
-            oldLienId: lienId,
-            newLienId: newLienId
-        });
-    }
-
-    function escrowMarketOffer(
-        uint256 placeholder,
-        MarketOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 escrowId) {
-        if (!offer.soft) {
-            revert CannotTakeHardOffer();
-        }
-
-        _takeMarketOffer(placeholder, offer, signature, proof);
-
-        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
-
-        uint256 rebate = 0;
-        if (offer.terms.rebate > 0) {
-            rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
-
-            offer.terms.currency.safeTransferFrom(
-                seller,
-                address(this),
-                rebate
-            );
-        }
-
-        offer.terms.currency.safeTransferFrom(
-            buyer,
-            address(this),
-            offer.terms.amount
-        );
-
-        escrowId = ESCROW_CONTROLLER.openEscrow(
             placeholder,
             rebate,
             buyer,
