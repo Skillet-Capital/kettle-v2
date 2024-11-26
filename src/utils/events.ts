@@ -1,6 +1,6 @@
 import { Provider } from "ethers";
 import { Log, LogDescription, TransactionReceipt } from "ethers";
-import { LendingController__factory, Numberish, Lien, Escrow } from "../types";
+import { LendingController__factory, Numberish, Lien, Escrow, EscrowController__factory, EscrowStruct } from "../types";
 
 interface LienLog {
   lienId: Numberish;
@@ -9,7 +9,7 @@ interface LienLog {
 
 interface EscrowLog {
   escrowId: Numberish;
-  escrow: Escrow;
+  escrow: EscrowStruct;
 }
 
 export async function getReceipt(provider: Provider, txnHash: string | null): Promise<TransactionReceipt> {
@@ -61,7 +61,7 @@ export function parseLienOpenedLog(receipt: TransactionReceipt): LienLog {
 }
 
 export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
-  const iface = LendingController__factory.createInterface();
+  const iface = EscrowController__factory.createInterface();
 
   const logs = receipt.logs
     .map((log: Log) => iface.parseLog(log))
@@ -71,12 +71,13 @@ export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
     .find((log: LogDescription) => log.name === "EscrowOpened") as LogDescription;
 
   if (!escrowLog) {
-    throw new Error("No LienOpened log found");
+    throw new Error("No EscrowOpened log found");
   }
 
   return {
     escrowId: escrowLog.args.escrowId,
     escrow: {
+      side: escrowLog.args.escrow.side,
       placeholder: escrowLog.args.escrow.placeholder,
       buyer: escrowLog.args.escrow.buyer,
       seller: escrowLog.args.escrow.seller,
@@ -87,6 +88,9 @@ export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
       fee: escrowLog.args.escrow.fee,
       recipient: escrowLog.args.escrow.recipient,
       rebate: escrowLog.args.escrow.rebate,
+      redemptionHash: escrowLog.args.escrow.redemptionHash,
+      withRedemption: escrowLog.args.escrow.withRedemption,
+      redemptionCharge: escrowLog.args.escrow.redemptionCharge,
       timestamp: escrowLog.args.escrow.timestamp,
       lockTime: escrowLog.args.escrow.lockTime,
     }

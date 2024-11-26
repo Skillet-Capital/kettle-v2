@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./interfaces/IKettle.sol";
 import "./interfaces/ILendingController.sol";
 import "./interfaces/IEscrowController.sol";
-// import "./interfaces/IRedemptionManager.sol";
+import "./interfaces/IRedemptionController.sol";
 import "./OfferController.sol";
 
 import "./Errors.sol";
@@ -28,29 +28,38 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     // @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 private constant _BASIS_POINTS = 10_000;
 
-    ILendingController public LENDING_CONTROLLER;
     IEscrowController public ESCROW_CONTROLLER;
-    // IRedemptionManager public REDEMPTION_MANAGER;
+    ILendingController public LENDING_CONTROLLER;
+    IRedemptionController public REDEMPTION_CONTROLLER;
 
     uint256[50] private _gap;
 
     function __Kettle_init(
         address owner,
         address _lendingController, 
-        address _escrowController
-        // address _redemptionManager
+        address _escrowController,
+        address _redemptionManager
     ) external initializer {
         __Ownable_init(owner);
         __OfferController_init();
 
         LENDING_CONTROLLER = ILendingController(_lendingController);
         ESCROW_CONTROLLER = IEscrowController(_escrowController);
-        // REDEMPTION_MANAGER = IRedemptionManager(_redemptionManager);
+        REDEMPTION_CONTROLLER = IRedemptionController(_redemptionManager);
     }
 
     // ==================================================
     //               MARKETPLACE FUNCTIONS
     // ==================================================
+
+    function redeemCollateral(
+        uint256 tokenId,
+        IERC721 collection,
+        RedemptionCharge calldata charge,
+        bytes calldata signature
+    ) external nonReentrant {
+        _redeemCollateral(tokenId, collection, msg.sender, charge, signature);
+    }
 
     function fulfillMarketOffer(
         uint256 tokenId,
@@ -63,9 +72,45 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         }
 
         (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
-
         _takeMarketOffer(tokenId, offer, signature, proof);
 
+        netAmount = _fulfillMarketOfferPayments(buyer, seller, offer);
+        offer.collateral.collection.safeTransferFrom(
+            seller,
+            buyer,
+            tokenId
+        );
+    }
+
+    function fulfillMarketOfferWithRedemption(
+        uint256 tokenId,
+        MarketOffer calldata offer,
+        RedemptionCharge calldata charge,
+        bytes calldata offerSignature,
+        bytes calldata chargeSignature,
+        bytes32[] calldata proof
+    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
+        if (offer.soft) revert CannotTakeSoftOffer();
+        if (offer.side == Side.BID) revert CannotRedeemFromBid();
+
+        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
+        _takeMarketOffer(tokenId, offer, offerSignature, proof);
+
+        netAmount = _fulfillMarketOfferPayments(buyer, seller, offer);
+        _redeemCollateral(
+            tokenId, 
+            offer.collateral.collection, 
+            seller, 
+            charge, 
+            chargeSignature
+        );
+    }
+
+    function _fulfillMarketOfferPayments(
+        address buyer,
+        address seller,
+        MarketOffer calldata offer
+    ) internal returns (uint256 netAmount) {
         netAmount = _transferFees(
             offer.terms.currency, 
             buyer,
@@ -79,52 +124,44 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             seller,
             netAmount
         );
-
-        offer.collateral.collection.safeTransferFrom(
-            seller,
-            buyer,
-            tokenId
-        );
     }
 
-    // function fulfillMarketOfferAndRedeem(
-    //     uint256 tokenId,
-    //     MarketOffer calldata offer,
-    //     RedemptionCharge calldata charge,
-    //     bytes calldata offerSignature,
-    //     bytes calldata chargeSignature,
-    //     bytes32[] calldata proof
-    // ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 netAmount) {
-    //     if (offer.soft) revert CannotTakeSoftOffer();
-    //     if (offer.side == Side.BID) revert CannotRedeemFromBid();
+    function _redeemCollateral(
+        uint256 tokenId,
+        IERC721 collection,
+        address source,
+        RedemptionCharge calldata charge,
+        bytes calldata signature
+    ) internal {
+        bytes32 _hash = _verifyRedemptionCharge(
+            REDEMPTION_CONTROLLER.admin(), 
+            tokenId,
+            collection,
+            charge, 
+            signature
+        );
 
-    //     address buyer = msg.sender;
-    //     address seller = offer.maker;
+        collection.safeTransferFrom(
+            source,
+            address(REDEMPTION_CONTROLLER.redemptionWallet()),
+            tokenId
+        );
 
-    //     _takeMarketOffer(tokenId, offer, offerSignature, proof);
+        charge.currency.safeTransferFrom(
+            msg.sender,
+            address(REDEMPTION_CONTROLLER.redemptionWallet()),
+            charge.amount
+        );
 
-    //     netAmount = _transferFees(
-    //         offer.terms.currency, 
-    //         buyer,
-    //         offer.fee.recipient, 
-    //         offer.terms.amount, 
-    //         offer.fee.rate
-    //     );
-
-    //     offer.terms.currency.safeTransferFrom(
-    //         buyer,
-    //         seller,
-    //         netAmount
-    //     );
-
-    //     bytes memory data = abi.encode(buyer, charge, chargeSignature);
-    //     offer.collateral.collection.safeTransferFrom(
-    //         buyer,
-    //         address(REDEMPTION_MANAGER),
-    //         tokenId,
-    //         data
-    //     );
-    // }
+        emit Redemption({
+            hash: _hash,
+            redeemer: msg.sender,
+            collection: collection,
+            tokenId: tokenId,
+            currency: charge.currency,
+            amount: charge.amount
+        });
+    }
 
     function fulfillLoanOffer(
         uint256 tokenId,
@@ -295,11 +332,74 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             revert CannotTakeHardOffer();
         }
 
+        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
         _takeMarketOffer(placeholder, offer, signature, proof);
 
-        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
+        uint256 rebate = _escrowMarketOfferPayments(buyer, seller, offer);
+        escrowId = ESCROW_CONTROLLER.openEscrow(
+            placeholder,
+            rebate,
+            false,
+            bytes32(0),
+            0,
+            buyer,
+            seller,
+            offer
+        );
+    }
 
-        uint256 rebate = 0;
+    function escrowMarketOfferWithRedemption(
+        uint256 placeholder,
+        MarketOffer calldata offer,
+        RedemptionCharge calldata charge,
+        bytes calldata offerSignature,
+        bytes calldata chargeSignature,
+        bytes32[] calldata proof
+    ) external nonReentrant requireMarketOffer(offer.kind) returns (uint256 escrowId) {
+        if (!offer.soft) revert CannotTakeHardOffer();
+        if (offer.side == Side.BID) revert CannotRedeemFromBid();
+
+        (address buyer, address seller) = _findBuyerAndSeller(offer.side, offer.maker);
+        _takeMarketOffer(placeholder, offer, offerSignature, proof);
+
+        uint256 rebate = _escrowMarketOfferPayments(buyer, seller, offer);
+
+        // escrow and store redemption charge
+        bytes32 _hash = _verifyRedemptionCharge(
+            REDEMPTION_CONTROLLER.admin(),
+            placeholder,
+            offer.collateral.collection,
+            charge, 
+            chargeSignature
+        );
+
+        if (charge.currency != offer.terms.currency) {
+            revert CurrencyMismatch();
+        }
+
+        charge.currency.safeTransferFrom(
+            buyer,
+            address(this),
+            charge.amount
+        );
+
+        escrowId = ESCROW_CONTROLLER.openEscrow(
+            placeholder,
+            rebate,
+            true,
+            _hash,
+            charge.amount,
+            buyer,
+            seller,
+            offer
+        );
+    }
+
+    function _escrowMarketOfferPayments(
+        address buyer,
+        address seller,
+        MarketOffer calldata offer
+    ) internal returns (uint256 rebate) {
         if (offer.terms.rebate > 0) {
             rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
 
@@ -314,14 +414,6 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             buyer,
             address(this),
             offer.terms.amount
-        );
-
-        escrowId = ESCROW_CONTROLLER.openEscrow(
-            placeholder,
-            rebate,
-            buyer,
-            seller,
-            offer
         );
     }
 
@@ -401,11 +493,35 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             netAmount + escrow.rebate
         );
 
-        escrow.collection.safeTransferFrom(
-            ESCROW_CONTROLLER.TOKEN_SUPPLIER(),
-            escrow.buyer,
-            tokenId
-        );
+        // redeem token if necessary
+        if (escrow.withRedemption) {
+            escrow.currency.transfer(
+                address(REDEMPTION_CONTROLLER.redemptionWallet()),
+                escrow.redemptionCharge
+            );
+
+            escrow.collection.safeTransferFrom(
+                ESCROW_CONTROLLER.TOKEN_SUPPLIER(),
+                address(REDEMPTION_CONTROLLER.redemptionWallet()),
+                tokenId
+            );
+
+            emit Redemption({
+                hash: escrow.redemptionHash,
+                redeemer: escrow.buyer,
+                collection: escrow.collection,
+                tokenId: tokenId,
+                currency: escrow.currency,
+                amount: escrow.redemptionCharge
+            });
+
+        } else {
+            escrow.collection.safeTransferFrom(
+                ESCROW_CONTROLLER.TOKEN_SUPPLIER(),
+                escrow.buyer,
+                tokenId
+            );
+        }
     }
 
     function claimEscrow(
@@ -416,8 +532,16 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             escrow.buyer,
             escrow.amount + escrow.rebate
         );
+        
+        // if redemption, return charge to buyer
+        if (escrow.withRedemption) {
+            escrow.currency.transfer(
+                escrow.buyer,
+                escrow.redemptionCharge
+            );
+        }
 
-        ESCROW_CONTROLLER.claimEscrow(escrowId, escrow); 
+        ESCROW_CONTROLLER.claimEscrow(escrowId, escrow);
     }
 
     function rejectEscrow(
@@ -433,13 +557,20 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
             escrow.currency.transfer(
                 escrow.buyer,
-                escrow.amount
+                escrow.amount + escrow.redemptionCharge
             );
         } else {
             escrow.currency.transfer(
                 escrow.buyer,
                 escrow.amount + escrow.rebate
             );
+
+            if (escrow.withRedemption) {
+                escrow.currency.transfer(
+                    escrow.buyer,
+                    escrow.redemptionCharge
+                );
+            }
         }
 
         ESCROW_CONTROLLER.rejectEscrow(escrowId, escrow, returnRebate);

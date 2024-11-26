@@ -97,10 +97,13 @@ struct Escrow {
     address seller;
     IERC721 collection;
     IERC20 currency;
-    address recipient;
     uint256 amount;
+    address recipient;
     uint256 fee;
     uint256 rebate;
+    bytes32 redemptionHash;
+    bool withRedemption;
+    uint256 redemptionCharge;
     uint256 timestamp;
     uint256 lockTime;
 }
@@ -110,9 +113,9 @@ struct Escrow {
 // ====================================
 
 struct RedemptionCharge {
-  address admin;
   address redeemer;
-  Asset[] assets;
+  IERC721 collection;
+  uint256 tokenId;
   IERC20 currency;
   uint256 amount;
   uint256 expiration;

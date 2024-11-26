@@ -4,11 +4,11 @@ import {
   Kettle as KettleContract, 
   EscrowController, 
   LendingController,
+  RedemptionController,
   Kettle__factory,
   EscrowController__factory,
   LendingController__factory,
-  RedemptionManager as RedemptionManagerContract,
-  RedemptionManager__factory
+  RedemptionController__factory
 } from "../typechain-types";
 
 import { LienStruct } from "../typechain-types/contracts/LendingController";
@@ -18,9 +18,9 @@ import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export type {
   KettleContract,
-  RedemptionManagerContract,
   EscrowController,
   LendingController,
+  RedemptionController,
   LienStruct,
   EscrowStruct
 };
@@ -29,7 +29,7 @@ export {
   Kettle__factory,
   EscrowController__factory,
   LendingController__factory,
-  RedemptionManager__factory,
+  RedemptionController__factory,
   TestERC20__factory,
   TestERC721__factory
 };
@@ -142,6 +142,9 @@ export type Escrow = {
   fee: Numberish;
   recipient: string;
   rebate: Numberish;
+  redemptionHash: string;
+  withRedemption: boolean;
+  redemptionCharge: string;
   timestamp: Numberish;
   lockTime: Numberish;
 }
@@ -215,6 +218,8 @@ export type TakeOfferInput = {
   proof?: string[];
   lienId?: Numberish;
   lien?: Lien;
+  redemptionCharge?: RedemptionCharge;
+  redemptionChargeSignature?: string;
 }
 
 export type ValidateTakeOfferInput = {
@@ -274,7 +279,7 @@ export type GenericStep = {
 
 export type SendStep = GenericStep & {
   action: StepAction.SEND;
-  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}` | `cancel-${string}` | `redeem${string}`;
+  type: `approve-${string}` | `take-${string}` | `repay-${string}` | `escrow-${string}` | `claim-${string}` | `cancel-${string}` | `redeem${string}` | `${string}-escrow`;
   userOp: UserOp;
   send: (signer: Signer | JsonRpcSigner) => Promise<string>;
 }
@@ -320,17 +325,14 @@ export type Asset = {
 }
 
 export type RedemptionCharge = {
-  admin: string,
   redeemer: string,
+  collection: string,
+  tokenId: Numberish,
   currency: string,
   amount: Numberish,
   expiration: Numberish,
   salt: Numberish,
   nonce: Numberish,
-  assets: {
-    collection: string,
-    tokenId: Numberish
-  }[]
 }
 
 export type ChargeWithSignature = {

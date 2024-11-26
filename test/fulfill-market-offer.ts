@@ -20,6 +20,9 @@ describe("Fulfill Market Offer", function () {
   let seller: Signer;
   let recipient: Signer;
 
+  let redemptionAdmin: Signer;
+  let redemptionWallet: Signer;
+
   let collection: TestERC721;
   let currency: TestERC20;
 
@@ -37,6 +40,9 @@ describe("Fulfill Market Offer", function () {
     recipient = fixture.recipient;
     collection = fixture.collection;
     currency = fixture.currency;
+
+    redemptionAdmin = fixture.redemptionAdmin;
+    redemptionWallet = fixture.redemptionWallet;
 
     kettle = new Kettle(seller, await _kettle.getAddress());
 
@@ -229,4 +235,61 @@ describe("Fulfill Market Offer", function () {
     expect(await currency.balanceOf(recipient)).to.equal(fee);
     expect(await currency.balanceOf(seller)).to.equal(amount - fee);
   });
+
+  it("should redeem asset on fulfill ask", async function () {
+    const _seller = await kettle.connect(seller);
+
+    const { offer, signature } = await _seller.createMarketOffer({
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + 60
+    }, seller).then(s => executeCreateSteps(seller, s));
+
+    const _buyer = await kettle.connect(buyer);
+
+    // create and sign redemption charge
+    const chargeAmount = parseUnits("100", 18);
+    const signStep = await kettle.connect(redemptionAdmin).createRedemptionCharge({
+      redeemer: buyer,
+      collection,
+      tokenId,
+      currency,
+      amount: chargeAmount,
+      expiration: await time.latest() + 100
+    });
+
+    const { charge, signature: chargeSignature } = await signStep.sign(redemptionAdmin);
+
+    await expect(_buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: { ...offer, side: Side.BID } as MarketOffer, 
+      signature,
+      redemptionCharge: charge,
+      redemptionChargeSignature: chargeSignature
+    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "CannotRedeemFromBid");;
+
+    await currency.mint(buyer, chargeAmount);
+    await _buyer.takeMarketOffer({
+      tokenId: tokenId,
+      offer: offer as MarketOffer,
+      signature,
+      redemptionCharge: charge,
+      redemptionChargeSignature: chargeSignature
+    }, buyer).then(s => executeTakeSteps(buyer, s));
+
+    // expect redemption
+    expect(await collection.ownerOf(tokenId)).to.equal(redemptionWallet);
+    expect(await currency.balanceOf(redemptionWallet)).to.equal(chargeAmount);
+
+    const fee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
+    expect(await currency.balanceOf(recipient)).to.equal(fee);
+    expect(await currency.balanceOf(seller)).to.equal(amount - fee);
+
+    expect(await _kettle.cancelledOrFulfilled(offer.maker, offer.salt)).to.equal(1);
+  })
 });

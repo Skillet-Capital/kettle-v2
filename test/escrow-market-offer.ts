@@ -2,7 +2,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-help
 
 import { tracer } from "hardhat";
 import { expect } from "chai";
-import { parseUnits, Signer } from "ethers";
+import { parseUnits, randomBytes, Signer } from "ethers";
 
 import { TestERC20, TestERC721 } from "../typechain-types"; 
 
@@ -23,10 +23,13 @@ describe("Escrow Market Offer", function () {
   let seller: Signer;
   let recipient: Signer;
 
+  let redemptionAdmin: Signer;
+  let redemptionWallet: Signer;
+
   let collection: TestERC721;
   let currency: TestERC20;
 
-  let tokenId: number = 1;
+  let tokenId: string = randomSalt();
   let amount: bigint = parseUnits("100", 18);
 
   let root: string;
@@ -41,6 +44,9 @@ describe("Escrow Market Offer", function () {
     recipient = fixture.recipient;
     collection = fixture.collection;
     currency = fixture.currency;
+
+    redemptionAdmin = fixture.redemptionAdmin;
+    redemptionWallet = fixture.redemptionWallet;
 
     kettle = new Kettle(seller, await _kettle.getAddress());
 
@@ -144,4 +150,47 @@ describe("Escrow Market Offer", function () {
 
     expect(await currency.balanceOf(_kettle)).to.equal(BigInt(offer.terms.amount) + rebateAmount);
   });
+
+  it("should open escrow with redemption", async function () {
+    const _seller = await kettle.connect(seller);
+
+    const { offer, signature } = await _seller.createMarketOffer({
+      soft: true,
+      side: Side.ASK,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + 60
+    }, seller).then(s => executeCreateSteps(seller, s));
+
+    const _buyer = await kettle.connect(buyer);
+
+    // create and sign redemption charge
+    const chargeAmount = parseUnits("100", 18);
+    const signStep = await kettle.connect(redemptionAdmin).createRedemptionCharge({
+      redeemer: buyer,
+      collection,
+      tokenId,
+      currency,
+      amount: chargeAmount,
+      expiration: await time.latest() + 100
+    });
+
+    const { charge, signature: chargeSignature } = await signStep.sign(redemptionAdmin);
+
+    await _escrow.whitelistedAskMaker(seller, true);
+
+    await currency.mint(buyer, chargeAmount);
+    await _buyer.escrowMarketOffer({
+      offer: offer as MarketOffer, 
+      signature,
+      redemptionCharge: charge,
+      redemptionChargeSignature: chargeSignature
+    }, buyer).then(s => executeTakeSteps(buyer, s));
+
+    expect(await currency.balanceOf(_kettle)).to.equal(BigInt(offer.terms.amount) + BigInt(chargeAmount));
+  })
 });

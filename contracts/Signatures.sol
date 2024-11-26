@@ -6,7 +6,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 
 import { ERC6492DeployFailed, InvalidSignature, InvalidVParameter } from "./Errors.sol";
 
-import { Collateral, FeeTerms, LoanOfferTerms, LoanOffer, MarketOfferTerms, MarketOffer } from "./Structs.sol";
+import "./Structs.sol";
 
 contract Signatures {
     bytes32 private constant _ERC6492_DETECTION_SUFFIX = 0x6492649264926492649264926492649264926492649264926492649264926492;
@@ -22,6 +22,8 @@ contract Signatures {
     bytes32 private _MARKET_OFFER_TERMS_TYPEHASH;
     bytes32 private _MARKET_OFFER_TYPEHASH;
 
+    bytes32 private _REDEMPTION_CHARGE_TYPEHASH;
+
     string private constant _NAME = "Kettle";
     string private constant _VERSION = "1";
 
@@ -36,7 +38,8 @@ contract Signatures {
             _LOAN_OFFER_TERMS_TYPEHASH,
             _LOAN_OFFER_TYPEHASH,
             _MARKET_OFFER_TERMS_TYPEHASH,
-            _MARKET_OFFER_TYPEHASH
+            _MARKET_OFFER_TYPEHASH,
+            _REDEMPTION_CHARGE_TYPEHASH
         ) = _createTypeHashes();
     }
 
@@ -46,6 +49,10 @@ contract Signatures {
 
     function hashMarketOffer(MarketOffer calldata offer) external view returns (bytes32) {
         return _hashMarketOffer(offer);
+    }
+
+    function hashRedemptionCharge(address admin, RedemptionCharge calldata charge) external view returns (bytes32) {
+        return _hashRedemptionCharge(admin, charge);
     }
 
     function _createTypeHashes()
@@ -58,7 +65,8 @@ contract Signatures {
             bytes32 loanOfferTermsTypehash,
             bytes32 loanOfferTypehash,
             bytes32 marketOfferTermsTypehash,
-            bytes32 marketOfferTypehash
+            bytes32 marketOfferTypehash,
+            bytes32 redemptionChargeTypehash
         ) 
     {
         eip712DomainTypehash = keccak256(
@@ -157,6 +165,21 @@ contract Signatures {
                 marketOfferTermsTypestring
             )
         );
+
+        bytes memory redemptionChargeTypestring = bytes.concat(
+            "RedemptionCharge(",
+            "address redeemer,",
+            "address collection,",
+            "uint256 tokenId,",
+            "address currency,",
+            "uint256 amount,",
+            "uint256 expiration,",
+            "uint256 salt,",
+            "uint256 nonce",
+            ")"
+        );
+
+        redemptionChargeTypehash = keccak256(redemptionChargeTypestring);
     }
 
     function _hashDomain(
@@ -276,6 +299,26 @@ contract Signatures {
                     offer.expiration,
                     offer.salt,
                     nonces[offer.maker]
+                )
+            );
+    }
+
+    function _hashRedemptionCharge(
+        address admin,
+        RedemptionCharge calldata charge
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    _REDEMPTION_CHARGE_TYPEHASH,
+                    charge.redeemer,
+                    charge.collection,
+                    charge.tokenId,
+                    charge.currency,
+                    charge.amount,
+                    charge.expiration,
+                    charge.salt,
+                    nonces[admin]
                 )
             );
     }

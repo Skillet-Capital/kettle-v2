@@ -111,6 +111,31 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         });
     }
 
+    function _verifyRedemptionCharge(
+        address admin,
+        uint256 tokenId,
+        IERC721 collection,
+        RedemptionCharge calldata charge,
+        bytes calldata signature
+    ) internal returns (bytes32 _hash) {
+        if (msg.sender != charge.redeemer) {
+            revert InvalidTaker();
+        }
+
+        if (tokenId != charge.tokenId) {
+            revert InvalidTokenId();
+        }
+
+        if (collection != charge.collection) {
+            revert InvalidCollection();
+        }
+
+        _hash = _hashRedemptionCharge(admin, charge);
+        _validateOffer(_hash, admin, charge.expiration, charge.salt, signature);
+
+        cancelledOrFulfilled[admin][charge.salt] = 1;
+    }
+
     function _validateOffer(
         bytes32 offerHash,
         address signer,

@@ -4,7 +4,8 @@ import {
   KETTLE_CONTRACT_NAME,
   KETTLE_CONTRACT_VERSION,
   LOAN_OFFER_TYPE,
-  MARKET_OFFER_TYPE
+  MARKET_OFFER_TYPE,
+  REDEMPTION_CHARGE_TYPE
 } from "./constants";
 
 import {
@@ -34,7 +35,11 @@ import type {
   SignStep,
   UserOp,
   Payload,
-  ValidateTakeOfferInput
+  ValidateTakeOfferInput,
+  RedemptionCharge,
+  ChargeWithSignature,
+  Escrow,
+  EscrowStruct
 } from "./types";
 
 import {
@@ -44,6 +49,7 @@ import {
   Kettle__factory,
   LendingController__factory,
   EscrowController__factory,
+  RedemptionController__factory,
   TestERC20__factory,
   TestERC721__factory,
   StepAction
@@ -68,7 +74,7 @@ export class Kettle {
 
   public contract: KettleContract;
   public contractAddress: string;
-  
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public kettleInterface: any;
 
@@ -107,6 +113,53 @@ export class Kettle {
 
   public connect(_providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner) {
     return new Kettle(_providerOrSigner, this.contractAddress);
+  }
+
+  public async createRedemptionCharge({
+    redeemer,
+    collection,
+    tokenId,
+    currency,
+    amount,
+    expiration,
+  }: {
+    redeemer: Addressable | string;
+    collection: Addressable | string;
+    tokenId: Numberish;
+    currency: Addressable | string;
+    amount: Numberish;
+    expiration: Numberish;
+  }) {
+    const redemptionController = await this._redemptionController();
+    const admin = await redemptionController.admin();
+    const nonce = await this.contract.nonces(admin);
+
+    const redemptionCharge: RedemptionCharge = {
+      redeemer: await this._resolveAddress(redeemer),
+      collection: await this._resolveAddress(collection),
+      tokenId,
+      currency: await this._resolveAddress(currency),
+      amount,
+      expiration,
+      salt: randomSalt(),
+      nonce,
+    };
+
+    return {
+      action: StepAction.SIGN,
+      type: "sign-redemption-charge",
+      charge: redemptionCharge,
+      payload: await this._redemptionChargePayload(redemptionCharge),
+      sign: async (signer: Signer): Promise<ChargeWithSignature> => {
+        const signerAddress = await signer.getAddress();
+        if (!equalAddresses(signerAddress, admin)) {
+          throw new Error("Signer is not redemption admin");
+        }
+
+        const signature = await this._signRedemptionCharge(redemptionCharge, signer);
+        return { charge: redemptionCharge, signature };
+      }
+    } as const;
   }
 
   // =============================================
@@ -240,6 +293,19 @@ export class Kettle {
             input.proof ?? []
           ]
         )
+      } : (input.redemptionCharge) ? {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillMarketOfferWithRedemption"),
+          [
+            input.tokenId!,
+            input.offer,
+            input.redemptionCharge,
+            input.signature,
+            input.redemptionChargeSignature,
+            input.proof ?? []
+          ]
+        )
       } : {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
@@ -263,6 +329,20 @@ export class Kettle {
             input.signature,
             input.proof ?? []
           );
+        } else if (input.redemptionCharge) {
+          if (!input.redemptionChargeSignature) {
+            throw new Error("Redemption charge signature required");
+          }
+
+          txn = await this.contract.connect(signer).fulfillMarketOfferWithRedemption(
+            input.tokenId!,
+            input.offer as MarketOffer,
+            input.redemptionCharge,
+            input.signature,
+            input.redemptionChargeSignature,
+            input.proof ?? []
+          );
+
         } else {
           txn = await this.contract.connect(signer).fulfillMarketOffer(
             input.tokenId!,
@@ -377,7 +457,20 @@ export class Kettle {
     const takeOfferAction: SendStep = {
       action: StepAction.SEND,
       type: "escrow-market-offer",
-      userOp: {
+      userOp: (input.redemptionCharge) ? {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("escrowMarketOfferWithRedemption"),
+          [
+            input.offer.collateral.identifier,
+            input.offer,
+            input.redemptionCharge,
+            input.signature,
+            input.redemptionChargeSignature,
+            input.proof ?? []
+          ]
+        )
+      } : {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
           this.kettleInterface.getFunction("escrowMarketOffer"),
@@ -390,12 +483,29 @@ export class Kettle {
         )
       },
       send: async (signer: Signer) => {
-        const txn = await this.contract.connect(signer).escrowMarketOffer(
-          input.offer.collateral.identifier,
-          input.offer as MarketOffer,
-          input.signature,
-          input.proof ?? []
-        );
+        let txn;
+        if (input.redemptionCharge) {
+          if (!input.redemptionChargeSignature) {
+            throw new Error("Redemption charge signature required");
+          }
+
+          txn = await this.contract.connect(signer).escrowMarketOfferWithRedemption(
+            input.offer.collateral.identifier,
+            input.offer as MarketOffer,
+            input.redemptionCharge,
+            input.signature,
+            input.redemptionChargeSignature,
+            input.proof ?? []
+          );
+        }
+        else {
+          txn = await this.contract.connect(signer).escrowMarketOffer(
+            input.offer.collateral.identifier,
+            input.offer as MarketOffer,
+            input.signature,
+            input.proof ?? []
+          );
+        }
 
         return this._confirmTransaction(txn.hash);
       }
@@ -471,6 +581,78 @@ export class Kettle {
 
     return [claimAction];
   }
+
+  // ==============================================
+  //                ESCROW ACTIONS
+  // ==============================================
+
+  async settleEscrow(
+    tokenId: Numberish,
+    escrowId: Numberish,
+    escrow: EscrowStruct
+  ) {
+    const settleAction: SendStep = {
+      action: StepAction.SEND,
+      type: "settle-escrow",
+      userOp: {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("settleEscrow"),
+          [tokenId, escrowId, escrow]
+        )
+      },
+      send: async (signer: Signer) => {
+        const owner = await this.contract.owner();
+        if (!equalAddresses(owner, await signer.getAddress())) {
+          throw new Error("Signer is not owner");
+        }
+
+        const txn = await this.contract.connect(signer).settleEscrow(
+          tokenId, 
+          escrowId, 
+          escrow
+        );
+        return this._confirmTransaction(txn.hash);
+      }
+    } as const;
+
+    return [settleAction];
+  }
+
+  async rejectEscrow(
+    escrowId: Numberish,
+    escrow: EscrowStruct,
+    returnRebate: boolean
+  ) {
+    const settleAction: SendStep = {
+      action: StepAction.SEND,
+      type: "reject-escrow",
+      userOp: {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("rejectEscrow"),
+          [returnRebate, escrowId, escrow]
+        )
+      },
+      send: async (signer: Signer) => {
+        const owner = await this.contract.owner();
+        if (!equalAddresses(owner, await signer.getAddress())) {
+          throw new Error("Signer is not owner");
+        }
+
+        const txn = await this.contract.connect(signer).rejectEscrow(
+          returnRebate, 
+          escrowId, 
+          escrow
+        );
+        return this._confirmTransaction(txn.hash);
+      }
+    } as const;
+
+    return [settleAction];
+  }
+
+
 
   // ==============================================
   //                ORDER ACTIONS
@@ -566,20 +748,20 @@ export class Kettle {
           .then((balance) => ({
             check: "balance",
             valid: balance >= BigInt(
-              offer.kind === OfferKind.LOAN 
-                ? (offer as LoanOffer).terms.maxAmount 
+              offer.kind === OfferKind.LOAN
+                ? (offer as LoanOffer).terms.maxAmount
                 : offer.terms.amount
-              ),
+            ),
             reason: "Insufficient balance"
           }) as Validation),
         currencyAllowance(offer.maker, offer.terms.currency, operator, this.provider)
           .then((allowance) => ({
             check: "allowance",
             valid: allowance >= BigInt(
-              offer.kind === OfferKind.LOAN 
-                ? (offer as LoanOffer).terms.maxAmount 
+              offer.kind === OfferKind.LOAN
+                ? (offer as LoanOffer).terms.maxAmount
                 : offer.terms.amount
-              ),
+            ),
             reason: "Insufficient allowance"
           }) as Validation)
       ])
@@ -593,7 +775,7 @@ export class Kettle {
               valid: BigInt(offer.terms.amount) - BigInt(amountTaken) >= BigInt((offer as LoanOffer).terms.maxAmount),
               reason: "Loan offer max amount exceeded"
             }))
-          );
+        );
       }
 
     } else {
@@ -646,7 +828,7 @@ export class Kettle {
       if (lienDefaulted(lien.startTime, lien.duration, lien.gracePeriod)) {
         throw new Error("[match-terms]: Lien is defaulted");
       }
-      
+
       this._matchTerms({
         currency: offer.terms.currency,
         collection: offer.collateral.collection,
@@ -672,7 +854,7 @@ export class Kettle {
   public async validateTakeOffer(
     user: string,
     input: ValidateTakeOfferInput
-  ): Promise<void>{
+  ): Promise<void> {
 
     // validate offer maker params
     await this.validateOffer(input.offer);
@@ -712,18 +894,18 @@ export class Kettle {
         throw new Error("Cannot take soft offer as bid");
       }
     } else {
-        // TODO: validate amount needed if lender is buying asset in lien
+      // TODO: validate amount needed if lender is buying asset in lien
 
-        validationPromises.push(
-          currencyBalance(user, input.offer.terms.currency, this.provider)
-            .then((balance) => ({
-              check: "balance",
-              valid: balance >= BigInt(input.offer.terms.amount),
-              reason: "Taker has insufficient balance"
-            }) as Validation)
-        );
-      }
-    
+      validationPromises.push(
+        currencyBalance(user, input.offer.terms.currency, this.provider)
+          .then((balance) => ({
+            check: "balance",
+            valid: balance >= BigInt(input.offer.terms.amount),
+            reason: "Taker has insufficient balance"
+          }) as Validation)
+      );
+    }
+
     await this._executeValidations(validationPromises);
   }
 
@@ -731,7 +913,7 @@ export class Kettle {
     user: string,
     input: CreateMarketOfferInput | CreateLoanOfferInput
   ): Promise<void> {
-    
+
     const validationPromises: Promise<Validation>[] = [];
 
     if (input.side === Side.BID) {
@@ -768,8 +950,8 @@ export class Kettle {
               reason: "Current lien debt exceeds ask amount"
             }) as Validation)
         );
-      } else if (!input.soft){
-        
+      } else if (!input.soft) {
+
         validationPromises.push(
           collateralBalance(user, await this._resolveAddress(input.collection), input.identifier, this.provider)
             .then((owns) => ({
@@ -811,7 +993,7 @@ export class Kettle {
     for (const result of results) {
       console.log(result);
       if (!result.valid) {
-        throw new Error(`[${result.check}]: ${result.reason ?? "Validation failed" }`);
+        throw new Error(`[${result.check}]: ${result.reason ?? "Validation failed"}`);
       }
     }
   }
@@ -995,7 +1177,7 @@ export class Kettle {
           maker,
           offer.collateral.collection
         );
-  
+
         approvalActions.push(..._approvalActions);
       }
 
@@ -1063,10 +1245,16 @@ export class Kettle {
 
       // taking ask, needs to approve currency
     } else {
+      let amount = BigInt(input.offer.terms.amount);
+
+      if (input.redemptionCharge) {
+        amount += BigInt(input.redemptionCharge.amount);
+      }
+
       const _approvalActions = await this._erc20Approvals(
         taker,
         input.offer.terms.currency,
-        input.offer.terms.amount
+        amount
       );
 
       approvalActions.push(..._approvalActions);
@@ -1087,6 +1275,11 @@ export class Kettle {
   private async _escrowController() {
     const escrowController = await this.contract.ESCROW_CONTROLLER();
     return EscrowController__factory.connect(escrowController, this.provider);
+  }
+
+  private async _redemptionController() {
+    const redemptionController = await this.contract.REDEMPTION_CONTROLLER();
+    return RedemptionController__factory.connect(redemptionController, this.provider);
   }
 
   // ==============================================
@@ -1144,6 +1337,14 @@ export class Kettle {
     return signer.signTypedData(domain, LOAN_OFFER_TYPE, offer);
   }
 
+  private async _signRedemptionCharge(
+    charge: RedemptionCharge,
+    signer: Signer
+  ): Promise<string> {
+    const domain = await this._getDomainData();
+    return signer.signTypedData(domain, REDEMPTION_CHARGE_TYPE, charge);
+  };
+
   private async _marketOfferPayload(offer: MarketOffer): Promise<Payload> {
     const domain = await this._getDomainData();
 
@@ -1161,6 +1362,16 @@ export class Kettle {
       domain,
       LOAN_OFFER_TYPE,
       offer
+    );
+  }
+
+  private async _redemptionChargePayload(charge: RedemptionCharge): Promise<Payload> {
+    const domain = await this._getDomainData();
+
+    return TypedDataEncoder.getPayload(
+      domain,
+      REDEMPTION_CHARGE_TYPE,
+      charge
     );
   }
 
@@ -1228,7 +1439,7 @@ export class Kettle {
     } else {
       proceeds = BigInt((offer as LoanOffer).terms.maxAmount)
     }
-    
+
     let owed = 0n;
     let payed = 0n;
 
@@ -1240,7 +1451,7 @@ export class Kettle {
         payed = proceeds - BigInt(debt);
       }
     }
-  
+
     return {
       proceeds,
       fee,
