@@ -83,28 +83,15 @@ export const PERMIT_TYPE = {
   ]
 }
 
-/////////////////////////////////////////////////
-//            Redemption Manager
-/////////////////////////////////////////////////
-
-export const REDEMPTION_MANAGER_NAME = "RedemptionManager";
-export const REDEMPTION_MANAGER_VERSION = "1";
-
-export const ASSET_TYPE = [
-  { name: "collection",     type: "address" },
-  { name: "tokenId",        type: "uint256" }
-];
-
 export const REDEMPTION_CHARGE_TYPE = {
   RedemptionCharge: [
-    { name: "admin",          type: "address" },
     { name: "redeemer",       type: "address" },
-    { name: "assets",         type: "Asset[]" },
+    { name: "collection",     type: "address" },
+    { name: "tokenId",        type: "uint256" },
     { name: "currency",       type: "address" },
     { name: "amount",         type: "uint256" },
     { name: "expiration",     type: "uint256" },
     { name: "salt",           type: "uint256" },
     { name: "nonce",          type: "uint256" }
-  ],
-  Asset: ASSET_TYPE
+  ]
 }

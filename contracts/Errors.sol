@@ -59,3 +59,4 @@ error CannotRedeemFromBid();
 error InvalidAdmin();
 error InvalidCollection();
 error InvalidTokenId();
+error InvalidRedemptionCharge();

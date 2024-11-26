@@ -9,4 +9,13 @@ interface IKettle {
         uint256 indexed oldLienId,
         uint256 indexed newLienId
     );
+
+    event Redemption(
+        bytes32 indexed hash,
+        address indexed redeemer,
+        IERC721 collection,
+        uint256 tokenId,
+        IERC20 currency,
+        uint256 amount
+    );
 }

@@ -27,11 +27,12 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
 
     function __EscrowController_init(address owner) public initializer {
         __Ownable2Step_init();
-        _transferOwnership(owner);
 
         escrowIndex = 1;
-        lockTime = 14 days;
+        lockTime = 30 days;
         whitelistOnly = true;
+
+        _transferOwnership(owner);
     }
 
     // ===============================
@@ -72,6 +73,9 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
     function openEscrow(
         uint256 placeholder,
         uint256 rebate,
+        bool withRedemption,
+        bytes32 redemptionHash,
+        uint256 redemptionCharge,
         address buyer,
         address seller,
         MarketOffer calldata offer
@@ -82,6 +86,9 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
             if (offer.side == Side.ASK && !whitelistedAskMakers[seller]) revert SellerNotAskWhitelisted();
             if (offer.side == Side.BID && !whitelistedBidTakers[buyer]) revert SellerNotBidWhitelisted();
         }
+
+        if (!withRedemption && redemptionCharge > 0) revert InvalidRedemptionCharge();
+        if (withRedemption && redemptionCharge == 0 && redemptionHash == bytes32(0)) revert InvalidRedemptionCharge();
 
         Escrow memory escrow = Escrow({
             side: offer.side,
@@ -95,6 +102,9 @@ contract EscrowController is IEscrowController, Initializable, Ownable2StepUpgra
             recipient: offer.fee.recipient,
             fee: offer.fee.rate,
             rebate: rebate,
+            withRedemption: withRedemption,
+            redemptionHash: redemptionHash,
+            redemptionCharge: redemptionCharge,
             timestamp: block.timestamp,
             lockTime: lockTime
         });

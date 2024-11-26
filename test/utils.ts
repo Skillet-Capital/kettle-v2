@@ -26,7 +26,7 @@ export async function executeTakeSteps(signer: Signer, steps: (SignStep | SendSt
   let txnHash: string | null = null;
   for (const step of steps) {
     if (step.action === StepAction.SEND) {
-      if (step.type.startsWith("take") || step.type.startsWith("escrow") || step.type.startsWith("redeem")) {
+      if (step.type.startsWith("take") || step.type.startsWith("escrow") || step.type.startsWith("redeem") || step.type.endsWith("escrow")) {
         txnHash = await step.send(signer);
       } else {
         await step.send(signer);

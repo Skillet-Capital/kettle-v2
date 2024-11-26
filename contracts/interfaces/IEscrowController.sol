@@ -10,6 +10,9 @@ interface IEscrowController {
     function openEscrow(
         uint256 placeholder,
         uint256 rebate,
+        bool withRedemption,
+        bytes32 redemptionHash,
+        uint256 redemptionCharge,
         address buyer,
         address seller,
         MarketOffer calldata offer
