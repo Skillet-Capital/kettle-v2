@@ -54,6 +54,29 @@ const LockModule = buildModule("Kettle", (m) => {
 
   m.call(escrow, "__EscrowController_init", [owner]);
 
+  // Deploy Redemption Controller Implementation
+  const redemptionImplementation = m.contract("RedemptionController", [], { id: "RedemptionControllerImplementation" });
+
+  // Deploy Escrow Controller Proxy
+  const redemptionProxy = m.contract("TransparentUpgradeableProxy", [
+    redemptionImplementation,
+    owner,
+    "0x",
+  ], { id: "RedemptionControllerProxy" });
+
+  const redemptionProxyAdminAddress = m.readEventArgument(
+    redemptionProxy,
+    "AdminChanged",
+    "newAdmin",
+    { id: "RedemptionControllerProxyAdminChanged" }
+  );
+
+  const redemptionProxyAdmin = m.contractAt("ProxyAdmin", redemptionProxyAdminAddress, { id: "RedemptionControllerProxyAdmin" });
+
+  const redemption = m.contractAt("RedemptionController", redemptionProxy, { id: "RedemptionController" });
+
+  m.call(redemption, "__RedemptionController_init", [owner, owner, owner]);
+
   // Deploy Kettle Implementation
   const kettleImplementation = m.contract("Kettle", [], { id: "KettleImplementation" });
 
@@ -75,7 +98,7 @@ const LockModule = buildModule("Kettle", (m) => {
 
   const kettle = m.contractAt("Kettle", kettleProxy, { id: "Kettle" });
 
-  m.call(kettle, "__Kettle_init", [owner, lending, escrow]);
+  m.call(kettle, "__Kettle_init", [owner, lending, escrow, redemption]);
 
   m.call(lending, "setKettle", [kettle]);
   m.call(escrow, "setKettle", [kettle]);
@@ -84,9 +107,11 @@ const LockModule = buildModule("Kettle", (m) => {
     receipt,
     lending, 
     escrow, 
+    redemption,
     kettle, 
     lendingProxyAdmin, 
     escrowProxyAdmin, 
+    redemptionProxyAdmin,
     kettleProxyAdmin 
   };
 });
