@@ -30,7 +30,7 @@ dataSources:
     name: EscrowController
     network: base
     source:
-      address: "0xBdCb5E128Dc998fAA48aD772a1519FABb3d835a1"
+      address: "0x6986AaB26c0c9c30e14FFB7180e58a7B746F5B60"
       abi: EscrowController
       startBlock: 22027000
     mapping:
