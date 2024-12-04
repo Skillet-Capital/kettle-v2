@@ -60,3 +60,12 @@ error InvalidAdmin();
 error InvalidCollection();
 error InvalidTokenId();
 error InvalidRedemptionCharge();
+
+error SideMustBeBid();
+error SideMustBeAsk();
+error BidMustBeHard();
+error RedemptionCurrencyMismatch();
+error TokenAlreadyEscrowed();
+
+error SellerCannotEscrowBid();
+error SellerCannotEscrowAsk();

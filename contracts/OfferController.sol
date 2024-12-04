@@ -28,11 +28,12 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
 
     function _takeMarketOffer(
         uint256 tokenId,
+        address taker,
         MarketOffer calldata offer,
         bytes calldata signature,
         bytes32[] calldata proof
     ) internal returns (bytes32 _hash) {
-        if (offer.taker != address(0) && offer.taker != msg.sender) {
+        if (offer.taker != address(0) && offer.taker != taker) {
             revert InvalidTaker();
         }
 
@@ -113,12 +114,13 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
 
     function _verifyRedemptionCharge(
         address admin,
+        address redeemer,
         uint256 tokenId,
         IERC721 collection,
         RedemptionCharge calldata charge,
         bytes calldata signature
     ) internal returns (bytes32 _hash) {
-        if (msg.sender != charge.redeemer) {
+        if (redeemer != charge.redeemer) {
             revert InvalidTaker();
         }
 
