@@ -6,19 +6,16 @@ import { parseUnits, Signer } from "ethers";
 
 import { TestERC20, TestERC721 } from "../typechain-types"; 
 
-import { generateRoot, getReceipt, parseEscrowOpenedLog, randomSalt } from "../src/utils";
+import { getReceipt, parseEscrowOpenedLog, parseRedemptionLog, randomSalt } from "../src/utils";
 import { EscrowStruct, Kettle, KettleContract, MarketOffer, Numberish, Side } from "../src";
 import { executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
-import { EscrowController } from "../typechain-types";
 import { BYTES_ZERO } from "../src/constants";
 
 describe("Settle Escrow", function () {
   let kettle: Kettle;
-
   let _kettle: KettleContract;
-  let _escrow: EscrowController;
 
   let owner: Signer;
   let buyer: Signer;
@@ -35,13 +32,9 @@ describe("Settle Escrow", function () {
   let tokenId: string = randomSalt();
   let amount: bigint = parseUnits("100", 18);
 
-  let root: string;
-  let tokens: number[];
-
   beforeEach(async () => {
     const fixture = await loadFixture(deployKettle);
     _kettle = fixture.kettle;
-    _escrow = fixture.escrow;
     buyer = fixture.accounts[0];
     seller = fixture.accounts[1];
     recipient = fixture.recipient;
@@ -55,15 +48,11 @@ describe("Settle Escrow", function () {
 
     kettle = new Kettle(seller, await _kettle.getAddress());
 
-    tokens = [1,2,3,4,5];
-    root = generateRoot(tokens);
-
-    await collection.mint(seller, tokenId);
-    await currency.mint(buyer, amount);
-
     tracer.nameTags[await recipient.getAddress()] = "recipient";
     tracer.nameTags[await buyer.getAddress()] = "buyer";
     tracer.nameTags[await seller.getAddress()] = "seller";
+    tracer.nameTags[await tokenSupplier.getAddress()] = "tokenSupplier";
+    tracer.nameTags[await redemptionWallet.getAddress()] = "redemptionWallet";
   });
 
   describe("Escrow Without Redemption", async function () {
@@ -73,6 +62,9 @@ describe("Settle Escrow", function () {
     beforeEach(async () => {
       const _seller = await kettle.connect(seller);
       const _buyer = await kettle.connect(buyer);
+
+      await collection.mint(seller, tokenId);
+      await currency.mint(buyer, amount);
   
       const { offer, signature } = await _seller.createMarketOffer({
         soft: true,
@@ -90,9 +82,10 @@ describe("Settle Escrow", function () {
       const rebateAmount = _seller.mulFee(offer.terms.amount, (offer as MarketOffer).terms.rebate);
       await currency.mint(seller, rebateAmount);
   
-      await _escrow.whitelistedAskMaker(seller, true);
+      await _kettle.whitelistAskMaker(seller, true);
   
-      const txn = await _buyer.escrowMarketOffer({
+      const txn = await _buyer.takeMarketOffer({
+        tokenId: tokenId,
         offer: offer as MarketOffer, 
         signature
       }, buyer).then(s => executeTakeSteps(buyer, s));
@@ -107,15 +100,33 @@ describe("Settle Escrow", function () {
       expect(escrow.buyer).to.equal(buyer);
       expect(escrow.seller).to.equal(seller);
       expect(escrow.collection).to.equal(collection);
-      expect(escrow.identifier).to.equal(tokenId);
+      expect(escrow.placeholder).to.equal(tokenId);
       expect(escrow.currency).to.equal(currency);
       expect(escrow.amount).to.equal(offer.terms.amount);
       expect(escrow.fee).to.equal(offer.fee.rate);
       expect(escrow.rebate).to.equal(rebateAmount);
       expect(escrow.recipient).to.equal(recipient);
-      expect(escrow.withRedemption).to.equal(false);
       expect(escrow.redemptionHash).to.equal(BYTES_ZERO);
       expect(escrow.redemptionCharge).to.equal(0);
+    });
+
+    it("should reject non-owner", async function () {
+      await expect(_kettle.connect(buyer).settleEscrow(42, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OwnableUnauthorizedAccount");
+      await expect(_kettle.connect(buyer).rejectEscrow(false, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OwnableUnauthorizedAccount");
+    });
+
+    it("should reject if escrow is invalid", async () => {
+      await expect(
+        _kettle.connect(owner).settleEscrow(1, BigInt(escrowId) + 1n, escrow)
+      ).to.be.revertedWithCustomError(_kettle, "InvalidEscrow");
+
+      await expect(
+        _kettle.connect(owner).rejectEscrow(false, BigInt(escrowId) + 1n, escrow)
+      ).to.be.revertedWithCustomError(_kettle, "InvalidEscrow");
+
+      await expect(
+        _kettle.connect(owner).claimEscrow(BigInt(escrowId) + 1n, escrow)
+      ).to.be.revertedWithCustomError(_kettle, "InvalidEscrow");
     });
 
     it("should settle escrow", async function () {
@@ -154,6 +165,15 @@ describe("Settle Escrow", function () {
       expect(await currency.balanceOf(seller)).to.equal(BigInt(escrow.rebate));
       expect(await currency.balanceOf(buyer)).to.equal(BigInt(escrow.amount));
     });
+
+    it("should claim escrow", async function () {
+      await expect(_kettle.connect(owner).claimEscrow(escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "EscrowLocked");
+
+      await time.increaseTo(BigInt(escrow.timestamp) + BigInt(escrow.lockTime) + 1n);
+      await _kettle.connect(owner).claimEscrow(escrowId, escrow);
+
+      expect(await currency.balanceOf(buyer)).to.equal(BigInt(escrow.amount) + BigInt(escrow.rebate));
+    })
   });
 
   describe("Escrow With Redemption", async function () {
@@ -163,6 +183,9 @@ describe("Settle Escrow", function () {
     beforeEach(async () => {
       const _seller = await kettle.connect(seller);
       const _buyer = await kettle.connect(buyer);
+
+      await collection.mint(seller, tokenId);
+      await currency.mint(buyer, amount);
   
       const { offer, signature } = await _seller.createMarketOffer({
         soft: true,
@@ -193,9 +216,10 @@ describe("Settle Escrow", function () {
       const { charge, signature: chargeSignature } = await signStep.sign(redemptionAdmin);  
       await currency.mint(buyer, chargeAmount);
   
-      await _escrow.whitelistedAskMaker(seller, true);
+      await _kettle.whitelistAskMaker(seller, true);
   
-      const txn = await _buyer.escrowMarketOffer({
+      const txn = await _buyer.takeMarketOffer({
+        tokenId: tokenId,
         offer: offer as MarketOffer, 
         signature,
         redemptionCharge: charge,
@@ -214,22 +238,28 @@ describe("Settle Escrow", function () {
       expect(escrow.buyer).to.equal(buyer);
       expect(escrow.seller).to.equal(seller);
       expect(escrow.collection).to.equal(collection);
-      expect(escrow.identifier).to.equal(tokenId);
+      expect(escrow.placeholder).to.equal(tokenId);
       expect(escrow.currency).to.equal(currency);
       expect(escrow.amount).to.equal(offer.terms.amount);
       expect(escrow.fee).to.equal(offer.fee.rate);
       expect(escrow.rebate).to.equal(rebateAmount);
       expect(escrow.recipient).to.equal(recipient);
-      expect(escrow.withRedemption).to.equal(true);
       expect(escrow.redemptionHash).to.equal(redemptionHash);
       expect(escrow.redemptionCharge).to.equal(chargeAmount);
     });
+
+    it("should reject if escrow is invalid", async () => {
+      await expect(
+        kettle.connect(owner).settleEscrow(1, BigInt(escrowId) + 1n, escrow)
+          .then(s => executeTakeSteps(owner, s))
+      ).to.be.revertedWithCustomError(_kettle, "InvalidEscrow");
+    })
 
     it("should settle escrow", async function () {
       const settlementTokenId = 42;
       await collection.mint(tokenSupplier, settlementTokenId);
 
-      await kettle.connect(owner).settleEscrow(settlementTokenId, escrowId, escrow).then(s => executeTakeSteps(owner, s));
+      const txn = await kettle.connect(owner).settleEscrow(settlementTokenId, escrowId, escrow).then(s => executeTakeSteps(owner, s));
 
       expect(await collection.ownerOf(settlementTokenId)).to.equal(redemptionWallet);
 
@@ -241,6 +271,18 @@ describe("Settle Escrow", function () {
 
       expect(await currency.balanceOf(redemptionWallet)).to.equal(escrow.redemptionCharge);
       expect(await currency.balanceOf(_kettle)).to.equal(0);
+
+      const receipt = await getReceipt(owner.provider!, txn);
+      const redemption = await parseRedemptionLog(receipt);
+
+      expect(redemption).to.deep.equal({
+        collection: escrow.collection,
+        tokenId: settlementTokenId,
+        currency: escrow.currency,
+        amount: escrow.redemptionCharge,
+        redeemer: escrow.buyer,
+        redemptionHash: escrow.redemptionHash
+      })
     });
 
     it("should reject escrow", async function () {
@@ -262,5 +304,14 @@ describe("Settle Escrow", function () {
       expect(await currency.balanceOf(seller)).to.equal(BigInt(escrow.rebate));
       expect(await currency.balanceOf(buyer)).to.equal(BigInt(escrow.amount) + BigInt(escrow.redemptionCharge));
     });
+
+    it("should claim escrow", async function () {
+      await expect(_kettle.connect(owner).claimEscrow(escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "EscrowLocked");
+
+      await time.increaseTo(BigInt(escrow.timestamp) + BigInt(escrow.lockTime) + 1n);
+      await _kettle.connect(owner).claimEscrow(escrowId, escrow);
+
+      expect(await currency.balanceOf(buyer)).to.equal(BigInt(escrow.amount) + BigInt(escrow.rebate) + BigInt(escrow.redemptionCharge));
+    })
   });
 });

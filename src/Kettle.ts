@@ -27,7 +27,6 @@ import type {
   LoanOffer,
   Numberish,
   Lien,
-  LienStruct,
   CurrentDebt,
   TakeOfferInput,
   Validation,
@@ -38,7 +37,6 @@ import type {
   ValidateTakeOfferInput,
   RedemptionCharge,
   ChargeWithSignature,
-  Escrow,
   EscrowStruct
 } from "./types";
 
@@ -47,9 +45,6 @@ import {
   OfferKind,
   Side,
   Kettle__factory,
-  LendingController__factory,
-  EscrowController__factory,
-  RedemptionController__factory,
   TestERC20__factory,
   TestERC721__factory,
   StepAction
@@ -108,7 +103,6 @@ export class Kettle {
     );
 
     this.kettleInterface = Kettle__factory.createInterface();
-    this.lendingIface = LendingController__factory.createInterface();
   }
 
   public connect(_providerOrSigner: JsonRpcProvider | Signer | JsonRpcSigner) {
@@ -130,8 +124,7 @@ export class Kettle {
     amount: Numberish;
     expiration: Numberish;
   }) {
-    const redemptionController = await this._redemptionController();
-    const admin = await redemptionController.admin();
+    const admin = await this.contract.redemptionAdmin();
     const nonce = await this.contract.nonces(admin);
 
     const redemptionCharge: RedemptionCharge = {
@@ -211,62 +204,45 @@ export class Kettle {
     return [...cancelSteps, ...approvalActions, createOfferAction];
   }
 
-  /**
-   * Create a new Loan Offer
-   * 
-   * @param input Offer parameters
-   * @param input.lien {Lien} (optional) lien structure
-   * @param input.salt {Numberish} (optional) salt to cancel existing offer
-   */
-  public async createLoanOffer(
-    input: CreateLoanOfferInput,
-    maker: string | Addressable
-  ): Promise<(SendStep | SignStep)[]> {
-    const _maker = await this._resolveAddress(maker);
-    const offer = await this._formatLoanOffer(_maker, input);
-
-    // get approval steps
-    const approvalActions = await this._getCreateApprovalActions(
-      offer,
-      _maker,
-      input.lien
-    );
-
-    let cancelSteps: SendStep[] = [];
-    if (input.salt) {
-      cancelSteps = await this.cancelOffers([input.salt]);
-    }
-
-    // get sign step
-    const createOfferAction: SignStep = {
-      action: StepAction.SIGN,
-      type: "sign-offer",
-      offer: offer,
-      payload: await this._loanOfferPayload(offer),
-      sign: async (signer: Signer): Promise<OfferWithSignature> => {
-        const signature = await this._signLoanOffer(offer, signer);
-
-        return {
-          offer,
-          signature
-        }
-      }
-    } as const;
-
-    return [...cancelSteps, ...approvalActions, createOfferAction];
-  }
-
   // =============================================
   //                  TAKE OFFERS                
   // =============================================
 
-  /**
-   * Take a Market Offer
-   * 
-   * @param input Take Offer Input
-   * @param input.lienId {Numberish} (optional) lien id
-   * @param input.lien {Lien} (optional) lien structure
-   */
+  public async redeem(
+    charge: RedemptionCharge,
+    signature: string,
+    fulfiller: string | Addressable,
+  ): Promise<SendStep[]> {
+    const approvalActions: SendStep[] = await this._erc20Approvals(
+      await this._resolveAddress(fulfiller),
+      charge.currency,
+      charge.amount
+    );
+
+    const allowanceActions: SendStep[] = await this._erc721Approvals(
+      charge.redeemer,
+      charge.collection
+    );
+
+    const redeemAction: SendStep = {
+      action: StepAction.SEND,
+      type: "redeem",
+      userOp: {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("redeem"),
+          [charge.redeemer, charge, signature]
+        )
+      },
+      send: async (signer: Signer) => {
+        const txn = await this.contract.connect(signer).redeem(charge.redeemer, charge, signature);
+        return this._confirmTransaction(txn.hash);
+      }
+    } as const;
+
+    return [...approvalActions, ...allowanceActions, redeemAction];
+  }
+
   public async takeMarketOffer(
     input: TakeOfferInput,
     taker: string | Addressable
@@ -281,24 +257,24 @@ export class Kettle {
     const takeOfferAction: SendStep = {
       action: StepAction.SEND,
       type: "take-market-offer",
-      userOp: (input.lien && input.lienId) ? {
+      userOp: (input.offer.side === Side.BID) ? {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("fulfillMarketOfferInLien"),
+          this.kettleInterface.getFunction("fulfillBid"),
           [
-            input.lienId,
-            input.lien,
+            input.tokenId,
             input.offer,
             input.signature,
             input.proof ?? []
           ]
         )
-      } : (input.redemptionCharge) ? {
+      } : (input.redemptionCharge && input.redemptionChargeSignature) ? {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("fulfillMarketOfferWithRedemption"),
+          this.kettleInterface.getFunction("fulfillAskWithRedemption"),
           [
             input.tokenId!,
+            input.taker ?? ADDRESS_ZERO,
             input.offer,
             input.redemptionCharge,
             input.signature,
@@ -309,9 +285,10 @@ export class Kettle {
       } : {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("fulfillMarketOffer"),
+          this.kettleInterface.getFunction("fulfillAsk"),
           [
             input.tokenId!,
+            input.taker ?? ADDRESS_ZERO,
             input.offer,
             input.signature,
             input.proof ?? []
@@ -321,186 +298,27 @@ export class Kettle {
       send: async (signer: Signer | JsonRpcSigner) => {
         let txn;
 
-        if (input.lien && input.lienId) {
-          txn = await this.contract.connect(signer).fulfillMarketOfferInLien(
-            input.lienId,
-            input.lien,
+        if (input.offer.side === Side.BID) {
+          txn = await this.contract.connect(signer).fulfillBid(
+            input.tokenId!,
             input.offer as MarketOffer,
             input.signature,
             input.proof ?? []
           );
-        } else if (input.redemptionCharge) {
-          if (!input.redemptionChargeSignature) {
-            throw new Error("Redemption charge signature required");
-          }
-
-          txn = await this.contract.connect(signer).fulfillMarketOfferWithRedemption(
+        } else if (input.redemptionCharge && input.redemptionChargeSignature) {
+          txn = await this.contract.connect(signer).fulfillAskWithRedemption(
             input.tokenId!,
+            input.taker ?? ADDRESS_ZERO,
             input.offer as MarketOffer,
             input.redemptionCharge,
             input.signature,
             input.redemptionChargeSignature,
-            input.proof ?? []
-          );
-
-        } else {
-          txn = await this.contract.connect(signer).fulfillMarketOffer(
-            input.tokenId!,
-            input.offer as MarketOffer,
-            input.signature,
-            input.proof ?? []
-          );
-        }
-
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
-
-    return [...approvalActions, takeOfferAction];
-  }
-
-  /**
-   * Take a Loan Offer
-   * 
-   * @param input Take Offer Input
-   * @param input.lienId {Numberish} (optional) lien id
-   * @param input.lien {Lien} (optional) lien structure
-   */
-  public async takeLoanOffer(
-    input: TakeOfferInput,
-    taker: string | Addressable
-  ): Promise<SendStep[]> {
-    const _taker = await this._resolveAddress(taker);
-
-    const approvalActions = await this._getTakeApprovalActions(
-      input,
-      _taker
-    );
-
-    const takeOfferAction: SendStep = {
-      action: StepAction.SEND,
-      type: "take-loan-offer",
-      userOp: (input.lien && input.lienId) ? {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("fulfillLoanOfferInLien"),
-          [
-            input.lienId,
-            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
-            input.lien,
-            input.offer,
-            input.signature,
-            input.proof ?? []
-          ]
-        )
-      } : {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("fulfillLoanOffer"),
-          [
-            input.tokenId,
-            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
-            input.offer,
-            input.signature,
-            input.proof ?? []
-          ]
-        )
-      },
-      send: async (signer: Signer) => {
-        let txn;
-
-        if (input.lien && input.lienId) {
-          txn = await this.contract.connect(signer).fulfillLoanOfferInLien(
-            input.lienId,
-            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
-            input.lien,
-            input.offer as LoanOffer,
-            input.signature,
             input.proof ?? []
           );
         } else {
-          txn = await this.contract.connect(signer).fulfillLoanOffer(
+          txn = await this.contract.connect(signer).fulfillAsk(
             input.tokenId!,
-            input?.amount ?? (input.offer as LoanOffer).terms.maxAmount,
-            input.offer as LoanOffer,
-            input.signature,
-            input.proof ?? []
-          );
-        }
-
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
-
-    return [...approvalActions, takeOfferAction];
-  }
-
-  /**
-   * Escrow a Market Offer
-   * @notice The offer must be SOFT
-   */
-  public async escrowMarketOffer(
-    input: TakeOfferInput,
-    taker: string | Addressable
-  ): Promise<SendStep[]> {
-    const _taker = await this._resolveAddress(taker);
-
-    if (input.offer.side === Side.BID) {
-      throw new Error("Invalid side: cannot take side bid");
-    }
-
-    const approvalActions = await this._getTakeApprovalActions(
-      input,
-      _taker
-    );
-
-    const takeOfferAction: SendStep = {
-      action: StepAction.SEND,
-      type: "escrow-market-offer",
-      userOp: (input.redemptionCharge) ? {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("escrowMarketOfferWithRedemption"),
-          [
-            input.offer.collateral.identifier,
-            input.offer,
-            input.redemptionCharge,
-            input.signature,
-            input.redemptionChargeSignature,
-            input.proof ?? []
-          ]
-        )
-      } : {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("escrowMarketOffer"),
-          [
-            input.offer.collateral.identifier,
-            input.offer as MarketOffer,
-            input.signature,
-            input.proof ?? []
-          ]
-        )
-      },
-      send: async (signer: Signer) => {
-        let txn;
-        if (input.redemptionCharge) {
-          if (!input.redemptionChargeSignature) {
-            throw new Error("Redemption charge signature required");
-          }
-
-          txn = await this.contract.connect(signer).escrowMarketOfferWithRedemption(
-            input.offer.collateral.identifier,
-            input.offer as MarketOffer,
-            input.redemptionCharge,
-            input.signature,
-            input.redemptionChargeSignature,
-            input.proof ?? []
-          );
-        }
-        else {
-          txn = await this.contract.connect(signer).escrowMarketOffer(
-            input.offer.collateral.identifier,
+            input.taker ?? ADDRESS_ZERO,
             input.offer as MarketOffer,
             input.signature,
             input.proof ?? []
@@ -512,74 +330,6 @@ export class Kettle {
     } as const;
 
     return [...approvalActions, takeOfferAction];
-  }
-
-  // ==============================================
-  //                LENDING ACTIONS
-  // ==============================================
-
-  /**
-   * Repay an existing lien
-   */
-  public async repay(
-    lienId: Numberish,
-    lien: Lien,
-    payer: string | Addressable
-  ): Promise<SendStep[]> {
-    const _payer = await this._resolveAddress(payer);
-
-    const { debt } = await this.currentDebt(lien);
-
-    const approvalActions = await this._erc20Approvals(
-      _payer,
-      lien.currency,
-      this.safeFactorMul(debt, 100),
-      false
-    );
-
-    const repayAction: SendStep = {
-      action: StepAction.SEND,
-      type: "repay-loan",
-      userOp: {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("repayLien"),
-          [lienId, lien]
-        )
-      },
-      send: async (signer: Signer) => {
-        const txn = await this.contract.connect(signer).repayLien(lienId, lien as LienStruct);
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
-
-    return [...approvalActions, repayAction];
-  }
-
-  /**
-   * Claim a defaulted lien
-   */
-  public async claim(
-    lienId: Numberish,
-    lien: Lien
-  ): Promise<SendStep[]> {
-    const claimAction: SendStep = {
-      action: StepAction.SEND,
-      type: "claim-default",
-      userOp: {
-        to: this.contractAddress,
-        data: this.kettleInterface.encodeFunctionData(
-          this.kettleInterface.getFunction("claimLien"),
-          [lienId, lien]
-        )
-      },
-      send: async (signer: Signer) => {
-        const txn = await this.contract.connect(signer).claimLien(lienId, lien as LienStruct);
-        return this._confirmTransaction(txn.hash);
-      }
-    } as const;
-
-    return [claimAction];
   }
 
   // ==============================================
@@ -652,8 +402,6 @@ export class Kettle {
     return [settleAction];
   }
 
-
-
   // ==============================================
   //                ORDER ACTIONS
   // ==============================================
@@ -725,12 +473,12 @@ export class Kettle {
     // basic validations for cancelled or nonce
     const validationPromises: Promise<Validation>[] = [
       this.contract.cancelledOrFulfilled(offer.maker, offer.salt)
-        .then((cancelled) => ({
+        .then((cancelled: number | bigint) => ({
           check: "cancelled",
           valid: !cancelled
         })),
       this.contract.nonces(offer.maker)
-        .then((nonce) => ({
+        .then((nonce: number | bigint) => ({
           check: "nonce",
           valid: BigInt(nonce) === BigInt(offer.nonce)
         })),
@@ -835,17 +583,17 @@ export class Kettle {
         tokenId: offer.side === Side.ASK ? offer.collateral.identifier : undefined
       }, lien);
 
-      if (offer.side === Side.ASK) {
-        const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
-        validationPromises.push(
-          this.currentDebt(lien)
-            .then(({ debt }) => ({
-              check: "debt-covers-ask",
-              valid: netAmount >= BigInt(debt),
-              reason: "Current lien debt exceeds ask amount"
-            }) as Validation)
-        );
-      }
+      // if (offer.side === Side.ASK) {
+      //   const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
+      //   validationPromises.push(
+      //     this.currentDebt(lien)
+      //       .then(({ debt }) => ({
+      //         check: "debt-covers-ask",
+      //         valid: netAmount >= BigInt(debt),
+      //         reason: "Current lien debt exceeds ask amount"
+      //       }) as Validation)
+      //   );
+      // }
     }
 
     await this._executeValidations(validationPromises);
@@ -941,15 +689,15 @@ export class Kettle {
           input.lien
         );
 
-        const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
-        validationPromises.push(
-          this.currentDebt(input.lien)
-            .then(({ debt }) => ({
-              check: "debt-covers-ask",
-              valid: netAmount >= BigInt(debt),
-              reason: "Current lien debt exceeds ask amount"
-            }) as Validation)
-        );
+        // const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
+        // validationPromises.push(
+        //   this.currentDebt(input.lien)
+        //     .then(({ debt }) => ({
+        //       check: "debt-covers-ask",
+        //       valid: netAmount >= BigInt(debt),
+        //       reason: "Current lien debt exceeds ask amount"
+        //     }) as Validation)
+        // );
       } else if (!input.soft) {
 
         validationPromises.push(
@@ -996,20 +744,6 @@ export class Kettle {
         throw new Error(`[${result.check}]: ${result.reason ?? "Validation failed"}`);
       }
     }
-  }
-
-  // ==============================================
-  //                CONTRACT METHODS
-  // ==============================================
-
-  public async currentDebt(lien: Lien): Promise<CurrentDebt> {
-    const controller = await this._lendingController();
-    return controller.computeCurrentDebt(lien);
-  }
-
-  public async currentLender(lienId: Numberish): Promise<string> {
-    const controller = await this._lendingController();
-    return controller.currentLender(lienId);
   }
 
   // ==============================================
@@ -1229,19 +963,19 @@ export class Kettle {
         approvalActions.push(..._approvalActions);
       }
 
-      // in lien, might need to approve extra amount
-      if (input.lien && input.lienId) {
-        const { debt } = await this.currentDebt(input.lien);
+      // // in lien, might need to approve extra amount
+      // if (input.lien && input.lienId) {
+      //   const { debt } = await this.currentDebt(input.lien);
 
-        if (BigInt(debt) > BigInt(proceeds)) {
-          const _approvalActions = await this._erc20Approvals(
-            taker,
-            input.lien.currency,
-            this.safeFactorMul(BigInt(debt) - BigInt(proceeds), 250)
-          );
-          approvalActions.push(..._approvalActions);
-        }
-      }
+      //   if (BigInt(debt) > BigInt(proceeds)) {
+      //     const _approvalActions = await this._erc20Approvals(
+      //       taker,
+      //       input.lien.currency,
+      //       this.safeFactorMul(BigInt(debt) - BigInt(proceeds), 250)
+      //     );
+      //     approvalActions.push(..._approvalActions);
+      //   }
+      // }
 
       // taking ask, needs to approve currency
     } else {
@@ -1261,25 +995,6 @@ export class Kettle {
     }
 
     return approvalActions;
-  }
-
-  // ==============================================
-  //           PERIPHERAL CONTRACT INIT
-  // ==============================================
-
-  private async _lendingController() {
-    const lendingController = await this.contract.LENDING_CONTROLLER();
-    return LendingController__factory.connect(lendingController, this.provider);
-  }
-
-  private async _escrowController() {
-    const escrowController = await this.contract.ESCROW_CONTROLLER();
-    return EscrowController__factory.connect(escrowController, this.provider);
-  }
-
-  private async _redemptionController() {
-    const redemptionController = await this.contract.REDEMPTION_CONTROLLER();
-    return RedemptionController__factory.connect(redemptionController, this.provider);
   }
 
   // ==============================================
@@ -1443,14 +1158,14 @@ export class Kettle {
     let owed = 0n;
     let payed = 0n;
 
-    if (lien) {
-      const { debt } = await this.currentDebt(lien);
-      if (BigInt(debt) > proceeds) {
-        owed = BigInt(debt) - proceeds;
-      } else {
-        payed = proceeds - BigInt(debt);
-      }
-    }
+    // if (lien) {
+    //   const { debt } = await this.currentDebt(lien);
+    //   if (BigInt(debt) > proceeds) {
+    //     owed = BigInt(debt) - proceeds;
+    //   } else {
+    //     payed = proceeds - BigInt(debt);
+    //   }
+    // }
 
     return {
       proceeds,

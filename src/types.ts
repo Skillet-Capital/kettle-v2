@@ -1,35 +1,21 @@
 import { Addressable, Signer, JsonRpcSigner, TypedDataField } from "ethers";
 
 import { 
-  Kettle as KettleContract, 
-  EscrowController, 
-  LendingController,
-  RedemptionController,
+  Kettle as KettleContract,
   Kettle__factory,
-  EscrowController__factory,
-  LendingController__factory,
-  RedemptionController__factory
+  TestERC20__factory,
+  TestERC721__factory,
 } from "../typechain-types";
 
-import { LienStruct } from "../typechain-types/contracts/LendingController";
-import { EscrowStruct } from "../typechain-types/contracts/EscrowController";
-
-import { TestERC20__factory, TestERC721__factory } from "../typechain-types";
+import { EscrowStruct } from "../typechain-types/contracts/Kettle";
 
 export type {
   KettleContract,
-  EscrowController,
-  LendingController,
-  RedemptionController,
-  LienStruct,
   EscrowStruct
 };
 
 export {
   Kettle__factory,
-  EscrowController__factory,
-  LendingController__factory,
-  RedemptionController__factory,
   TestERC20__factory,
   TestERC721__factory
 };
@@ -212,6 +198,7 @@ export type CreateLoanOfferInput = {
 
 export type TakeOfferInput = {
   tokenId?: Numberish;
+  taker?: string;
   amount?: Numberish;
   offer: MarketOffer | LoanOffer;
   signature: string;

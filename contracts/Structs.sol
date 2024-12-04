@@ -91,18 +91,16 @@ struct MarketOffer {
 
 struct Escrow {
     Side side;
+    IERC721 collection;
     uint256 placeholder;
-    uint256 identifier;
     address buyer;
     address seller;
-    IERC721 collection;
     IERC20 currency;
     uint256 amount;
+    uint256 rebate;
     address recipient;
     uint256 fee;
-    uint256 rebate;
     bytes32 redemptionHash;
-    bool withRedemption;
     uint256 redemptionCharge;
     uint256 timestamp;
     uint256 lockTime;
@@ -121,6 +119,7 @@ struct RedemptionCharge {
   uint256 expiration;
   uint256 salt;
 }
+
 
 struct Asset {
   IERC721 collection;

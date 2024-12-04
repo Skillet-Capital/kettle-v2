@@ -86,7 +86,7 @@ const config: HardhatUserConfig = {
     ]
   },
   gasReporter: {
-    enabled: false
+    enabled: true
   },
   contractSizer: {
     only: [

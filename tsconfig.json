@@ -10,8 +10,8 @@
     "outDir": "./dist",
     "rootDir": ".",
     "declaration": true,
-    "types": ["node", "hardhat"],
+    "types": ["node", "hardhat",  "@openzeppelin/hardhat-upgrades"],
   },
   "include": ["src/**/*", "typechain-types/**/*"],
-  "exclude": ["node_modules", "dist", "contracts", "test"],
+  "exclude": ["node_modules", "dist", "contracts", "test-tmp"],
 }

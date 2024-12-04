@@ -2,26 +2,24 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-help
 
 import { tracer } from "hardhat";
 import { expect } from "chai";
-import { parseUnits, Signer } from "ethers";
+import { parseUnits, Signer, ZeroAddress } from "ethers";
 
 import { TestERC20, TestERC721 } from "../typechain-types"; 
 
 import { generateProof, generateRoot, randomSalt } from "../src/utils";
-import { Criteria, Kettle, KettleContract, MarketOffer, Side } from "../src";
+import { Criteria, Kettle, KettleContract, MarketOffer, OfferKind, Side } from "../src";
 import { executeCreateSteps, executeTakeSteps } from "./utils";
 
 import { deployKettle } from "./fixture";
+import { MarketOfferStruct } from "../typechain-types/contracts/Kettle";
 
-describe("Fulfill Market Offer", function () {
+describe("Fulfill Bid", function () {
   let _kettle: KettleContract;
   let kettle: Kettle;
 
   let buyer: Signer;
   let seller: Signer;
   let recipient: Signer;
-
-  let redemptionAdmin: Signer;
-  let redemptionWallet: Signer;
 
   let collection: TestERC721;
   let currency: TestERC20;
@@ -41,9 +39,6 @@ describe("Fulfill Market Offer", function () {
     collection = fixture.collection;
     currency = fixture.currency;
 
-    redemptionAdmin = fixture.redemptionAdmin;
-    redemptionWallet = fixture.redemptionWallet;
-
     kettle = new Kettle(seller, await _kettle.getAddress());
 
     tokens = [1,2,3,4,5];
@@ -57,34 +52,10 @@ describe("Fulfill Market Offer", function () {
     tracer.nameTags[await seller.getAddress()] = "seller";
   });
 
-  it("should reject if offer is expired", async function () {
-    const _seller = await kettle.connect(seller);
-
-    const { offer, signature } = await _seller.createMarketOffer({
-      side: Side.ASK,
-      collection,
-      currency,
-      identifier: tokenId,
-      amount,
-      fee: 250,
-      recipient,
-      expiration: 0
-    }, seller).then(s => executeCreateSteps(seller, s));
-
+  it("should fail if kind is not BID", async function () {
     const _buyer = await kettle.connect(buyer);
 
-    // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer({
-      tokenId: tokenId,
-      offer: offer as MarketOffer, 
-      signature
-    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "OfferExpired");
-  });
-
-  it("should reject if offer is cancelled", async function () {
-    const _seller = await kettle.connect(seller);
-
-    const { offer, signature } = await _seller.createMarketOffer({
+    const { offer, signature } = await _buyer.createMarketOffer({
       side: Side.ASK,
       collection,
       currency,
@@ -93,63 +64,92 @@ describe("Fulfill Market Offer", function () {
       fee: 250,
       recipient,
       expiration: await time.latest() + 60
-    }, seller).then(s => executeCreateSteps(seller, s));
+    }, buyer).then(s => executeCreateSteps(buyer, s));
 
-    const _buyer = await kettle.connect(buyer);
-
-    await _kettle.connect(seller).cancelOffers([offer.salt]);
-
-    // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer({
-      tokenId: tokenId,
-      offer: offer as MarketOffer, 
-      signature
-    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "OfferUnavailable");
-  });
-  
-  it("buyer should take ask offer", async function () {
     const _seller = await kettle.connect(seller);
 
-    const { offer, signature } = await _seller.createMarketOffer({
-      side: Side.ASK,
-      collection,
-      currency,
-      identifier: tokenId,
-      amount,
-      fee: 250,
-      recipient,
-      expiration: await time.latest() + 60
-    }, seller).then(s => executeCreateSteps(seller, s));
-
-    const _buyer = await kettle.connect(buyer);
-
     // should reject if tokenId does not match identifier
-    await expect(_buyer.takeMarketOffer({
-      tokenId: tokenId + 1,
-      offer: offer as MarketOffer, 
-      signature
-    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "InvalidToken");
-
-    // should reject if soft is true
-    await expect(_buyer.takeMarketOffer({
-      tokenId: tokenId,
-      offer: { ...offer, soft: true } as MarketOffer, 
+    await expect(_kettle.connect(seller).fulfillBid(
+      BigInt(tokenId),
+      offer as MarketOfferStruct,
       signature,
-    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "CannotTakeSoftOffer");
+      []
+    )).to.be.revertedWithCustomError(_kettle, "SideMustBeBid");
+  });
 
-    await _buyer.takeMarketOffer({
+  it("should fail if offer is soft", async function () {
+    const _buyer = await kettle.connect(buyer);
+
+    const { offer, signature } = await _buyer.createMarketOffer({
+      soft: true,
+      side: Side.BID,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + 60
+    }, buyer).then(s => executeCreateSteps(buyer, s));
+
+    const _seller = await kettle.connect(seller);
+
+    // should reject if tokenId does not match identifier
+    await expect(_kettle.connect(seller).fulfillBid(
+      BigInt(tokenId),
+      offer as MarketOfferStruct,
+      signature,
+      []
+    )).to.be.revertedWithCustomError(_kettle, "BidMustBeHard");
+  });
+
+  it("should fail if kind is not MARKET_OFFER", async function () {
+    const _buyer = await kettle.connect(buyer);
+
+    const { offer, signature } = await _buyer.createMarketOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 250,
+      recipient,
+      expiration: await time.latest() + 60
+    }, buyer).then(s => executeCreateSteps(buyer, s));
+
+    const _seller = await kettle.connect(seller);
+
+    // should reject if tokenId does not match identifier
+    await expect(_kettle.connect(seller).fulfillBid(
+      BigInt(tokenId),
+      { ...offer, kind: OfferKind.LOAN } as any as MarketOfferStruct,
+      signature,
+      []
+    )).to.be.revertedWithCustomError(_kettle, "InvalidMarketOffer");
+  });
+
+  it("should fail if fee too high", async function () {
+    const _buyer = await kettle.connect(buyer);
+
+    const { offer, signature } = await _buyer.createMarketOffer({
+      side: Side.BID,
+      collection,
+      currency,
+      identifier: tokenId,
+      amount,
+      fee: 10_001n,
+      recipient,
+      expiration: await time.latest() + 60
+    }, buyer).then(s => executeCreateSteps(buyer, s));
+
+    const _seller = await kettle.connect(seller);
+
+    // should reject if tokenId does not match identifier
+    await expect(_seller.takeMarketOffer({
       tokenId: tokenId,
       offer: offer as MarketOffer, 
       signature
-    }, buyer).then(s => executeTakeSteps(buyer, s));
-
-    expect(await collection.ownerOf(tokenId)).to.equal(buyer);
-
-    const fee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
-    expect(await currency.balanceOf(recipient)).to.equal(fee);
-    expect(await currency.balanceOf(seller)).to.equal(amount - fee);
-
-    expect(await _kettle.cancelledOrFulfilled(offer.maker, offer.salt)).to.equal(1);
+    }, seller).then(s => executeTakeSteps(seller, s))).to.be.revertedWithCustomError(_kettle, "InvalidFee");
   });
 
   it("seller should take bid offer (SIMPLE)", async function () {
@@ -235,61 +235,4 @@ describe("Fulfill Market Offer", function () {
     expect(await currency.balanceOf(recipient)).to.equal(fee);
     expect(await currency.balanceOf(seller)).to.equal(amount - fee);
   });
-
-  it("should redeem asset on fulfill ask", async function () {
-    const _seller = await kettle.connect(seller);
-
-    const { offer, signature } = await _seller.createMarketOffer({
-      side: Side.ASK,
-      collection,
-      currency,
-      identifier: tokenId,
-      amount,
-      fee: 250,
-      recipient,
-      expiration: await time.latest() + 60
-    }, seller).then(s => executeCreateSteps(seller, s));
-
-    const _buyer = await kettle.connect(buyer);
-
-    // create and sign redemption charge
-    const chargeAmount = parseUnits("100", 18);
-    const signStep = await kettle.connect(redemptionAdmin).createRedemptionCharge({
-      redeemer: buyer,
-      collection,
-      tokenId,
-      currency,
-      amount: chargeAmount,
-      expiration: await time.latest() + 100
-    });
-
-    const { charge, signature: chargeSignature } = await signStep.sign(redemptionAdmin);
-
-    await expect(_buyer.takeMarketOffer({
-      tokenId: tokenId,
-      offer: { ...offer, side: Side.BID } as MarketOffer, 
-      signature,
-      redemptionCharge: charge,
-      redemptionChargeSignature: chargeSignature
-    }, buyer).then(s => executeTakeSteps(buyer, s))).to.be.revertedWithCustomError(_kettle, "CannotRedeemFromBid");;
-
-    await currency.mint(buyer, chargeAmount);
-    await _buyer.takeMarketOffer({
-      tokenId: tokenId,
-      offer: offer as MarketOffer,
-      signature,
-      redemptionCharge: charge,
-      redemptionChargeSignature: chargeSignature
-    }, buyer).then(s => executeTakeSteps(buyer, s));
-
-    // expect redemption
-    expect(await collection.ownerOf(tokenId)).to.equal(redemptionWallet);
-    expect(await currency.balanceOf(redemptionWallet)).to.equal(chargeAmount);
-
-    const fee = kettle.mulFee(offer.terms.amount, offer.fee.rate);
-    expect(await currency.balanceOf(recipient)).to.equal(fee);
-    expect(await currency.balanceOf(seller)).to.equal(amount - fee);
-
-    expect(await _kettle.cancelledOrFulfilled(offer.maker, offer.salt)).to.equal(1);
-  })
 });

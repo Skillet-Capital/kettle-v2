@@ -5,13 +5,13 @@ import "../Structs.sol";
 
 interface IKettle {
     
-    event Refinance(
-        uint256 indexed oldLienId,
-        uint256 indexed newLienId
-    );
+    event EscrowOpened(uint256 indexed escrowId, Escrow escrow);
+    event EscrowSettled(uint256 indexed escrowId, uint256 indexed tokenId);
+    event EscrowClaimed(uint256 indexed escrowId);
+    event EscrowRejected(uint256 indexed escrowId, bool indexed rebateReturned);
 
     event Redemption(
-        bytes32 indexed hash,
+        bytes32 indexed redemptionHash,
         address indexed redeemer,
         IERC721 collection,
         uint256 tokenId,
