@@ -257,30 +257,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             revert TokenAlreadyEscrowed();
         }
 
-        uint256 rebate;
-        if (offer.terms.rebate > 0) {
-            rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
-
-            offer.terms.currency.safeTransferFrom(
-                seller,
-                address(this),
-                rebate
-            );
-        }
-
-        if (redemptionCharge > 0) {
-            offer.terms.currency.safeTransferFrom(
-                msg.sender,
-                address(this),
-                redemptionCharge
-            );
-        }
-
-        offer.terms.currency.safeTransferFrom(
-            msg.sender,
-            address(this),
-            offer.terms.amount
-        );
+        uint256 rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
 
         Escrow memory escrow = Escrow({
             side: offer.side,
@@ -303,6 +280,28 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         escrows[_escrowIndex] = _hashEscrow(escrow);
         escrowedTokens[offer.collateral.identifier] = true;
+
+        if (offer.terms.rebate > 0) {
+            offer.terms.currency.safeTransferFrom(
+                seller,
+                address(this),
+                rebate
+            );
+        }
+
+        if (redemptionCharge > 0) {
+            offer.terms.currency.safeTransferFrom(
+                msg.sender,
+                address(this),
+                redemptionCharge
+            );
+        }
+
+        offer.terms.currency.safeTransferFrom(
+            msg.sender,
+            address(this),
+            offer.terms.amount
+        );
 
         emit EscrowOpened({
             escrowId: _escrowIndex,
