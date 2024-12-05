@@ -1,14 +1,12 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import LockModule from "./Kettle";
+import KettleModule from "./Kettle";
 
 const WhitelistSellers = buildModule("WhitelistSellers", (m) => {
-  const { escrow } = m.useModule(LockModule);
+  const { kettle } = m.useModule(KettleModule);
 
-  m.call(escrow, "whitelistedAskMaker", ["0x11D351894506e13587D4e479b6c38E68891f1492", true], { id: "whitelist_me_1" });
+  m.call(kettle, "whitelistedAskMaker", ["0x11D351894506e13587D4e479b6c38E68891f1492", true], { id: "whitelist_me_1" });
 
-  return {
-    escrow
-  }
+  return { kettle };
 });
 
 export default WhitelistSellers;

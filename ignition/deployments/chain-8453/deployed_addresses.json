@@ -1,19 +1,6 @@
 {
-  "Kettle#EscrowControllerImplementation": "0x590A345e11207fE1584d6252a134d35002aaFfa3",
-  "Kettle#KettleImplementation": "0x6A3886F08E1253ee81cf95a462591EFB2fCf0cB9",
-  "Kettle#LenderReceipt": "0xEb90703bA335DE7f65a76985C2a060B6f5C3F6Ca",
-  "Kettle#LendingControllerImplementation": "0x36b87b6F0122735a721529f96dA07bB7aa646842",
-  "Kettle#RedemptionControllerImplementation": "0x3DA8CaFE4fCAC132E088970f2d9782ae9B21Ada8",
-  "Kettle#EscrowControllerProxy": "0x6986AaB26c0c9c30e14FFB7180e58a7B746F5B60",
-  "Kettle#KettleProxy": "0xE2e91f1F1E2095e33d4DFf1E87FFB9Da21498098",
-  "Kettle#LendingControllerProxy": "0xF66F918ED364e6938b2bf19176877fD725aCa644",
-  "Kettle#RedemptionControllerProxy": "0xBdCb5E128Dc998fAA48aD772a1519FABb3d835a1",
-  "Kettle#EscrowController": "0x6986AaB26c0c9c30e14FFB7180e58a7B746F5B60",
-  "Kettle#Kettle": "0xE2e91f1F1E2095e33d4DFf1E87FFB9Da21498098",
-  "Kettle#LendingController": "0xF66F918ED364e6938b2bf19176877fD725aCa644",
-  "Kettle#RedemptionController": "0xBdCb5E128Dc998fAA48aD772a1519FABb3d835a1",
-  "Kettle#EscrowControllerProxyAdmin": "0x7D3b902CBf6a14E9F892053DEB42fa578D5D88d6",
-  "Kettle#KettleProxyAdmin": "0xc61288D45733A1D34498B205F01Ca3375179d3B4",
-  "Kettle#LendingControllerProxyAdmin": "0xaeddfCBB2A91e82b5d19Fc9E381552f5e5da2aA3",
-  "Kettle#RedemptionControllerProxyAdmin": "0x3239167D879FB706eEdD248617E493A516609a7A"
+  "Kettle#KettleImplementation": "0x16FD02b15f67FE579Eb7842daAe8Cf9A8c6B321e",
+  "Kettle#KettleProxy": "0x26d573FdebAc88D4487F4635A3a573a934a0048a",
+  "Kettle#Kettle": "0x26d573FdebAc88D4487F4635A3a573a934a0048a",
+  "Kettle#KettleProxyAdmin": "0x5A0Ec2672b14EE01D61dEfCed55Cea63e2ac728c"
 }
