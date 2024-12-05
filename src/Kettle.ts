@@ -332,6 +332,50 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
+  encodeTakeMarketOffer(
+    input: TakeOfferInput,
+    taker: string | Addressable
+  ): UserOp {
+    return (input.offer.side === Side.BID) ? ({
+      to: this.contractAddress,
+      data: this.kettleInterface.encodeFunctionData(
+        this.kettleInterface.getFunction("fulfillBid"),
+        [
+          input.tokenId,
+          input.offer,
+          input.signature,
+          input.proof ?? []
+        ]
+      )
+    }) : (input.redemptionCharge && input.redemptionChargeSignature) ? ({
+      to: this.contractAddress,
+      data: this.kettleInterface.encodeFunctionData(
+        this.kettleInterface.getFunction("fulfillAskWithRedemption"),
+        [
+          input.tokenId!,
+          taker,
+          input.offer,
+          input.redemptionCharge,
+          input.signature,
+          input.redemptionChargeSignature,
+          input.proof ?? []
+        ]
+      )
+    }) : ({
+      to: this.contractAddress,
+      data: this.kettleInterface.encodeFunctionData(
+        this.kettleInterface.getFunction("fulfillAsk"),
+        [
+          input.tokenId!,
+          taker,
+          input.offer,
+          input.signature,
+          input.proof ?? []
+        ]
+      )
+    });
+  }
+
   // ==============================================
   //                ESCROW ACTIONS
   // ==============================================
