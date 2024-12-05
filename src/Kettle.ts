@@ -332,7 +332,7 @@ export class Kettle {
     return [...approvalActions, takeOfferAction];
   }
 
-  encodeTakeMarketOffer(
+  public encodeTakeMarketOffer(
     input: TakeOfferInput,
     taker: string | Addressable
   ): UserOp {
