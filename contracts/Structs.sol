@@ -69,7 +69,8 @@ struct LoanOffer {
 struct MarketOfferTerms {
     IERC20 currency;
     uint256 amount;
-    uint256 rebate;
+    uint256 makerRebate;
+    uint256 takerRebate;
 }
 
 struct MarketOffer {
@@ -97,7 +98,8 @@ struct Escrow {
     address seller;
     IERC20 currency;
     uint256 amount;
-    uint256 rebate;
+    uint256 buyerRebate;
+    uint256 sellerRebate;
     address recipient;
     uint256 fee;
     bytes32 redemptionHash;

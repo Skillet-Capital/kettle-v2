@@ -31,6 +31,8 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     address public redemptionWallet;
     address public redemptionFeeCollector;
 
+    uint256 public takerRebateRate;
+
     uint256 private escrowIndex;
     mapping(uint256 => bytes32) public escrows;
     mapping(uint256 => bool) public escrowedTokens;
@@ -214,6 +216,32 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         }
     }
 
+    function reserveAsk(
+        uint256 tokenId,
+        MarketOffer calldata offer,
+        bytes calldata signature,
+        bytes32[] calldata proof
+    ) external requireMarketOffer(offer.kind) nonReentrant {
+        if (offer.side != Side.ASK) revert SideMustBeAsk();
+
+        _takeMarketOffer(
+            tokenId,
+            msg.sender,
+            offer,
+            signature,
+            proof
+        );
+
+        _escrowPayments(
+            msg.sender,
+            offer.maker,
+            bytes32(0),
+            0,
+            offer
+        );
+    }
+    )
+
     // ==================================================
     //               INTERNAL METHODS
     // ==================================================
@@ -245,6 +273,10 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         uint256 redemptionCharge,
         MarketOffer calldata offer
     ) internal {
+        if (offer.side == Side.BID) {
+            revert BidMustBeHard();
+        }
+
         // if (offer.side == Side.BID && !whitelistedBidTakers[seller]) {
         //     revert SellerCannotEscrowBid();
         // }
@@ -257,7 +289,13 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             revert TokenAlreadyEscrowed();
         }
 
-        uint256 rebate = _calculateFee(offer.terms.amount, offer.terms.rebate);
+        uint256 sellerRebate;
+        uint256 buyerRebate;
+
+        if (offer.side == Side.ASK) {
+            sellerRebate = _calculateFee(offer.terms.amount, offer.terms.makerRebate);
+            buyerRebate = _calculateFee(offer.terms.amount, takerRebateRate);
+        }
 
         Escrow memory escrow = Escrow({
             side: offer.side,
@@ -267,7 +305,8 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             placeholder: offer.collateral.identifier,
             currency: offer.terms.currency,
             amount: offer.terms.amount,
-            rebate: rebate,
+            buyerRebate: buyerRebate,
+            sellerRebate: sellerRebate,
             recipient: offer.fee.recipient,
             fee: offer.fee.rate,
             redemptionHash: redemptionHash,
@@ -281,14 +320,23 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         escrows[_escrowIndex] = _hashEscrow(escrow);
         escrowedTokens[offer.collateral.identifier] = true;
 
-        if (offer.terms.rebate > 0) {
+        if (sellerRebate > 0) {
             offer.terms.currency.safeTransferFrom(
                 seller,
                 address(this),
-                rebate
+                sellerRebate
             );
         }
 
+        if (buyerRebate > 0) {
+            offer.terms.currency.safeTransferFrom(
+                msg.sender,  // only escrowing asks (buyer is msg.sender or taker)
+                address(this),
+                buyerRebate
+            );
+        }
+
+        // if delayed paymet, don't transfer amount to escrow until payment is due
         if (redemptionCharge > 0) {
             offer.terms.currency.safeTransferFrom(
                 msg.sender,
