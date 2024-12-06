@@ -53,7 +53,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
 
         emit MarketOfferTaken({
             tokenId: tokenId,
-            taker: msg.sender,
+            taker: taker,
             offer: offer
         });
     }

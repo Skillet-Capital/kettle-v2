@@ -10,7 +10,7 @@
     "outDir": "./dist",
     "rootDir": ".",
     "declaration": true,
-    "types": ["node", "hardhat",  "@openzeppelin/hardhat-upgrades"],
+    "types": ["node", "hardhat",  "@openzeppelin/hardhat-upgrades", "@nomicfoundation/hardhat-ignition/modules"],
   },
   "include": ["src/**/*", "typechain-types/**/*"],
   "exclude": ["node_modules", "dist", "contracts", "test-tmp"],

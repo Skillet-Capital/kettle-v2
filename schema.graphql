@@ -37,6 +37,7 @@ type Lien @entity {
 type Escrow @entity {
   id: String!
   escrowId: BigInt!
+  side: BigInt!
   buyer: Bytes!
   seller: Bytes!
   collateralId: String!
@@ -48,10 +49,9 @@ type Escrow @entity {
   recipient: Bytes!
   fee: BigInt!
   rebate: BigInt!
-  redemptionHash: String!
-  withRedemption: Boolean!
+  redemptionHash: Bytes!
   redemptionCharge: BigInt!
-  duration: BigInt!
-  startTime: BigInt!
+  lockTime: BigInt!
+  timestamp: BigInt!
   status: String!
 }
