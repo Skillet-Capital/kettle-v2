@@ -8,9 +8,9 @@ dataSources:
     name: Kettle
     network: base
     source:
-      address: "0xE2e91f1F1E2095e33d4DFf1E87FFB9Da21498098"
+      address: "0x14fc7A3A449468C35E8a9c9432F68c378E6485BE"
       abi: Kettle
-      startBlock: 22027000
+      startBlock: 23355370
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -21,56 +21,12 @@ dataSources:
         - name: Kettle
           file: ./abis/Kettle.json
       eventHandlers:
-        - event: LoanOfferTaken(indexed uint256,indexed address,uint256,(uint8,bool,uint8,address,address,(uint8,address,uint256),(address,uint256,uint256,uint256,uint256,uint256,uint256,uint256),(address,uint256),uint256,uint256))
-          handler: handleLoanOfferTaken
         - event: MarketOfferTaken(indexed uint256,indexed address,(uint8,bool,uint8,address,address,(uint8,address,uint256),(address,uint256,uint256),(address,uint256),uint256,uint256))
           handler: handleMarketOfferTaken
-      file: ./handlers/activity.ts
-  - kind: ethereum
-    name: EscrowController
-    network: base
-    source:
-      address: "0xBdCb5E128Dc998fAA48aD772a1519FABb3d835a1"
-      abi: EscrowController
-      startBlock: 22027000
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Escrow
-      abis:
-        - name: EscrowController
-          file: ./abis/EscrowController.json
-      eventHandlers:
-        - event: EscrowOpened(indexed uint256,(uint8,uint256,uint256,address,address,address,address,uint256,address,uint256,uint256,bytes32,bool,uint256,uint256,uint256))          
+        - event: EscrowOpened(indexed uint256,(uint8,address,uint256,address,address,address,uint256,uint256,address,uint256,bytes32,uint256,uint256,uint256))          
           handler: handleEscrowOpened
         - event: EscrowRejected(indexed uint256,indexed bool)
           handler: handleEscrowRejected
         - event: EscrowSettled(indexed uint256,indexed uint256)
           handler: handleEscrowSettled
-      file: ./handlers/escrow.ts
-  - kind: ethereum
-    name: LendingController
-    network: base
-    source:
-      address: "0xF66F918ED364e6938b2bf19176877fD725aCa644"
-      abi: LendingController
-      startBlock: 22027000
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Lien
-      abis:
-        - name: LendingController
-          file: ./abis/LendingController.json
-      eventHandlers:
-        - event: LienOpened(indexed uint256,indexed address,(address,address,uint256,address,uint256,uint256,uint256,uint256,uint256,address,uint256,uint256))
-          handler: handleLienOpened
-        - event: LienRepaid(indexed uint256,uint256,uint256,uint256)
-          handler: handleLienRepaid
-        - event: LienDefaulted(indexed uint256)
-          handler: handleLienDefaulted
-      file: ./handlers/lien.ts
+      file: ./handlers/index.ts

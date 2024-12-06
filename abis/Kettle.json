@@ -23,22 +23,7 @@
   },
   {
     "inputs": [],
-    "name": "CannotTakeHardOffer",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "CannotTakeSoftOffer",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "CollectionMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "CurrencyMismatch",
+    "name": "BidMustBeHard",
     "type": "error"
   },
   {
@@ -54,22 +39,27 @@
   },
   {
     "inputs": [],
+    "name": "EscrowLocked",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "FailedInnerCall",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "InsufficientAskAmount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InsufficientOffer",
+    "name": "InvalidCollection",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "InvalidCriteria",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidEscrow",
     "type": "error"
   },
   {
@@ -84,22 +74,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidLoanAmount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidLoanOffer",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidMarketOffer",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRate",
     "type": "error"
   },
   {
@@ -119,12 +94,12 @@
   },
   {
     "inputs": [],
-    "name": "InvalidVParameter",
+    "name": "InvalidTokenId",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "MakerIsNotBorrower",
+    "name": "InvalidVParameter",
     "type": "error"
   },
   {
@@ -171,6 +146,11 @@
   },
   {
     "inputs": [],
+    "name": "RedemptionCurrencyMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
@@ -187,8 +167,165 @@
   },
   {
     "inputs": [],
-    "name": "TakerIsNotBorrower",
+    "name": "SellerCannotEscrowAsk",
     "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SideMustBeAsk",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SideMustBeBid",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TokenAlreadyEscrowed",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      }
+    ],
+    "name": "EscrowClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
+          },
+          {
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "placeholder",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IERC20",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "redemptionHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "redemptionCharge",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockTime",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Escrow",
+        "name": "escrow",
+        "type": "tuple"
+      }
+    ],
+    "name": "EscrowOpened",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "rebateReturned",
+        "type": "bool"
+      }
+    ],
+    "name": "EscrowRejected",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "EscrowSettled",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -548,61 +685,49 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "uint256",
-        "name": "oldLienId",
-        "type": "uint256"
+        "internalType": "bytes32",
+        "name": "redemptionHash",
+        "type": "bytes32"
       },
       {
         "indexed": true,
+        "internalType": "address",
+        "name": "redeemer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "contract IERC721",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
-        "name": "newLienId",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "contract IERC20",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
         "type": "uint256"
       }
     ],
-    "name": "Refinance",
+    "name": "Redemption",
     "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "ESCROW_CONTROLLER",
-    "outputs": [
-      {
-        "internalType": "contract IEscrowController",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "LENDING_CONTROLLER",
-    "outputs": [
-      {
-        "internalType": "contract ILendingController",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   },
   {
     "inputs": [
       {
         "internalType": "address",
         "name": "owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_lendingController",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_escrowController",
         "type": "address"
       }
     ],
@@ -700,13 +825,13 @@
             "type": "uint8"
           },
           {
-            "internalType": "uint256",
-            "name": "placeholder",
-            "type": "uint256"
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
           },
           {
             "internalType": "uint256",
-            "name": "identifier",
+            "name": "placeholder",
             "type": "uint256"
           },
           {
@@ -720,18 +845,8 @@
             "type": "address"
           },
           {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
-          },
-          {
             "internalType": "contract IERC20",
             "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
             "type": "address"
           },
           {
@@ -741,12 +856,27 @@
           },
           {
             "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
             "name": "fee",
             "type": "uint256"
           },
           {
+            "internalType": "bytes32",
+            "name": "redemptionHash",
+            "type": "bytes32"
+          },
+          {
             "internalType": "uint256",
-            "name": "rebate",
+            "name": "redemptionCharge",
             "type": "uint256"
           },
           {
@@ -774,78 +904,167 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "lienId",
+        "name": "",
         "type": "uint256"
+      }
+    ],
+    "name": "escrowedTokens",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "escrows",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
       },
       {
         "components": [
           {
-            "internalType": "address",
-            "name": "borrower",
-            "type": "address"
+            "internalType": "enum OfferKind",
+            "name": "kind",
+            "type": "uint8"
           },
           {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
+            "internalType": "bool",
+            "name": "soft",
+            "type": "bool"
           },
           {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "contract IERC20",
-            "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "principal",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "rate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "defaultRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "duration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "gracePeriod",
-            "type": "uint256"
+            "internalType": "enum Side",
+            "name": "side",
+            "type": "uint8"
           },
           {
             "internalType": "address",
-            "name": "recipient",
+            "name": "maker",
             "type": "address"
           },
           {
-            "internalType": "uint256",
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Criteria",
+                "name": "criteria",
+                "type": "uint8"
+              },
+              {
+                "internalType": "contract IERC721",
+                "name": "collection",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "identifier",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Collateral",
+            "name": "collateral",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "contract IERC20",
+                "name": "currency",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "rebate",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MarketOfferTerms",
+            "name": "terms",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct FeeTerms",
             "name": "fee",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expiration",
             "type": "uint256"
           },
           {
             "internalType": "uint256",
-            "name": "startTime",
+            "name": "salt",
             "type": "uint256"
           }
         ],
-        "internalType": "struct Lien",
-        "name": "lien",
+        "internalType": "struct MarketOffer",
+        "name": "offer",
         "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
       }
     ],
-    "name": "claimLien",
+    "name": "fulfillAsk",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -854,8 +1073,13 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "placeholder",
+        "name": "tokenId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
       },
       {
         "components": [
@@ -961,206 +1185,10 @@
         "type": "tuple"
       },
       {
-        "internalType": "bytes",
-        "name": "signature",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "escrowMarketOffer",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "escrowId",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "enum OfferKind",
-            "name": "kind",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bool",
-            "name": "soft",
-            "type": "bool"
-          },
-          {
-            "internalType": "enum Side",
-            "name": "side",
-            "type": "uint8"
-          },
-          {
-            "internalType": "address",
-            "name": "maker",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "components": [
-              {
-                "internalType": "enum Criteria",
-                "name": "criteria",
-                "type": "uint8"
-              },
-              {
-                "internalType": "contract IERC721",
-                "name": "collection",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "identifier",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Collateral",
-            "name": "collateral",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "contract IERC20",
-                "name": "currency",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "minAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rate",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "defaultRate",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "duration",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "gracePeriod",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct LoanOfferTerms",
-            "name": "terms",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "address",
-                "name": "recipient",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rate",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct FeeTerms",
-            "name": "fee",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "expiration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "salt",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct LoanOffer",
-        "name": "offer",
-        "type": "tuple"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signature",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "fulfillLoanOffer",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "lienId",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "lienId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
         "components": [
           {
             "internalType": "address",
-            "name": "borrower",
+            "name": "redeemer",
             "type": "address"
           },
           {
@@ -1180,161 +1208,8 @@
           },
           {
             "internalType": "uint256",
-            "name": "principal",
+            "name": "amount",
             "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "rate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "defaultRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "duration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "gracePeriod",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "fee",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "startTime",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Lien",
-        "name": "lien",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "enum OfferKind",
-            "name": "kind",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bool",
-            "name": "soft",
-            "type": "bool"
-          },
-          {
-            "internalType": "enum Side",
-            "name": "side",
-            "type": "uint8"
-          },
-          {
-            "internalType": "address",
-            "name": "maker",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "components": [
-              {
-                "internalType": "enum Criteria",
-                "name": "criteria",
-                "type": "uint8"
-              },
-              {
-                "internalType": "contract IERC721",
-                "name": "collection",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "identifier",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Collateral",
-            "name": "collateral",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "contract IERC20",
-                "name": "currency",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "maxAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "minAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rate",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "defaultRate",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "duration",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "gracePeriod",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct LoanOfferTerms",
-            "name": "terms",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "address",
-                "name": "recipient",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rate",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct FeeTerms",
-            "name": "fee",
-            "type": "tuple"
           },
           {
             "internalType": "uint256",
@@ -1347,8 +1222,8 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct LoanOffer",
-        "name": "offer",
+        "internalType": "struct RedemptionCharge",
+        "name": "redemption",
         "type": "tuple"
       },
       {
@@ -1357,19 +1232,18 @@
         "type": "bytes"
       },
       {
+        "internalType": "bytes",
+        "name": "redemptionSignature",
+        "type": "bytes"
+      },
+      {
         "internalType": "bytes32[]",
         "name": "proof",
         "type": "bytes32[]"
       }
     ],
-    "name": "fulfillLoanOfferInLien",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "newLienId",
-        "type": "uint256"
-      }
-    ],
+    "name": "fulfillAskWithRedemption",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1494,213 +1368,8 @@
         "type": "bytes32[]"
       }
     ],
-    "name": "fulfillMarketOffer",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "netAmount",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "lienId",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "borrower",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "contract IERC20",
-            "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "principal",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "rate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "defaultRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "duration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "gracePeriod",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "fee",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "startTime",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Lien",
-        "name": "lien",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "enum OfferKind",
-            "name": "kind",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bool",
-            "name": "soft",
-            "type": "bool"
-          },
-          {
-            "internalType": "enum Side",
-            "name": "side",
-            "type": "uint8"
-          },
-          {
-            "internalType": "address",
-            "name": "maker",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "components": [
-              {
-                "internalType": "enum Criteria",
-                "name": "criteria",
-                "type": "uint8"
-              },
-              {
-                "internalType": "contract IERC721",
-                "name": "collection",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "identifier",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Collateral",
-            "name": "collateral",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "contract IERC20",
-                "name": "currency",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rebate",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct MarketOfferTerms",
-            "name": "terms",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "address",
-                "name": "recipient",
-                "type": "address"
-              },
-              {
-                "internalType": "uint256",
-                "name": "rate",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct FeeTerms",
-            "name": "fee",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "expiration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "salt",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct MarketOffer",
-        "name": "offer",
-        "type": "tuple"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signature",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "fulfillMarketOfferInLien",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "netAmount",
-        "type": "uint256"
-      }
-    ],
+    "name": "fulfillBid",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1964,10 +1633,84 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "redeemer",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "contract IERC20",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct RedemptionCharge",
+        "name": "charge",
+        "type": "tuple"
+      }
+    ],
+    "name": "hashRedemptionCharge",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "incrementNonce",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lockTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -2039,6 +1782,105 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "redeemer",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "redeemer",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "contract IERC20",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "salt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct RedemptionCharge",
+        "name": "charge",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "redeem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redemptionAdmin",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redemptionFeeCollector",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redemptionWallet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bool",
         "name": "returnRebate",
         "type": "bool"
@@ -2056,13 +1898,13 @@
             "type": "uint8"
           },
           {
-            "internalType": "uint256",
-            "name": "placeholder",
-            "type": "uint256"
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
           },
           {
             "internalType": "uint256",
-            "name": "identifier",
+            "name": "placeholder",
             "type": "uint256"
           },
           {
@@ -2076,18 +1918,8 @@
             "type": "address"
           },
           {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
-          },
-          {
             "internalType": "contract IERC20",
             "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
             "type": "address"
           },
           {
@@ -2097,12 +1929,27 @@
           },
           {
             "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
             "name": "fee",
             "type": "uint256"
           },
           {
+            "internalType": "bytes32",
+            "name": "redemptionHash",
+            "type": "bytes32"
+          },
+          {
             "internalType": "uint256",
-            "name": "rebate",
+            "name": "redemptionCharge",
             "type": "uint256"
           },
           {
@@ -2137,85 +1984,64 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "lienId",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "borrower",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "contract IERC20",
-            "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "principal",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "rate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "defaultRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "duration",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "gracePeriod",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "fee",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "startTime",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Lien",
-        "name": "lien",
-        "type": "tuple"
-      }
-    ],
-    "name": "repayLien",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
+        "name": "time",
         "type": "uint256"
       }
     ],
+    "name": "setLockTime",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_redemptionAdmin",
+        "type": "address"
+      }
+    ],
+    "name": "setRedemptionAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_redemptionFeeCollector",
+        "type": "address"
+      }
+    ],
+    "name": "setRedemptionFeeCollector",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_redemptionWallet",
+        "type": "address"
+      }
+    ],
+    "name": "setRedemptionWallet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_tokenSupplier",
+        "type": "address"
+      }
+    ],
+    "name": "setTokenSupplier",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -2239,13 +2065,13 @@
             "type": "uint8"
           },
           {
-            "internalType": "uint256",
-            "name": "placeholder",
-            "type": "uint256"
+            "internalType": "contract IERC721",
+            "name": "collection",
+            "type": "address"
           },
           {
             "internalType": "uint256",
-            "name": "identifier",
+            "name": "placeholder",
             "type": "uint256"
           },
           {
@@ -2259,18 +2085,8 @@
             "type": "address"
           },
           {
-            "internalType": "contract IERC721",
-            "name": "collection",
-            "type": "address"
-          },
-          {
             "internalType": "contract IERC20",
             "name": "currency",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
             "type": "address"
           },
           {
@@ -2280,12 +2096,27 @@
           },
           {
             "internalType": "uint256",
+            "name": "rebate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
             "name": "fee",
             "type": "uint256"
           },
           {
+            "internalType": "bytes32",
+            "name": "redemptionHash",
+            "type": "bytes32"
+          },
+          {
             "internalType": "uint256",
-            "name": "rebate",
+            "name": "redemptionCharge",
             "type": "uint256"
           },
           {
@@ -2310,6 +2141,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "tokenSupplier",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -2320,6 +2164,80 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "whitelisted",
+        "type": "bool"
+      }
+    ],
+    "name": "whitelistAskMaker",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "whitelisted",
+        "type": "bool"
+      }
+    ],
+    "name": "whitelistBidTaker",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "whitelistedAskMakers",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "whitelistedBidTakers",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]
