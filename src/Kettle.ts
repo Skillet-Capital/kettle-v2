@@ -174,11 +174,17 @@ export class Kettle {
     const offer = await this._formatMarketOffer(_maker, input);
 
     // get approval steps
-    const approvalActions: SendStep[] = await this._getCreateApprovalActions(
-      offer,
-      _maker,
-      input.lien
-    );
+    let approvalActions: SendStep[] = []; 
+    
+    if (offer.side === Side.BID || (offer.side === Side.ASK && !offer.soft)) {
+      const _approvalActions = await this._getCreateApprovalActions(
+          offer,
+          _maker,
+          input.lien
+        );
+
+      approvalActions.push(..._approvalActions);
+    }
 
     let cancelSteps: SendStep[] = [];
     if (input.salt) {
