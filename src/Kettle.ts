@@ -155,6 +155,11 @@ export class Kettle {
     } as const;
   }
 
+  public async hashRedemptionCharge(charge: RedemptionCharge): Promise<string> {
+    const admin = await this.contract.redemptionAdmin();
+    return this.contract.hashRedemptionCharge(admin, charge)
+  }
+
   // =============================================
   //                 CREATE OFFERS                
   // =============================================
