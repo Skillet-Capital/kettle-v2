@@ -8,21 +8,18 @@ import {
 } from "../generated/Kettle/Kettle";
 
 import {
-  Escrow
+  Escrow,
+  FeeCollection
 } from "../generated/schema";
 
 import {
+  calculateFeeAmount,
   formatEscrowId,
+  formatPlaceholder,
   formatPlaceholderId
 } from "./helpers";
 
 export function handleEscrowOpened(event: EscrowOpenedEvent): void {
-  log.info("buyer: {}", [event.params.escrow.buyer.toHexString()]);
-  log.info("seller: {}", [event.params.escrow.seller.toHexString()]);
-  log.info("collection: {}", [event.params.escrow.collection.toHexString()]);
-  log.info("currency: {}", [event.params.escrow.currency.toHexString()]);
-  log.info("recipient: {}", [event.params.escrow.recipient.toHexString()]);
-
   const escrow = new Escrow(formatEscrowId(event.address, event.params.escrowId));
   escrow.escrowId = event.params.escrowId;
   escrow.side = BigInt.fromI32(event.params.escrow.side);
@@ -31,7 +28,7 @@ export function handleEscrowOpened(event: EscrowOpenedEvent): void {
   
   escrow.collateralId = formatPlaceholderId(event.params.escrow.collection, event.params.escrow.placeholder);
   escrow.collection = event.params.escrow.collection;
-  escrow.placeholder = Bytes.fromHexString(event.params.escrow.placeholder.toHexString());
+  escrow.placeholder = formatPlaceholder(event.params.escrow.placeholder);
 
   escrow.currency = event.params.escrow.currency;
   escrow.amount = event.params.escrow.amount;
@@ -54,6 +51,17 @@ export function handleEscrowSettled(event: EscrowSettledEvent): void {
   escrow.status = "settled";
   escrow.tokenId = event.params.tokenId;
   escrow.save();
+
+  // collect fee here
+  const feeCollected = new FeeCollection(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  feeCollected.currency = escrow.currency;
+  feeCollected.fee = calculateFeeAmount(escrow.amount, escrow.fee);
+  feeCollected.buyer = escrow.buyer;
+  feeCollected.seller = escrow.seller;
+  feeCollected.collateralId = escrow.collateralId;
+  feeCollected.timestamp = event.block.timestamp;
+  feeCollected.fromEscrow = true;
+  feeCollected.save();
 }
 
 export function handleEscrowClaimed(event: EscrowClaimedEvent): void {

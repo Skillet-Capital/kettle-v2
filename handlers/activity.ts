@@ -10,7 +10,7 @@ import {
 
 import {
   Activity,
-  // Lien
+  FeeCollection
 } from "../generated/schema";
 
 import {
@@ -20,6 +20,7 @@ import {
 import {
   // formatLienId,
   formatCollateralId,
+  calculateFeeAmount
 } from "./helpers";
 
 import {
@@ -39,6 +40,19 @@ export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
   activity.timestamp = event.block.timestamp;
   activity.txn = event.transaction.hash;
   activity.save();
+
+  // if it is a hard offer, fee is collected on market offer taken
+  if (!event.params.offer.soft) {
+    const feeCollected = new FeeCollection(event.transaction.hash.concatI32(event.logIndex.toI32()));
+    feeCollected.fee = calculateFeeAmount(event.params.offer.terms.amount, event.params.offer.fee.rate);
+    feeCollected.currency = event.params.offer.terms.currency;
+    feeCollected.buyer = (event.params.offer.side == Side.BID) ? event.params.offer.maker : event.params.taker;
+    feeCollected.seller = (event.params.offer.side == Side.BID) ? event.params.taker : event.params.offer.maker;
+    feeCollected.collateralId = formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
+    feeCollected.fromEscrow = false;
+    feeCollected.timestamp = event.block.timestamp;
+    feeCollected.save();
+  }
 }
 
 // export function handleLoanOfferTaken(event: LoanOfferTakenEvent): void {

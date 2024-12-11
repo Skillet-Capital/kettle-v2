@@ -55,3 +55,26 @@ type Escrow @entity {
   timestamp: BigInt!
   status: String!
 }
+
+type Redemption @entity {
+  id: String!
+  redemptionHash: Bytes!
+  redeemer: Bytes!
+  collection: Bytes!
+  tokenId: BigInt!
+  collateralId: String!
+  currency: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+}
+
+type FeeCollection @entity {
+  id: Bytes!
+  fee: BigInt!
+  currency: Bytes!
+  buyer: Bytes!
+  seller: Bytes!
+  collateralId: String!
+  fromEscrow: Boolean!
+  timestamp: BigInt!
+}
