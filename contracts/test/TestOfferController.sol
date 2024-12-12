@@ -17,16 +17,6 @@ contract TestOfferController is Initializable, OwnableUpgradeable, OfferControll
         // _transferOwnership(msg.sender);
     }
 
-    function takeLoanOffer(
-        uint256 tokenId,
-        LoanOffer calldata offer,
-        uint256 amount,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) public returns (bytes32) {
-        return _takeLoanOffer(tokenId, amount, offer, signature, proof);
-    }
-
     function takeMarketOffer(
         uint256 tokenId,
         MarketOffer calldata offer,

@@ -14,16 +14,11 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
-    mapping(bytes32 => uint256) private _amountTaken;
    
     uint256[50] private _gap;
 
     function __OfferController_init() internal {
         __Signatures_init();
-    }
-
-    function amountTaken(bytes32 offerHash) external view returns (uint256) {
-        return _amountTaken[offerHash];
     }
 
     function _takeMarketOffer(
@@ -54,60 +49,6 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         emit MarketOfferTaken({
             tokenId: tokenId,
             taker: taker,
-            offer: offer
-        });
-    }
-
-    function _takeLoanOffer(
-        uint256 tokenId,
-        uint256 amount,
-        LoanOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) internal returns (bytes32 _hash) {
-        if (offer.taker != address(0) && offer.taker != msg.sender) {
-            revert InvalidTaker();
-        }
-        
-        _verifyCollateral(
-            offer.collateral.criteria,
-            offer.collateral.identifier,
-            tokenId,
-            proof
-        );
-
-        if (offer.terms.rate > _MAX_RATE || offer.terms.defaultRate > _MAX_RATE) {
-            revert InvalidRate();
-        }
-
-        _hash = _hashLoanOffer(offer);
-        _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
-
-        // check if borrowing from bid
-        if (offer.side == Side.BID) {
-            if (
-                amount > offer.terms.maxAmount ||
-                amount < offer.terms.minAmount
-            ) {
-                revert InvalidLoanAmount();
-            }
-
-            uint256 __amountTaken = _amountTaken[_hash];
-            if (offer.terms.amount - __amountTaken < amount) {
-                revert InsufficientOffer();
-            }
-
-            unchecked {
-                _amountTaken[_hash] = __amountTaken + amount;
-            }
-        } else {
-            cancelledOrFulfilled[offer.maker][offer.salt] = 1;
-        }
-
-        emit LoanOfferTaken({
-            principal: amount,
-            tokenId: tokenId,
-            taker: msg.sender,
             offer: offer
         });
     }
@@ -145,16 +86,17 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         uint256 salt,
         bytes calldata signature
     ) internal {
-        _verifyOfferAuthorization(offerHash, signer, signature);
-
         if (expiration < block.timestamp) {
             revert OfferExpired();
         }
+
         if (cancelledOrFulfilled[signer][salt] == 1) {
             revert OfferUnavailable();
         }
-    }
 
+        _verifyOfferAuthorization(offerHash, signer, signature);
+    }
+ 
     function _verifyCollateral(
         Criteria criteria,
         uint256 identifier,

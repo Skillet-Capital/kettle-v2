@@ -4,6 +4,15 @@ pragma solidity ^0.8.19;
 import "../Structs.sol";
 
 interface IKettle {
+
+    event AskMakerWhitelisted(address indexed maker, bool indexed whitelisted);
+    event BidTakerWhitelisted(address indexed taker, bool indexed whitelisted);
+    
+    event TokenSupplierUpdated(address indexed supplier);
+    event RedemptionAdminUpdated(address indexed admin);
+    event RedemptionWalletUpdated(address indexed wallet);
+    event RedemptionFeeCollectorUpdated(address indexed collector);
+    event EscrowLockTimeUpdated(uint256 indexed lockTime);
     
     event EscrowOpened(uint256 indexed escrowId, Escrow escrow);
     event EscrowSettled(uint256 indexed escrowId, uint256 indexed tokenId);

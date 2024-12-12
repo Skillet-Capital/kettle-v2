@@ -25,7 +25,6 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     uint256 private constant _BASIS_POINTS = 10_000;
 
     uint256 public lockTime;
-
     address public tokenSupplier;
     address public redemptionAdmin;
     address public redemptionWallet;
@@ -40,39 +39,76 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     uint256[50] private _gap;
 
-    function __Kettle_init(address owner) external initializer {
+    function __Kettle_init(
+        address owner,
+        address _tokenSupplier,
+        address _redemptionAdmin,
+        address _redemptionWallet,
+        address _redemptionFeeCollector
+    ) external initializer {
         __Ownable_init(owner);
         __OfferController_init();
 
-        lockTime = 30 days;
+        _setTokenSupplier(_tokenSupplier);
+        _setRedemptionAdmin(_redemptionAdmin);
+        _setRedemptionWallet(_redemptionWallet);
+        _setRedemptionFeeCollector(_redemptionFeeCollector);
+        _setLockTime(30 days);
     }
 
-    function whitelistAskMaker(address user, bool whitelisted) external onlyOwner() {
-        whitelistedAskMakers[user] = whitelisted;
+    function whitelistAskMaker(address maker, bool whitelisted) external onlyOwner() {
+        whitelistedAskMakers[maker] = whitelisted;
+        emit AskMakerWhitelisted(maker, whitelisted);
     }
 
-    function whitelistBidTaker(address user, bool whitelisted) external onlyOwner() {
-        whitelistedBidTakers[user] = whitelisted;
+    function whitelistBidTaker(address taker, bool whitelisted) external onlyOwner() {
+        whitelistedBidTakers[taker] = whitelisted;
+        emit BidTakerWhitelisted(taker, whitelisted);
     }
 
     function setTokenSupplier(address _tokenSupplier) external onlyOwner {
-        tokenSupplier = _tokenSupplier;
+        _setTokenSupplier(_tokenSupplier);
     }
 
     function setRedemptionAdmin(address _redemptionAdmin) external onlyOwner {
-        redemptionAdmin = _redemptionAdmin;
+        _setRedemptionAdmin(_redemptionAdmin);
     }
 
     function setRedemptionWallet(address _redemptionWallet) external onlyOwner {
-        redemptionWallet = _redemptionWallet;
+        _setRedemptionWallet(_redemptionWallet);
     }
 
     function setRedemptionFeeCollector(address _redemptionFeeCollector) external onlyOwner {
-        redemptionFeeCollector = _redemptionFeeCollector;
+        _setRedemptionFeeCollector(_redemptionFeeCollector);
     }
 
     function setLockTime(uint256 time) external onlyOwner {
+        _setLockTime(time);
+    }
+
+    function _setTokenSupplier(address _tokenSupplier) internal {
+        tokenSupplier = _tokenSupplier;
+        emit TokenSupplierUpdated(_tokenSupplier);
+    }
+
+    function _setRedemptionAdmin(address _redemptionAdmin) internal {
+        redemptionAdmin = _redemptionAdmin;
+        emit RedemptionAdminUpdated(_redemptionAdmin);
+    }
+
+    function _setRedemptionWallet(address _redemptionWallet) internal {
+        redemptionWallet = _redemptionWallet;
+        emit RedemptionWalletUpdated(_redemptionWallet);
+    }
+
+    function _setRedemptionFeeCollector(address _redemptionFeeCollector) internal {
+        redemptionFeeCollector = _redemptionFeeCollector;
+        emit RedemptionFeeCollectorUpdated(_redemptionFeeCollector);
+    }
+
+    function _setLockTime(uint256 time) internal {
         lockTime = time;
+        emit EscrowLockTimeUpdated(time);
     }
 
     // ==================================================
@@ -80,15 +116,12 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     // ==================================================
 
     function redeem(
-        address redeemer,
         RedemptionCharge calldata charge,
         bytes calldata signature
     ) external nonReentrant {
-        address _redeemer = (redeemer == address(0)) ? msg.sender : redeemer;
-
         bytes32 redemptionHash = _verifyRedemptionCharge(
             redemptionAdmin, 
-            _redeemer, 
+            msg.sender, 
             charge.tokenId, 
             charge.collection, 
             charge, 
@@ -97,10 +130,10 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         _redeemCollateral(
             redemptionHash,
-            _redeemer,
+            msg.sender,
             charge.collection,
             charge.tokenId,
-            _redeemer,
+            msg.sender,
             charge.currency,
             charge.amount,
             msg.sender
@@ -150,9 +183,21 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         _takeMarketOffer(tokenId, _taker, offer, signature, proof);
 
         if (offer.soft) {
-            _escrowPayments(_taker, offer.maker, bytes32(0), 0, offer);
+            _escrowPayments(
+                _taker, 
+                offer.maker, 
+                bytes32(0), 
+                0, 
+                offer
+            );
+            
         } else {
-            _settlePayments(msg.sender, offer.maker, offer);
+            _settlePayments(
+                msg.sender, 
+                offer.maker, 
+                offer
+            );
+
             offer.collateral.collection.safeTransferFrom(
                 offer.maker,
                 _taker,
@@ -244,11 +289,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         bytes32 redemptionHash,
         uint256 redemptionCharge,
         MarketOffer calldata offer
-    ) internal {
-        // if (offer.side == Side.BID && !whitelistedBidTakers[seller]) {
-        //     revert SellerCannotEscrowBid();
-        // }
-        
+    ) internal {        
         if (offer.side == Side.ASK && !whitelistedAskMakers[seller]) {
             revert SellerCannotEscrowAsk();
         }
@@ -281,7 +322,8 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         escrows[_escrowIndex] = _hashEscrow(escrow);
         escrowedTokens[offer.collateral.identifier] = true;
 
-        if (offer.terms.rebate > 0) {
+        // if seller rebate required, transfer rebate
+        if (rebate > 0) {
             offer.terms.currency.safeTransferFrom(
                 seller,
                 address(this),
@@ -289,6 +331,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             );
         }
 
+        // transfer redemption charge from buyer (msg.sender)
         if (redemptionCharge > 0) {
             offer.terms.currency.safeTransferFrom(
                 msg.sender,
@@ -297,6 +340,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             );
         }
 
+        // transfer offer amount from buyer (msg.sender)
         offer.terms.currency.safeTransferFrom(
             msg.sender,
             address(this),
@@ -408,7 +452,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         );
         
         // if redemption charge, return charge to buyer
-        if (escrow.redemptionHash != bytes32(0)) {
+        if (escrow.redemptionHash != bytes32(0) ) {
             escrow.currency.transfer(
                 escrow.buyer,
                 escrow.redemptionCharge
