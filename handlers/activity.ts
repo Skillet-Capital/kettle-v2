@@ -44,7 +44,8 @@ export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
   // if it is a hard offer, fee is collected on market offer taken
   if (!event.params.offer.soft) {
     const feeCollected = new FeeCollection(event.transaction.hash.concatI32(event.logIndex.toI32()));
-    feeCollected.fee = calculateFeeAmount(event.params.offer.terms.amount, event.params.offer.fee.rate);
+    feeCollected.amount = event.params.offer.terms.amount;
+    feeCollected.fee = event.params.offer.fee.rate;
     feeCollected.currency = event.params.offer.terms.currency;
     feeCollected.buyer = (event.params.offer.side == Side.BID) ? event.params.offer.maker : event.params.taker;
     feeCollected.seller = (event.params.offer.side == Side.BID) ? event.params.taker : event.params.offer.maker;

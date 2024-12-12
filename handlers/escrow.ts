@@ -55,7 +55,8 @@ export function handleEscrowSettled(event: EscrowSettledEvent): void {
   // collect fee here
   const feeCollected = new FeeCollection(event.transaction.hash.concatI32(event.logIndex.toI32()));
   feeCollected.currency = escrow.currency;
-  feeCollected.fee = calculateFeeAmount(escrow.amount, escrow.fee);
+  feeCollected.amount = escrow.amount;
+  feeCollected.fee = escrow.fee;
   feeCollected.buyer = escrow.buyer;
   feeCollected.seller = escrow.seller;
   feeCollected.collateralId = escrow.collateralId;
