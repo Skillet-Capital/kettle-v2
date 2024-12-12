@@ -13,6 +13,7 @@ interface IKettle {
     event RedemptionWalletUpdated(address indexed wallet);
     event RedemptionFeeCollectorUpdated(address indexed collector);
     event EscrowLockTimeUpdated(uint256 indexed lockTime);
+    event EscrowSettlerUpdated(address indexed settler);
     
     event EscrowOpened(uint256 indexed escrowId, Escrow escrow);
     event EscrowSettled(uint256 indexed escrowId, uint256 indexed tokenId);

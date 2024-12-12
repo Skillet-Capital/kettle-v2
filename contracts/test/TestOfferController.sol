@@ -9,8 +9,8 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 
 contract TestOfferController is Initializable, OwnableUpgradeable, OfferController {
 
-    function initialize() public initializer {
-        __OfferController_init();
+    function initialize(address _offerManager) public initializer {
+        __OfferController_init(_offerManager);
         __Signatures_init();
 
         __Ownable_init(msg.sender);

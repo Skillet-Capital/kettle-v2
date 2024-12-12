@@ -29,6 +29,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     address public redemptionAdmin;
     address public redemptionWallet;
     address public redemptionFeeCollector;
+    address public escrowSettler;
 
     uint256 private escrowIndex;
     mapping(uint256 => bytes32) public escrows;
@@ -44,16 +45,19 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         address _tokenSupplier,
         address _redemptionAdmin,
         address _redemptionWallet,
-        address _redemptionFeeCollector
+        address _redemptionFeeCollector,
+        address _escrowSettler,
+        address _offerManager
     ) external initializer {
         __Ownable_init(owner);
-        __OfferController_init();
+        __OfferController_init(_offerManager);
 
         _setTokenSupplier(_tokenSupplier);
         _setRedemptionAdmin(_redemptionAdmin);
         _setRedemptionWallet(_redemptionWallet);
         _setRedemptionFeeCollector(_redemptionFeeCollector);
         _setLockTime(30 days);
+        _setEscrowSettler(_escrowSettler);
     }
 
     function whitelistAskMaker(address maker, bool whitelisted) external onlyOwner() {
@@ -80,6 +84,10 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     function setRedemptionFeeCollector(address _redemptionFeeCollector) external onlyOwner {
         _setRedemptionFeeCollector(_redemptionFeeCollector);
+    }
+
+    function setEscrowSettler(address _escrowSettler) external onlyOwner {
+        _setEscrowSettler(_escrowSettler);
     }
 
     function setLockTime(uint256 time) external onlyOwner {
@@ -109,6 +117,11 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     function _setLockTime(uint256 time) internal {
         lockTime = time;
         emit EscrowLockTimeUpdated(time);
+    }
+
+    function _setEscrowSettler(address _escrowSettler) internal {
+        escrowSettler = _escrowSettler;
+        emit EscrowSettlerUpdated(_escrowSettler);
     }
 
     // ==================================================
@@ -190,7 +203,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
                 0, 
                 offer
             );
-            
+
         } else {
             _settlePayments(
                 msg.sender, 
@@ -394,7 +407,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         uint256 tokenId,
         uint256 escrowId, 
         Escrow calldata escrow
-    ) external validEscrow(escrowId, escrow) nonReentrant onlyOwner {
+    ) external validEscrow(escrowId, escrow) nonReentrant onlyOwnerOrEscrowSettler {
         uint256 netAmount = escrow.amount;
         if (escrow.fee > 0) {
             netAmount = _transferFees(
@@ -470,7 +483,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         bool returnRebate,
         uint256 escrowId, 
         Escrow calldata escrow
-    ) external validEscrow(escrowId, escrow) nonReentrant onlyOwner {
+    ) external validEscrow(escrowId, escrow) nonReentrant onlyOwnerOrEscrowSettler {
         if (returnRebate) {
             escrow.currency.transfer(
                 escrow.seller,
@@ -570,6 +583,13 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     modifier requireMarketOffer(OfferKind kind) {
         if (kind != OfferKind.MARKET) {
             revert InvalidMarketOffer();
+        }
+        _;
+    }
+
+    modifier onlyOwnerOrEscrowSettler() {
+        if(msg.sender != owner() && msg.sender != escrowSettler) {
+            revert OnlyEscrowSettlerOrOwner();
         }
         _;
     }

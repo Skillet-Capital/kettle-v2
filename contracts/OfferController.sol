@@ -13,12 +13,24 @@ import "./Structs.sol";
 contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
+    address public offerManager;
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
    
     uint256[50] private _gap;
 
-    function __OfferController_init() internal {
+    function __OfferController_init(address _offerManager) internal {
         __Signatures_init();
+
+        _setOfferManager(_offerManager);
+    }
+
+    function setOfferManager(address _offerManager) external onlyOwner {
+        _setOfferManager(_offerManager);
+    }
+
+    function _setOfferManager(address _offerManager) internal {
+        offerManager = _offerManager;
+        emit OfferManagerUpdated(_offerManager);
     }
 
     function _takeMarketOffer(
@@ -138,7 +150,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
      * @notice Cancels offers in bulk for caller
      * @param salts List of offer salts
      */
-    function cancelOffersForUser(address user, uint256[] calldata salts) external override onlyOwner {
+    function cancelOffersForUser(address user, uint256[] calldata salts) external override onlyOwnerOrOfferManager {
         uint256 saltsLength = salts.length;
         for (uint256 i; i < saltsLength; ) {
             _cancelOffer(msg.sender, user, salts[i]);
@@ -169,5 +181,12 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
      */
     function _incrementNonce(address user) internal {
         emit NonceIncremented(user, ++nonces[user]);
+    }
+
+    modifier onlyOwnerOrOfferManager() {
+        if (msg.sender != owner() && msg.sender != offerManager) {
+            revert OnlyOfferManagerOrOwner();
+        }
+        _;
     }
 }

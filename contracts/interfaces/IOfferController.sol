@@ -5,6 +5,8 @@ import "../Structs.sol";
 
 interface IOfferController {
 
+    event OfferManagerUpdated(address indexed offerManager);
+
     function incrementNonce() external;
     function cancelOffers(uint256[] calldata salts) external;
     function cancelOffersForUser(address user, uint256[] calldata salts) external;
