@@ -510,6 +510,16 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         });
     }
 
+    function saveFunds(
+        IERC20 currency,
+        uint256 amount
+    ) external onlyOwner {
+        currency.transfer(
+            msg.sender,
+            amount
+        );
+    }
+
     // ==================================================
     //               HELPER FUNCTIONS
     // ==================================================
