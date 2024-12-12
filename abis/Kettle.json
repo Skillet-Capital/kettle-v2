@@ -123,6 +123,16 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "OnlyEscrowSettlerOrOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyOfferManagerOrOwner",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -190,12 +200,63 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "address",
+        "name": "maker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "whitelisted",
+        "type": "bool"
+      }
+    ],
+    "name": "AskMakerWhitelisted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "whitelisted",
+        "type": "bool"
+      }
+    ],
+    "name": "BidTakerWhitelisted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "uint256",
         "name": "escrowId",
         "type": "uint256"
       }
     ],
     "name": "EscrowClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "lockTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "EscrowLockTimeUpdated",
     "type": "event"
   },
   {
@@ -325,6 +386,19 @@
       }
     ],
     "name": "EscrowSettled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "settler",
+        "type": "address"
+      }
+    ],
+    "name": "EscrowSettlerUpdated",
     "type": "event"
   },
   {
@@ -667,6 +741,19 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "offerManager",
+        "type": "address"
+      }
+    ],
+    "name": "OfferManagerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "previousOwner",
         "type": "address"
       },
@@ -724,35 +811,98 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      }
+    ],
+    "name": "RedemptionAdminUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "collector",
+        "type": "address"
+      }
+    ],
+    "name": "RedemptionFeeCollectorUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      }
+    ],
+    "name": "RedemptionWalletUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "supplier",
+        "type": "address"
+      }
+    ],
+    "name": "TokenSupplierUpdated",
+    "type": "event"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
         "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_tokenSupplier",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_redemptionAdmin",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_redemptionWallet",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_redemptionFeeCollector",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_escrowSettler",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_offerManager",
         "type": "address"
       }
     ],
     "name": "__Kettle_init",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "offerHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "amountTaken",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -898,6 +1048,19 @@
     "name": "claimEscrow",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "escrowSettler",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1733,6 +1896,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "offerManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -1781,11 +1957,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "redeemer",
-        "type": "address"
-      },
       {
         "components": [
           {
@@ -1983,12 +2154,56 @@
   {
     "inputs": [
       {
+        "internalType": "contract IERC20",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "saveFunds",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_escrowSettler",
+        "type": "address"
+      }
+    ],
+    "name": "setEscrowSettler",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "time",
         "type": "uint256"
       }
     ],
     "name": "setLockTime",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_offerManager",
+        "type": "address"
+      }
+    ],
+    "name": "setOfferManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -2170,7 +2385,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "user",
+        "name": "maker",
         "type": "address"
       },
       {
@@ -2188,7 +2403,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "user",
+        "name": "taker",
         "type": "address"
       },
       {
