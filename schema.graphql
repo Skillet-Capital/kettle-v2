@@ -78,3 +78,57 @@ type FeeCollection @entity {
   fromEscrow: Boolean!
   timestamp: BigInt!
 }
+
+type AskMakerWhitelist @entity {
+  id: Bytes!
+  address: Bytes!
+  whitelisted: Boolean!
+}
+
+type BidTakerWhitelist @entity {
+  id: Bytes!
+  address: Bytes!
+  whitelisted: Boolean!
+}
+
+type TokenSupplierUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}
+
+type RedemptionAdminUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}
+
+type RedemptionWalletUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}
+
+type RedemptionFeeCollectorUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}
+
+type EscrowLockTimeUpdate @entity {
+  id: Bytes!
+  lockTime: BigInt!
+  timestamp: BigInt!
+}
+
+type EscrowSettlerUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}
+
+type OfferManagerUpdate @entity {
+  id: Bytes!
+  address: Bytes!
+  timestamp: BigInt!
+}

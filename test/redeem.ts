@@ -64,7 +64,6 @@ describe("Redeem", function () {
     await collection.connect(redeemer).approve(_kettle, tokenId);
     await currency.connect(redeemer).approve(_kettle, chargeAmount);
     const txn = await _kettle.connect(redeemer).redeem(
-      ZeroAddress,
       charge,
       chargeSignature,
     );
@@ -110,49 +109,6 @@ describe("Redeem", function () {
       chargeSignature,
       redeemer,
     ).then(s => executeTakeSteps(redeemer, s));
-
-    // expect redemption
-    expect(await collection.ownerOf(tokenId)).to.equal(redemptionWallet);
-    expect(await currency.balanceOf(redemptionWallet)).to.equal(chargeAmount);
-
-    const receipt = await getReceipt(redeemer.provider!, txn);
-    const redemption = await parseRedemptionLog(receipt);
-
-    const redemptionHash = await _kettle.hashRedemptionCharge(redemptionAdmin, charge);
-    expect(redemption).to.deep.equal({
-      collection: await collection.getAddress(),
-      tokenId: tokenId,
-      currency: await currency.getAddress(),
-      amount: chargeAmount,
-      redeemer: await redeemer.getAddress(),
-      redemptionHash: redemptionHash
-    })
-  });
-
-  it("fulfiller should redeem asset for redeemer", async function () {
-    await collection.mint(redeemer, tokenId);
-    await currency.mint(fulfiller, amount);
-
-    const _fulfiller = await kettle.connect(fulfiller);
-
-    const chargeAmount = parseUnits("100", 18);
-    const signStep = await kettle.connect(redemptionAdmin).createRedemptionCharge({
-      redeemer,
-      collection,
-      tokenId,
-      currency,
-      amount: chargeAmount,
-      expiration: await time.latest() + 100
-    });
-
-    const { charge, signature: chargeSignature } = await signStep.sign(redemptionAdmin);
-
-    await collection.connect(redeemer).approve(_kettle, tokenId);
-    const txn = await _fulfiller.redeem(
-      charge,
-      chargeSignature,
-      fulfiller,
-    ).then(s => executeTakeSteps(fulfiller, s));
 
     // expect redemption
     expect(await collection.ownerOf(tokenId)).to.equal(redemptionWallet);

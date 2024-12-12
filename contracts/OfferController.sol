@@ -13,17 +13,24 @@ import "./Structs.sol";
 contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     uint256 private constant _MAX_RATE = 100_000;
 
+    address public offerManager;
     mapping(address => mapping(uint256 => uint256)) public cancelledOrFulfilled;
-    mapping(bytes32 => uint256) private _amountTaken;
    
     uint256[50] private _gap;
 
-    function __OfferController_init() internal {
+    function __OfferController_init(address _offerManager) internal {
         __Signatures_init();
+
+        _setOfferManager(_offerManager);
     }
 
-    function amountTaken(bytes32 offerHash) external view returns (uint256) {
-        return _amountTaken[offerHash];
+    function setOfferManager(address _offerManager) external onlyOwner {
+        _setOfferManager(_offerManager);
+    }
+
+    function _setOfferManager(address _offerManager) internal {
+        offerManager = _offerManager;
+        emit OfferManagerUpdated(_offerManager);
     }
 
     function _takeMarketOffer(
@@ -54,60 +61,6 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         emit MarketOfferTaken({
             tokenId: tokenId,
             taker: taker,
-            offer: offer
-        });
-    }
-
-    function _takeLoanOffer(
-        uint256 tokenId,
-        uint256 amount,
-        LoanOffer calldata offer,
-        bytes calldata signature,
-        bytes32[] calldata proof
-    ) internal returns (bytes32 _hash) {
-        if (offer.taker != address(0) && offer.taker != msg.sender) {
-            revert InvalidTaker();
-        }
-        
-        _verifyCollateral(
-            offer.collateral.criteria,
-            offer.collateral.identifier,
-            tokenId,
-            proof
-        );
-
-        if (offer.terms.rate > _MAX_RATE || offer.terms.defaultRate > _MAX_RATE) {
-            revert InvalidRate();
-        }
-
-        _hash = _hashLoanOffer(offer);
-        _validateOffer(_hash, offer.maker, offer.expiration, offer.salt, signature);
-
-        // check if borrowing from bid
-        if (offer.side == Side.BID) {
-            if (
-                amount > offer.terms.maxAmount ||
-                amount < offer.terms.minAmount
-            ) {
-                revert InvalidLoanAmount();
-            }
-
-            uint256 __amountTaken = _amountTaken[_hash];
-            if (offer.terms.amount - __amountTaken < amount) {
-                revert InsufficientOffer();
-            }
-
-            unchecked {
-                _amountTaken[_hash] = __amountTaken + amount;
-            }
-        } else {
-            cancelledOrFulfilled[offer.maker][offer.salt] = 1;
-        }
-
-        emit LoanOfferTaken({
-            principal: amount,
-            tokenId: tokenId,
-            taker: msg.sender,
             offer: offer
         });
     }
@@ -145,16 +98,17 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
         uint256 salt,
         bytes calldata signature
     ) internal {
-        _verifyOfferAuthorization(offerHash, signer, signature);
-
         if (expiration < block.timestamp) {
             revert OfferExpired();
         }
+
         if (cancelledOrFulfilled[signer][salt] == 1) {
             revert OfferUnavailable();
         }
-    }
 
+        _verifyOfferAuthorization(offerHash, signer, signature);
+    }
+ 
     function _verifyCollateral(
         Criteria criteria,
         uint256 identifier,
@@ -196,7 +150,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
      * @notice Cancels offers in bulk for caller
      * @param salts List of offer salts
      */
-    function cancelOffersForUser(address user, uint256[] calldata salts) external override onlyOwner {
+    function cancelOffersForUser(address user, uint256[] calldata salts) external override onlyOwnerOrOfferManager {
         uint256 saltsLength = salts.length;
         for (uint256 i; i < saltsLength; ) {
             _cancelOffer(msg.sender, user, salts[i]);
@@ -227,5 +181,12 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
      */
     function _incrementNonce(address user) internal {
         emit NonceIncremented(user, ++nonces[user]);
+    }
+
+    modifier onlyOwnerOrOfferManager() {
+        if (msg.sender != owner() && msg.sender != offerManager) {
+            revert OnlyOfferManagerOrOwner();
+        }
+        _;
     }
 }

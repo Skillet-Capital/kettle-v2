@@ -111,8 +111,8 @@ describe("Settle Escrow", function () {
     });
 
     it("should reject non-owner", async function () {
-      await expect(_kettle.connect(buyer).settleEscrow(42, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OwnableUnauthorizedAccount");
-      await expect(_kettle.connect(buyer).rejectEscrow(false, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OwnableUnauthorizedAccount");
+      await expect(_kettle.connect(buyer).settleEscrow(42, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OnlyEscrowSettlerOrOwner");
+      await expect(_kettle.connect(buyer).rejectEscrow(false, escrowId, escrow)).to.be.revertedWithCustomError(_kettle, "OnlyEscrowSettlerOrOwner");
     });
 
     it("should reject if escrow is invalid", async () => {

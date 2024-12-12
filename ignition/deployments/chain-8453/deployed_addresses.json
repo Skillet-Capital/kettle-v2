@@ -1,6 +1,6 @@
 {
-  "Kettle#KettleImplementation": "0xEcc2D25AD2A6109550937d4e6D69118913490F75",
-  "Kettle#KettleProxy": "0x14fc7A3A449468C35E8a9c9432F68c378E6485BE",
-  "Kettle#Kettle": "0x14fc7A3A449468C35E8a9c9432F68c378E6485BE",
-  "Kettle#KettleProxyAdmin": "0x48c857Aed3b237Cff3dc265E71278af68d7dbff6"
+  "kettle_dev#KettleImplementation": "0xEBf31346641f55464f662879212fD20ab7c23f04",
+  "kettle_dev#KettleProxy": "0x34C6507f5862b1fcdf2Ce837583969A93740b937",
+  "kettle_dev#Kettle": "0x34C6507f5862b1fcdf2Ce837583969A93740b937",
+  "kettle_dev#KettleProxyAdmin": "0x1217445C41ac6c7a87179E7AA69eA2094e97624b"
 }

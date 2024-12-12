@@ -5,19 +5,25 @@ import { ethers, upgrades } from "hardhat";
 import { Kettle__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export async function deployKettle() {
-  const [owner, recipient, tokenSupplier, redemptionAdmin, redemptionWallet, ...accounts] = await ethers.getSigners();
+  const [owner, recipient, tokenSupplier, redemptionAdmin, redemptionWallet, escrowSettler, offerManager, ...accounts] = await ethers.getSigners();
 
   // Deploy Kettle
   const Kettle = await ethers.getContractFactory("Kettle");
   const _kettle = await upgrades.deployProxy(Kettle, [
     await owner.getAddress(),
+    await tokenSupplier.getAddress(),
+    await redemptionAdmin.getAddress(),
+    await redemptionWallet.getAddress(),
+    await redemptionWallet.getAddress(),
+    await escrowSettler.getAddress(),
+    await offerManager.getAddress()
   ], { initializer: "__Kettle_init" });
 
-  // initialize signers
-  await _kettle.setTokenSupplier(tokenSupplier);
-  await _kettle.setRedemptionAdmin(redemptionAdmin);
-  await _kettle.setRedemptionWallet(redemptionWallet);
-  await _kettle.setRedemptionFeeCollector(redemptionWallet);
+  // // initialize signers
+  // await _kettle.setTokenSupplier(tokenSupplier);
+  // await _kettle.setRedemptionAdmin(redemptionAdmin);
+  // await _kettle.setRedemptionWallet(redemptionWallet);
+  // await _kettle.setRedemptionFeeCollector(redemptionWallet);
 
   // Deploy test currencies and assets
   const _currency = await ethers.deployContract("TestERC20", [18]);

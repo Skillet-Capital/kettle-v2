@@ -69,3 +69,6 @@ error TokenAlreadyEscrowed();
 
 error SellerCannotEscrowBid();
 error SellerCannotEscrowAsk();
+
+error OnlyEscrowSettlerOrOwner();
+error OnlyOfferManagerOrOwner();

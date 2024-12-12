@@ -294,6 +294,7 @@ export type Validation = {
     | "approval" 
     | "debt-covers-ask" 
     | "loan-max-amount"
+    | "whitelisted-ask-maker"
   valid: boolean;
   reason?: string;
 }
