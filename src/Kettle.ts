@@ -179,17 +179,11 @@ export class Kettle {
     const offer = await this._formatMarketOffer(_maker, input);
 
     // get approval steps
-    let approvalActions: SendStep[] = []; 
-    
-    if (offer.side === Side.BID || (offer.side === Side.ASK && !offer.soft)) {
-      const _approvalActions = await this._getCreateApprovalActions(
-          offer,
-          _maker,
-          input.lien
-        );
-
-      approvalActions.push(..._approvalActions);
-    }
+    let approvalActions: SendStep[] = await this._getCreateApprovalActions(
+        offer,
+        _maker,
+        input.lien
+      );
 
     let cancelSteps: SendStep[] = [];
     if (input.salt) {
@@ -242,11 +236,11 @@ export class Kettle {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
           this.kettleInterface.getFunction("redeem"),
-          [charge.redeemer, charge, signature]
+          [charge, signature]
         )
       },
       send: async (signer: Signer) => {
-        const txn = await this.contract.connect(signer).redeem(charge.redeemer, charge, signature);
+        const txn = await this.contract.connect(signer).redeem(charge, signature);
         return this._confirmTransaction(txn.hash);
       }
     } as const;
@@ -540,12 +534,6 @@ export class Kettle {
     ]
 
     if (offer.side === Side.BID) {
-      /**
-       * BID OFFER Validations
-       * - check the maker has enough currency
-       * - check the maker has enough currency approvals
-       * - check loan max amount is not exceeded
-       */
       validationPromises.push(...[
         currencyBalance(offer.maker, offer.terms.currency, this.provider)
           .then((balance) => ({
@@ -569,28 +557,8 @@ export class Kettle {
           }) as Validation)
       ])
 
-      // check that loan offer max amount is not exceeded
-      if (offer.kind === OfferKind.LOAN) {
-        validationPromises.push(
-          this.contract.amountTaken(this.hashLoanOffer(offer as LoanOffer))
-            .then((amountTaken) => ({
-              check: "loan-max-amount",
-              valid: BigInt(offer.terms.amount) - BigInt(amountTaken) >= BigInt((offer as LoanOffer).terms.maxAmount),
-              reason: "Loan offer max amount exceeded"
-            }))
-        );
-      }
-
     } else {
-      /**
-       * ASK OFFER Validations
-       * - check the maker has enough collateral (if not in lien)
-       * - check the maker has enough collateral approvals (if not in lien)
-       * - check the maker has enough currency approvals (if rebate)
-       * - check offer terms match lien (if lien)
-       * - check lien debt covers ask amount (if lien)
-       */
-      if (!(lien || offer.soft)) {
+      if (!offer.soft) {
         validationPromises.push(...[
           collateralBalance(offer.maker, offer.collateral.collection, offer.collateral.identifier, this.provider)
             .then((owns) => ({
@@ -627,30 +595,6 @@ export class Kettle {
       }
     }
 
-    if (lien) {
-      if (lienDefaulted(lien.startTime, lien.duration, lien.gracePeriod)) {
-        throw new Error("[match-terms]: Lien is defaulted");
-      }
-
-      this._matchTerms({
-        currency: offer.terms.currency,
-        collection: offer.collateral.collection,
-        tokenId: offer.side === Side.ASK ? offer.collateral.identifier : undefined
-      }, lien);
-
-      // if (offer.side === Side.ASK) {
-      //   const netAmount = BigInt(offer.terms.amount) - this.mulFee(offer.terms.amount, offer.fee.rate);
-      //   validationPromises.push(
-      //     this.currentDebt(lien)
-      //       .then(({ debt }) => ({
-      //         check: "debt-covers-ask",
-      //         valid: netAmount >= BigInt(debt),
-      //         reason: "Current lien debt exceeds ask amount"
-      //       }) as Validation)
-      //   );
-      // }
-    }
-
     await this._executeValidations(validationPromises);
   }
 
@@ -664,15 +608,7 @@ export class Kettle {
 
     const validationPromises: Promise<Validation>[] = [];
 
-    if (input.lien) {
-      this._matchTerms({
-        currency: input.offer.terms.currency,
-        collection: input.offer.collateral.collection,
-        tokenId: input.tokenId
-      }, input.lien);
-    }
-
-    if (input.offer.side === Side.BID && !input.lien) {
+    if (input.offer.side === Side.BID) {
       validationPromises.push(
         TestERC721__factory.connect(input.offer.collateral.collection, this.provider)
           .ownerOf(input.tokenId)
@@ -683,22 +619,10 @@ export class Kettle {
           }))
       );
 
-      if (input.offer.kind === OfferKind.LOAN) {
-        if (!input.amount) {
-          throw new Error("Take loan offer bid requires amount");
-        }
-
-        if (BigInt(input.amount) > BigInt((input.offer as LoanOffer).terms.maxAmount)) {
-          throw new Error("Amount exceeds loan max amount");
-        }
-      }
-
       if (input.offer.soft) {
         throw new Error("Cannot take soft offer as bid");
       }
     } else {
-      // TODO: validate amount needed if lender is buying asset in lien
-
       validationPromises.push(
         currencyBalance(user, input.offer.terms.currency, this.provider)
           .then((balance) => ({
@@ -729,32 +653,19 @@ export class Kettle {
           }) as Validation)
       );
     } else {
+      if (input.soft) {
+        validationPromises.push(
+          this.contract.whitelistedAskMakers(user)
+            .then((whitelisted) => ({
+              check: "whitelisted-ask-maker",
+              valid: whitelisted,
+              reason: "Maker is not whitelisted"
+            }) as Validation
+          )
+        )
+      }
 
-      if (input.lien) {
-        if (lienDefaulted(input.lien.startTime, input.lien.duration, input.lien.gracePeriod)) {
-          throw new Error("[match-terms]: Lien is defaulted");
-        }
-
-        this._matchTerms(
-          {
-            currency: await this._resolveAddress(input.currency),
-            collection: await this._resolveAddress(input.collection),
-            tokenId: input.side === Side.ASK ? input.identifier : undefined
-          },
-          input.lien
-        );
-
-        // const netAmount = BigInt(input.amount) - this.mulFee(input.amount, input.fee);
-        // validationPromises.push(
-        //   this.currentDebt(input.lien)
-        //     .then(({ debt }) => ({
-        //       check: "debt-covers-ask",
-        //       valid: netAmount >= BigInt(debt),
-        //       reason: "Current lien debt exceeds ask amount"
-        //     }) as Validation)
-        // );
-      } else if (!input.soft) {
-
+      if (!input.soft) {
         validationPromises.push(
           collateralBalance(user, await this._resolveAddress(input.collection), input.identifier, this.provider)
             .then((owns) => ({
@@ -767,27 +678,6 @@ export class Kettle {
     }
 
     await this._executeValidations(validationPromises);
-  }
-
-  private _matchTerms(
-    input: {
-      tokenId?: Numberish,
-      currency: string,
-      collection: string,
-    },
-    lien: Lien,
-  ): void {
-    if (!equalAddresses(input.currency, lien.currency)) {
-      throw new Error("[match-terms]: Currency mismatch");
-    }
-
-    if (!equalAddresses(input.collection, lien.collection)) {
-      throw new Error("[match-terms]: Collection mismatch");
-    }
-
-    if (input.tokenId && input.tokenId != lien.tokenId) {
-      throw new Error("[match-terms]: TokenId mismatch");
-    }
   }
 
   private async _executeValidations(validations: Promise<Validation>[]): Promise<void> {
@@ -960,8 +850,8 @@ export class Kettle {
 
     } else {
 
-      // only get erc721 approvals if not in lien
-      if (!(lien && equalAddresses(lien.borrower, maker))) {
+      // only get erc721 approvals if not soft offer
+      if (!offer.soft) {
         const _approvalActions = await this._erc721Approvals(
           maker,
           offer.collateral.collection
