@@ -151,7 +151,7 @@ export type LienWithLender = {
   startTime: Numberish;
 }
 
-export type OfferWithHash = (MarketOffer | LoanOffer) & { hash: string };
+export type OfferWithHash = (MarketOffer) & { hash: string };
 
 // ==============================================
 //                INPUT TYPES
@@ -295,6 +295,7 @@ export type Validation = {
     | "debt-covers-ask" 
     | "loan-max-amount"
     | "whitelisted-ask-maker"
+    | "escrow-exists"
   valid: boolean;
   reason?: string;
 }

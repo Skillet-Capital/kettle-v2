@@ -1,18 +1,14 @@
 import { ContractCallContext, ContractCallResults, Multicall } from "ethereum-multicall";
 import { BigNumber } from "@ethersproject/bignumber";
 
-import { LoanOffer, MarketOffer, MulticallValidation, OfferKind, OfferWithHash, Side } from "../types";
+import { MarketOffer, MulticallValidation, OfferWithHash, Side } from "../types";
 import { equalAddresses } from "../utils/equalAddresses";
 
 import { buildAvailabilityValidationsContext } from "./availability";
 import { buildCollateralValidationsContext } from "./collaterals";
 import { buildTermsValidationsContext } from "./terms";
-import { buildAmountTakenContext } from "./lending";
 import { getEpoch } from "../utils";
-
-function formatCollateralId(collection: string, tokenId: string): string {
-  return `${collection}/${tokenId}`;
-}
+import { buildSoftCollateralValidationsContext } from "./soft-collateral";
 
 export async function validateOffers(
   kettleAddress: string,
@@ -39,18 +35,19 @@ export async function validateOffers(
       uniqueOffers,
       kettleAddress,
     ),
-    ...buildAmountTakenContext(
-      uniqueOffers.filter(({ kind, side }) => kind == OfferKind.LOAN && side == Side.BID),
-      kettleAddress,
-    ),
-
     // soft validations check for ownership and approval of collateral (not intended for deletion)
     ...(soft ? [
 
-      // validate collateral for asks
+      // validate collateral for hard asks
       ...buildCollateralValidationsContext(
-        uniqueOffers.filter(({ side }) => side == Side.ASK),
+        uniqueOffers.filter(({ side, soft }) => side == Side.ASK && !soft),
         kettleAddress,
+      ),
+
+      // validate collateral for soft asks
+      ...buildSoftCollateralValidationsContext(
+        uniqueOffers.filter(({ side, soft }) => side == Side.ASK && soft),
+        kettleAddress
       ),
 
       // validate terms for bids
@@ -66,9 +63,8 @@ export async function validateOffers(
   if (!results || !results.results) return {};
 
   const availabilityValidations = checkAvailabilityValidations(offers, results);
-  const amountTakenValidations = checkAmountTakenValidations(offers, results);
-
   const collateralValidations = soft ? checkCollateralValidations(offers, results) : {};
+  const softCollateralValidations = soft ? checkSoftCollateralValidations(offers, results) : {};
   const termsValidations = soft ? checkTermsValidations(offers, results) : {};
 
   return Object.fromEntries(offers.map((offer) => {
@@ -86,9 +82,9 @@ export async function validateOffers(
     ]
 
     const availability = availabilityValidations[_salt];
-    const amountTakenValidation = amountTakenValidations[_salt];
     const termsValidation = termsValidations[_salt];
     const collateralValidation = collateralValidations[_salt];
+    const softCollateralValidation = softCollateralValidations[_salt];
 
     // check if availability validation failed
     if (!availability) return [
@@ -108,27 +104,6 @@ export async function validateOffers(
         valid: false
       }
     ];
-
-    // check if amount taken validation failed
-    if (kind == OfferKind.LOAN && side == Side.BID) {
-      if (!amountTakenValidation) return [
-        _salt,
-        {
-          check: "validation",
-          reason: "Amount taken validation failed",
-          valid: false
-        }
-      ]
-
-      if (!amountTakenValidation.valid) return [
-        _salt,
-        {
-          check: amountTakenValidation.check,
-          reason: amountTakenValidation.reason,
-          valid: false
-        }
-      ]
-    }
 
     if (soft) {
       if (side === Side.BID) {
@@ -151,8 +126,28 @@ export async function validateOffers(
         ]
       }
 
-      if (side === Side.ASK) {
+      if (side === Side.ASK && !soft) {
         if (!collateralValidation) return [
+          _salt,
+          {
+            check: "validation",
+            reason: "Collateral validation failed",
+            valid: false
+          }
+        ]
+
+        if (!collateralValidation.valid) return [
+          _salt,
+          {
+            check: collateralValidation.check,
+            reason: collateralValidation.reason,
+            valid: false
+          }
+        ]
+      }
+
+      if (side === Side.ASK && soft) {
+        if (!softCollateralValidation) return [
           _salt,
           {
             check: "validation",
@@ -182,7 +177,7 @@ export async function validateOffers(
 }
 
 function checkAvailabilityValidations(
-  offers: (MarketOffer | LoanOffer)[],
+  offers: MarketOffer[],
   _results: ContractCallResults
 ): MulticallValidation {
   const { results } = _results;
@@ -238,58 +233,13 @@ function checkAvailabilityValidations(
   }));
 }
 
-function checkAmountTakenValidations(
-  offers: OfferWithHash[],
-  _results: ContractCallResults
-): MulticallValidation {
-  const { results } = _results;
-
-  return Object.fromEntries(offers.filter(({ kind, side }) => kind == OfferKind.LOAN && side == Side.BID).map((offer) => {
-    const { hash, salt } = offer;
-    const _salt = salt.toString();
-
-    const amountTaken = results["kettle-amount-taken"]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === hash
-        && callReturn.methodName === "amountTaken"
-      )
-    )?.returnValues[0] ?? null;
-
-    if (amountTaken === null) return [
-      _salt,
-      {
-        check: "validation",
-        reason: "Validation failed",
-        valid: false
-      }
-    ];
-
-    const amountRemaining = BigNumber.from((offer as LoanOffer).terms.amount).sub(amountTaken);
-    if (BigNumber.from(amountRemaining).lt((offer as LoanOffer).terms.maxAmount)) return [
-      _salt,
-      {
-        check: "amount-taken",
-        reason: "Amount taken",
-        valid: false
-      }
-    ];
-
-    return [
-      _salt,
-      {
-        valid: true
-      }
-    ]
-  }));
-}
-
 function checkCollateralValidations(
-  offers: (MarketOffer | LoanOffer)[],
+  offers: MarketOffer[],
   _results: ContractCallResults
 ): MulticallValidation {
   const { results } = _results;
 
-  return Object.fromEntries(offers.filter(({ side }) => side == Side.ASK).map((offer) => {
+  return Object.fromEntries(offers.filter(({ side, soft }) => side == Side.ASK && !soft).map((offer) => {
     const { salt, maker, collateral } = offer;
     const { identifier, collection } = collateral;
 
@@ -318,10 +268,10 @@ function checkCollateralValidations(
       }
     ];
 
-      if (!approved) return [
-        _salt,
-        {
-          check: "approval",
+    if (!approved) return [
+      _salt,
+      {
+        check: "approval",
         reason: "Collateral not approved",
         valid: false
       }
@@ -345,8 +295,70 @@ function checkCollateralValidations(
   }));
 }
 
+function checkSoftCollateralValidations(
+  offers: MarketOffer[],
+  _results: ContractCallResults
+): MulticallValidation {
+  const { results } = _results;
+
+  return Object.fromEntries(offers.filter(({ side, soft }) => side == Side.ASK && soft).map((offer) => {
+    const { salt, maker, collateral } = offer;
+    const { identifier, collection } = collateral;
+
+    const _salt = salt.toString();
+
+    const whitelisted = results["kettle-soft-offe"]?.callsReturnContext?.find(
+      (callReturn) => (
+        callReturn.reference === maker.toLowerCase()
+        && callReturn.methodName === "whitelistedAskMakers"
+      )
+    )?.returnValues[0] ?? null;
+
+    const escrowed = results["kettle-soft-offe"]?.callsReturnContext?.find(
+      (callReturn) => (
+        callReturn.reference === identifier.toString().toLowerCase()
+        && callReturn.methodName === "escrowedTokens"
+      )
+    )?.returnValues[0] ?? null;
+
+    if (whitelisted === null || escrowed === null) return [
+      _salt,
+      {
+        check: "validation",
+        reason: "Validation failed",
+        valid: false
+      }
+    ];
+
+    if (!whitelisted) return [
+      _salt,
+      {
+        check: "whitelisted",
+        reason: "Ask maker is not whitelisted",
+        valid: false
+      }
+    ];
+
+    if (escrowed) return [
+      _salt,
+      {
+        check: "already-escrowed",
+        reason: "Collateral is already escrowed",
+        valid: false
+      }
+    ];
+
+    return [
+      _salt,
+      {
+        valid: true
+      }
+    ]
+  }));
+}
+
 function checkTermsValidations(
-  offers: (MarketOffer | LoanOffer)[],
+  offers: MarketOffer[],
   _results: ContractCallResults
 ): MulticallValidation {
   const { results } = _results;

@@ -558,6 +558,27 @@ export class Kettle {
       ])
 
     } else {
+      if (offer.soft) {
+        validationPromises.push(
+          this.contract.whitelistedAskMakers(offer.maker)
+            .then((whitelisted) => ({
+              check: "whitelisted-ask-maker",
+              valid: whitelisted,
+              reason: "Maker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(offer.collateral.identifier)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
+            }) as Validation
+          )
+        )
+      }
+
       if (!offer.soft) {
         validationPromises.push(...[
           collateralBalance(offer.maker, offer.collateral.collection, offer.collateral.identifier, this.provider)
@@ -660,6 +681,15 @@ export class Kettle {
               check: "whitelisted-ask-maker",
               valid: whitelisted,
               reason: "Maker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(input.identifier)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
             }) as Validation
           )
         )
