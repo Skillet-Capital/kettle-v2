@@ -12,8 +12,8 @@
     "graph:build": "graph build base-dev.subgraph.yaml",
     "graph:create-dev": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev",
     "graph:deploy-dev": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev base-dev.subgraph.yaml --version-label v0.0.1",
-    "graph:create-prod": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-prod-dev",
-    "graph:deploy-prod": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-prod-dev base-prod.subgraph.yaml --version-label v0.0.1"
+    "graph:create-prod": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-prod",
+    "graph:deploy-prod": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-prod base-prod.subgraph.yaml --version-label v0.0.1"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
