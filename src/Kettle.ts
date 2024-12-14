@@ -558,6 +558,27 @@ export class Kettle {
       ])
 
     } else {
+      if (offer.soft) {
+        validationPromises.push(
+          this.contract.whitelistedAskMakers(offer.maker)
+            .then((whitelisted) => ({
+              check: "whitelisted-ask-maker",
+              valid: whitelisted,
+              reason: "Maker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(offer.collateral.identifier)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
+            }) as Validation
+          )
+        )
+      }
+
       if (!offer.soft) {
         validationPromises.push(...[
           collateralBalance(offer.maker, offer.collateral.collection, offer.collateral.identifier, this.provider)
@@ -660,6 +681,15 @@ export class Kettle {
               check: "whitelisted-ask-maker",
               valid: whitelisted,
               reason: "Maker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(input.identifier)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
             }) as Validation
           )
         )
@@ -1051,6 +1081,10 @@ export class Kettle {
 
   public hashLoanOffer(offer: LoanOffer): string {
     return TypedDataEncoder.hashStruct("LoanOffer", LOAN_OFFER_TYPE, offer);
+  }
+
+  public async makerWhitelisted(maker: Addressable | string): Promise<Boolean> {
+    return this.contract.whitelistedAskMakers(maker);
   }
 
   // public hashLien(lien: Lien): string {
