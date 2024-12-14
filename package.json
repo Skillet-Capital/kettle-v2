@@ -8,12 +8,12 @@
     "prepare": "npm run build",
     "lint": "eslint src/ handlers/",
     "lint-fix": "eslint src/ handlers/ --fix",
-    "codegen": "graph codegen base.subgraph.yaml",
-    "graph:build": "graph build base.subgraph.yaml",
-    "blast:create-dev": "source .env && graph create --node ${BLAST_GRAPH_URL}:8020/ kettle/kettle-v2-blast-dev",
-    "blast:deploy-dev": "source .env && graph deploy --node ${BLAST_GRAPH_URL}:8020/ --ipfs ${BLAST_GRAPH_URL}:5001 kettle/kettle-v2-blast-dev blast.subgraph.yaml --version-label v0.0.1",
-    "base:create-dev": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev",
-    "base:deploy-dev": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev base.subgraph.yaml --version-label v0.0.1"
+    "codegen": "graph codegen base-dev.subgraph.yaml",
+    "graph:build": "graph build base-dev.subgraph.yaml",
+    "graph:create-dev": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-base-dev",
+    "graph:deploy-dev": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-base-dev base-dev.subgraph.yaml --version-label v0.0.1",
+    "graph:create-prod": "source .env && graph create --node ${BASE_GRAPH_URL}:8020/ kettle/kettle-v2-prod-dev",
+    "graph:deploy-prod": "source .env && graph deploy --node ${BASE_GRAPH_URL}:8020/ --ipfs ${BASE_GRAPH_URL}:5001 kettle/kettle-v2-prod-dev base-prod.subgraph.yaml --version-label v0.0.1"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
