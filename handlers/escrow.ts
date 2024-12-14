@@ -1,4 +1,4 @@
-import { BigInt, Bytes, log } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes, log } from "@graphprotocol/graph-ts";
 
 import {
   EscrowOpened as EscrowOpenedEvent,
@@ -13,6 +13,7 @@ import {
 } from "../generated/schema";
 
 import {
+  formatCollateralId,
   formatEscrowId,
   formatPlaceholder,
   formatPlaceholderId
@@ -49,6 +50,8 @@ export function handleEscrowSettled(event: EscrowSettledEvent): void {
   const escrow = Escrow.load(formatEscrowId(event.address, event.params.escrowId)) as Escrow;
   escrow.status = "settled";
   escrow.tokenId = event.params.tokenId;
+  escrow.settlementCollateralId = formatCollateralId(Address.fromBytes(escrow.collection), event.params.tokenId);
+  escrow.settlementTimestamp = event.block.timestamp;
   escrow.save();
 
   // collect fee here

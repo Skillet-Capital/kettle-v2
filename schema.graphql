@@ -41,6 +41,7 @@ type Escrow @entity {
   buyer: Bytes!
   seller: Bytes!
   collateralId: String!
+  settlementCollateralId: String
   collection: Bytes!
   placeholder: Bytes!
   tokenId: BigInt
@@ -53,6 +54,7 @@ type Escrow @entity {
   redemptionCharge: BigInt!
   lockTime: BigInt!
   timestamp: BigInt!
+  settlementTimestamp: BigInt
   status: String!
 }
 
