@@ -156,11 +156,11 @@ export async function validateOffers(
           }
         ]
 
-        if (!collateralValidation.valid) return [
+        if (!softCollateralValidation.valid) return [
           _salt,
           {
-            check: collateralValidation.check,
-            reason: collateralValidation.reason,
+            check: softCollateralValidation.check,
+            reason: softCollateralValidation.reason,
             valid: false
           }
         ]
@@ -201,7 +201,7 @@ function checkAvailabilityValidations(
       _salt,
       {
         check: "validation",
-        reason: "Validation failed",
+        reason: "Availability Validation failed",
         valid: false
       }
     ];
@@ -263,7 +263,7 @@ function checkCollateralValidations(
       _salt,
       {
         check: "validation",
-        reason: "Validation failed",
+        reason: "Hard Collateral Validation failed",
         valid: false
       }
     ];
@@ -307,14 +307,14 @@ function checkSoftCollateralValidations(
 
     const _salt = salt.toString();
 
-    const whitelisted = results["kettle-soft-offe"]?.callsReturnContext?.find(
+    const whitelisted = results["kettle-soft-offer"]?.callsReturnContext?.find(
       (callReturn) => (
         callReturn.reference === maker.toLowerCase()
         && callReturn.methodName === "whitelistedAskMakers"
       )
     )?.returnValues[0] ?? null;
 
-    const escrowed = results["kettle-soft-offe"]?.callsReturnContext?.find(
+    const escrowed = results["kettle-soft-offer"]?.callsReturnContext?.find(
       (callReturn) => (
         callReturn.reference === identifier.toString().toLowerCase()
         && callReturn.methodName === "escrowedTokens"
@@ -325,7 +325,7 @@ function checkSoftCollateralValidations(
       _salt,
       {
         check: "validation",
-        reason: "Validation failed",
+        reason: "Soft Collateral Validation failed",
         valid: false
       }
     ];
@@ -387,7 +387,7 @@ function checkTermsValidations(
       offer.salt,
       {
         check: "validation",
-        reason: "Validation failed",
+        reason: "Offer Terms Validation failed",
         valid: false
       }
     ];
