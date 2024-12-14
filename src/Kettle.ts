@@ -1083,6 +1083,10 @@ export class Kettle {
     return TypedDataEncoder.hashStruct("LoanOffer", LOAN_OFFER_TYPE, offer);
   }
 
+  public async makerWhitelisted(maker: Addressable | string): Promise<Boolean> {
+    return this.contract.whitelistedAskMakers(maker);
+  }
+
   // public hashLien(lien: Lien): string {
   //   // TODO: implement abi coder
   //   return "";
