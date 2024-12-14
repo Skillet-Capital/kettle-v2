@@ -2,5 +2,9 @@
   "kettle_dev#KettleImplementation": "0xEBf31346641f55464f662879212fD20ab7c23f04",
   "kettle_dev#KettleProxy": "0x34C6507f5862b1fcdf2Ce837583969A93740b937",
   "kettle_dev#Kettle": "0x34C6507f5862b1fcdf2Ce837583969A93740b937",
-  "kettle_dev#KettleProxyAdmin": "0x1217445C41ac6c7a87179E7AA69eA2094e97624b"
+  "kettle_dev#KettleProxyAdmin": "0x1217445C41ac6c7a87179E7AA69eA2094e97624b",
+  "kettle_prod#KettleImplementation": "0x674da1C4c839819Ded66326d1c02bD9f10a4f891",
+  "kettle_prod#KettleProxy": "0x0d5212403Be4dA94765e7b75F5842ff2290e34E1",
+  "kettle_prod#Kettle": "0x0d5212403Be4dA94765e7b75F5842ff2290e34E1",
+  "kettle_prod#KettleProxyAdmin": "0xeDb60919E24706e7aa67346035273e24eB61A330"
 }
