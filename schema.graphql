@@ -71,6 +71,7 @@ type Redemption @entity {
 type FeeCollection @entity {
   id: Bytes!
   fee: BigInt!
+  amount: BigInt!
   currency: Bytes!
   buyer: Bytes!
   seller: Bytes!
