@@ -8,6 +8,7 @@ import {
 } from "../generated/Kettle/Kettle";
 
 import {
+  Activity,
   Escrow,
   FeeCollection
 } from "../generated/schema";
@@ -18,6 +19,7 @@ import {
   formatPlaceholder,
   formatPlaceholderId
 } from "./helpers";
+import { ActivityType } from "./types";
 
 export function handleEscrowOpened(event: EscrowOpenedEvent): void {
   const escrow = new Escrow(formatEscrowId(event.address, event.params.escrowId));
@@ -65,6 +67,17 @@ export function handleEscrowSettled(event: EscrowSettledEvent): void {
   feeCollected.timestamp = event.block.timestamp;
   feeCollected.fromEscrow = true;
   feeCollected.save();
+
+  const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  activity.type = ActivityType.ESCROW_SETTLED;
+  activity.maker = escrow.seller;
+  activity.taker = escrow.buyer;
+  activity.collateralId = formatCollateralId(Address.fromBytes(escrow.collection), event.params.tokenId);
+  activity.currency = escrow.currency;
+  activity.amount = escrow.amount;
+  activity.timestamp = event.block.timestamp;
+  activity.txn = event.transaction.hash;
+  activity.save();
 }
 
 export function handleEscrowClaimed(event: EscrowClaimedEvent): void {
@@ -77,4 +90,15 @@ export function handleEscrowRejected(event: EscrowRejectedEvent): void {
   const escrow = Escrow.load(formatEscrowId(event.address, event.params.escrowId)) as Escrow;
   escrow.status = "rejected";
   escrow.save();
+
+  const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  activity.type = ActivityType.ESCROW_REJECTED;
+  activity.maker = escrow.seller;
+  activity.taker = escrow.buyer;
+  activity.collateralId = escrow.collateralId;
+  activity.currency = escrow.currency;
+  activity.amount = escrow.amount;
+  activity.timestamp = event.block.timestamp;
+  activity.txn = event.transaction.hash;
+  activity.save();
 }

@@ -19,6 +19,7 @@ import {
 
 import {
   formatCollateralId,
+  formatPlaceholderId,
 } from "./helpers";
 
 import {
@@ -27,12 +28,16 @@ import {
 
 export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
   const activity = new Activity(event.transaction.hash.concatI32(event.logIndex.toI32()));
-  activity.type = event.params.offer.side == Side.BID ? ActivityType.BID_TAKEN : ActivityType.ASK_TAKEN;
+  activity.type = event.params.offer.side == Side.BID 
+    ? ActivityType.BID_TAKEN 
+    : event.params.offer.soft
+      ? ActivityType.ESCROW_ASK
+      : ActivityType.ASK_TAKEN;
   activity.maker = event.params.offer.maker;
   activity.taker = event.params.taker;
-  activity.collateralId = formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
-  activity.collection = event.params.offer.collateral.collection;
-  activity.tokenId = event.params.tokenId;
+  activity.collateralId = event.params.offer.soft
+    ? formatPlaceholderId(event.params.offer.collateral.collection, event.params.tokenId)
+    : formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
   activity.currency = event.params.offer.terms.currency;
   activity.amount = event.params.offer.terms.amount;
   activity.timestamp = event.block.timestamp;

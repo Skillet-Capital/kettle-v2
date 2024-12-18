@@ -4,8 +4,6 @@ type Activity @entity {
   maker: Bytes!
   taker: Bytes!
   collateralId: String!
-  collection: Bytes!
-  tokenId: BigInt!
   currency: Bytes!
   amount: BigInt!
   duration: BigInt
