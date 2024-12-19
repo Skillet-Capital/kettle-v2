@@ -816,13 +816,13 @@ export class Kettle {
           to: currency,
           data: TestERC20__factory.createInterface().encodeFunctionData(
             "approve",
-            [operator, useMax ? MaxUint256 : BigInt(amount) - allowance]
+            [operator, useMax ? MaxUint256 : BigInt(amount)]
           )
         },
         send: async (signer: Signer) => {
           const contract = TestERC20__factory.connect(currency, signer);
 
-          const wad = useMax ? MaxUint256 : BigInt(amount) - allowance;
+          const wad = useMax ? MaxUint256 : BigInt(amount);
           const txn = await contract.approve(operator, wad);
           return this._confirmTransaction(txn.hash);
         }
