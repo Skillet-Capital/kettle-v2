@@ -10,7 +10,8 @@ import {
 
 import {
   Activity,
-  FeeCollection
+  FeeCollection,
+  Sale
 } from "../generated/schema";
 
 import {
@@ -18,6 +19,7 @@ import {
 } from "./constants";
 
 import {
+  calculateFeeAmount,
   formatCollateralId,
   formatPlaceholderId,
 } from "./helpers";
@@ -56,6 +58,20 @@ export function handleMarketOfferTaken(event: MarketOfferTakenEvent): void {
     feeCollected.fromEscrow = false;
     feeCollected.timestamp = event.block.timestamp;
     feeCollected.save();
+
+    const sale = new Sale(event.transaction.hash.concatI32(event.logIndex.toI32()));
+    sale.type = "market";
+    sale.buyer = (event.params.offer.side == Side.BID) ? event.params.taker : event.params.offer.maker;
+    sale.seller = (event.params.offer.side == Side.BID) ? event.params.offer.maker : event.params.taker;
+    sale.collateralId = formatCollateralId(event.params.offer.collateral.collection, event.params.tokenId);
+    sale.collection = event.params.offer.collateral.collection;
+    sale.tokenId = event.params.tokenId;
+    sale.currency = event.params.offer.terms.currency;
+    sale.amount = event.params.offer.terms.amount;
+    sale.fee = calculateFeeAmount(event.params.offer.terms.amount, event.params.offer.fee.rate);
+    sale.timestamp = event.block.timestamp;
+    sale.txn = event.transaction.hash;
+    sale.save();
   }
 }
 
