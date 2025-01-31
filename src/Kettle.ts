@@ -1018,6 +1018,11 @@ export class Kettle {
     }
   }
 
+  public async signMarketOffer(offer: MarketOffer, signer: Signer): Promise<string> {
+    const domain = await this._getDomainData();
+    return signer.signTypedData(domain, MARKET_OFFER_TYPE, offer);
+  }
+
   private async _signMarketOffer(offer: MarketOffer, signer: Signer): Promise<string> {
     const domain = await this._getDomainData();
     return signer.signTypedData(domain, MARKET_OFFER_TYPE, offer);
