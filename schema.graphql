@@ -1,3 +1,18 @@
+type Sale @entity {
+  id: Bytes!
+  type: String!
+  buyer: Bytes!
+  seller: Bytes!
+  collateralId: String!
+  collection: Bytes!
+  tokenId: BigInt!
+  currency: Bytes!
+  amount: BigInt!
+  fee: BigInt!
+  timestamp: BigInt!
+  txn: Bytes!
+}
+
 type Activity @entity {
   id: Bytes!
   type: String!

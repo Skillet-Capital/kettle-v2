@@ -10,10 +10,12 @@ import {
 import {
   Activity,
   Escrow,
-  FeeCollection
+  FeeCollection,
+  Sale
 } from "../generated/schema";
 
 import {
+  calculateFeeAmount,
   formatCollateralId,
   formatEscrowId,
   formatPlaceholder,
@@ -78,6 +80,20 @@ export function handleEscrowSettled(event: EscrowSettledEvent): void {
   activity.timestamp = event.block.timestamp;
   activity.txn = event.transaction.hash;
   activity.save();
+
+  const sale = new Sale(event.transaction.hash.concatI32(event.logIndex.toI32()));
+  sale.type = "escrow";
+  sale.buyer = escrow.buyer;
+  sale.seller = escrow.seller;
+  sale.collateralId = formatCollateralId(Address.fromBytes(escrow.collection), event.params.tokenId);
+  sale.collection = escrow.collection;
+  sale.tokenId = event.params.tokenId;
+  sale.currency = escrow.currency;
+  sale.amount = escrow.amount;
+  sale.fee = calculateFeeAmount(escrow.amount, escrow.fee);
+  sale.timestamp = escrow.timestamp;
+  sale.txn = event.transaction.hash;
+  sale.save();
 }
 
 export function handleEscrowClaimed(event: EscrowClaimedEvent): void {
