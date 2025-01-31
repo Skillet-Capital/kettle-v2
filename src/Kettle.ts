@@ -402,8 +402,9 @@ export class Kettle {
       },
       send: async (signer: Signer) => {
         const owner = await this.contract.owner();
-        if (!equalAddresses(owner, await signer.getAddress())) {
-          throw new Error("Signer is not owner");
+        const settler = await this.contract.escrowSettler();
+        if (!(equalAddresses(owner, await signer.getAddress()) || equalAddresses(settler, await signer.getAddress()))) {
+          throw new Error("Signer is not owner or settler");
         }
 
         const txn = await this.contract.connect(signer).settleEscrow(
