@@ -481,6 +481,33 @@ export class Kettle {
     return [cancelAction];
   }
 
+  public async cancelOffersForUser(user: string, salts: Numberish[]): Promise<SendStep[]> {
+    const cancelAction: SendStep = {
+      action: StepAction.SEND,
+      type: "cancel-offers-for-user",
+      userOp: {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("cancelOffersForUser"),
+          [user, salts]
+        )
+      },
+      send: async (signer: Signer) => {
+        const offerManager = await this.contract.offerManager();
+        const owner = await this.contract.owner();
+        
+        if (!(equalAddresses(owner, await signer.getAddress()) || equalAddresses(offerManager, await signer.getAddress()))) {
+          throw new Error("Signer is not owner or offer manager");
+        }
+
+        const txn = await this.contract.connect(signer).cancelOffersForUser(user, salts);
+        return this._confirmTransaction(txn.hash);
+      }
+    };
+
+    return [cancelAction];
+  }
+
   // ==============================================
   //                 VALIDATIONS
   // ==============================================
