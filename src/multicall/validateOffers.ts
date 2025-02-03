@@ -68,7 +68,7 @@ export async function validateOffers(
   const termsValidations = soft ? checkTermsValidations(offers, results) : {};
 
   return Object.fromEntries(offers.map((offer) => {
-    const { salt, side, kind, expiration } = offer;
+    const { salt, side, kind, soft: softOffer, expiration } = offer;
     const _salt = salt.toString();
 
     // check if offer has expired
@@ -126,7 +126,7 @@ export async function validateOffers(
         ]
       }
 
-      if (side === Side.ASK && !soft) {
+      if (side === Side.ASK && !softOffer) {
         if (!collateralValidation) return [
           _salt,
           {
@@ -146,7 +146,7 @@ export async function validateOffers(
         ]
       }
 
-      if (side === Side.ASK && soft) {
+      if (side === Side.ASK && softOffer) {
         if (!softCollateralValidation) return [
           _salt,
           {
