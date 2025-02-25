@@ -1,71 +1,74 @@
-import { ContractCallContext, ContractCallResults, Multicall } from "ethereum-multicall";
 import { BigNumber } from "@ethersproject/bignumber";
-
+import { createPublicClient, http, MulticallResults } from "viem"
+import { base } from "viem/chains"
 import { MarketOffer, MulticallValidation, OfferWithHash, Side } from "../types";
 import { equalAddresses } from "../utils/equalAddresses";
-
-import { buildAvailabilityValidationsContext } from "./availability";
-import { buildCollateralValidationsContext } from "./collaterals";
-import { buildTermsValidationsContext } from "./terms";
+import { buildViemAvailabilityValidationsContext } from "./viemAvailability";
+import { buildViemCollateralValidationsContext } from "./viemCollateralValidations";
+import { buildViemSoftCollateralValidationsContext } from "./viemSoftCollateralValidations";
+import { buildViemTermsValidationsContext } from "./viemTerms";
 import { getEpoch } from "../utils";
-import { buildSoftCollateralValidationsContext } from "./soft-collateral";
 
 export async function validateOffers(
-  kettleAddress: string,
+  kettleAddress: `0x${string}`,
   rpcUrl: string,
   offers: OfferWithHash[],
   soft: boolean = true
 ): Promise<MulticallValidation> {
 
-  // create multicall instance
-  const multicall = new Multicall({
-    multicallCustomContractAddress: "0xcA11bde05977b3631167028862bE2a173976CA11",
-    nodeUrl: rpcUrl,
-    tryAggregate: true
-  });
+  const client = createPublicClient({
+    batch: { multicall: true },
+    chain: base,
+    transport: http(rpcUrl)
+  })
 
   // remove duplicate offers
-  const uniqueOffers = offers.filter(
+  const uniqueOffers: OfferWithHash[] = offers.filter(
     (offer, index, self) => self.findIndex((o) => o.salt === offer.salt) === index,
   );
 
+  const hardAsks: OfferWithHash[] = uniqueOffers.filter(({ side, soft }) => side == Side.ASK && !soft)
+  const softAsks: OfferWithHash[] = uniqueOffers.filter(({ side, soft }) => side == Side.ASK && soft)
+  const softBids: OfferWithHash[] = uniqueOffers.filter(({ side }) => side == Side.BID && soft)
+
   // build context for multicall
-  const callContext: ContractCallContext[] = [
-    ...buildAvailabilityValidationsContext(
-      uniqueOffers,
-      kettleAddress,
-    ),
-    // soft validations check for ownership and approval of collateral (not intended for deletion)
-    ...(soft ? [
+  const { cancelledOrFulfilledCalls, noncesCalls } = buildViemAvailabilityValidationsContext(uniqueOffers, kettleAddress)
 
-      // validate collateral for hard asks
-      ...buildCollateralValidationsContext(
-        uniqueOffers.filter(({ side, soft }) => side == Side.ASK && !soft),
-        kettleAddress,
-      ),
+  const { ownerOfCalls, isApprovedForAllCalls } = soft ? buildViemCollateralValidationsContext(
+    hardAsks,
+    kettleAddress,
+  ) : { ownerOfCalls: [], isApprovedForAllCalls: [] }
 
-      // validate collateral for soft asks
-      ...buildSoftCollateralValidationsContext(
-        uniqueOffers.filter(({ side, soft }) => side == Side.ASK && soft),
-        kettleAddress
-      ),
+  const { whitelistedAskMakersCalls, escrowedTokensCalls } = soft ? buildViemSoftCollateralValidationsContext(
+    softAsks,
+    kettleAddress
+  ) : { whitelistedAskMakersCalls: [], escrowedTokensCalls: [] }
 
-      // validate terms for bids
-      ...buildTermsValidationsContext(
-        uniqueOffers.filter(({ side }) => side == Side.BID),
-        kettleAddress,
-      ),
-    ] : [])
-  ];
+  const { allowanceCalls, balanceOfCalls } = soft ? buildViemTermsValidationsContext(
+    softBids,
+    kettleAddress,
+  ) : { allowanceCalls: [], balanceOfCalls: [] }
 
-  // call multicall
-  const results: ContractCallResults = await multicall.call(callContext);
-  if (!results || !results.results) return {};
+  const [
+    cancelledOrFulfilledResults, noncesResults,
+    ownerOfResults, isApprovedForAllResults,
+    whitelistedAskMakersResults, escrowedTokensResults,
+    allowResults, balanceOfResults
+  ] = await Promise.all([
+    client.multicall({ contracts: cancelledOrFulfilledCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }),
+    client.multicall({ contracts: noncesCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }),
+    soft ? client.multicall({ contracts: ownerOfCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+    soft ? client.multicall({ contracts: isApprovedForAllCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+    soft ? client.multicall({ contracts: whitelistedAskMakersCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+    soft ? client.multicall({ contracts: escrowedTokensCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+    soft ? client.multicall({ contracts: allowanceCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+    soft ? client.multicall({ contracts: balanceOfCalls, multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11" }) : [],
+  ]);
 
-  const availabilityValidations = checkAvailabilityValidations(offers, results);
-  const collateralValidations = soft ? checkCollateralValidations(offers, results) : {};
-  const softCollateralValidations = soft ? checkSoftCollateralValidations(offers, results) : {};
-  const termsValidations = soft ? checkTermsValidations(offers, results) : {};
+  const availabilityValidations = checkAvailabilityValidations(uniqueOffers, cancelledOrFulfilledResults, noncesResults);
+  const collateralValidations = soft ? checkCollateralValidations(hardAsks, ownerOfResults, isApprovedForAllResults) : {};
+  const softCollateralValidations = soft ? checkSoftCollateralValidations(softAsks, whitelistedAskMakersResults, escrowedTokensResults) : {};
+  const termsValidations = soft ? checkTermsValidations(softBids, allowResults, balanceOfResults) : {};
 
   return Object.fromEntries(offers.map((offer) => {
     const { salt, side, kind, soft: softOffer, expiration } = offer;
@@ -173,93 +176,93 @@ export async function validateOffers(
         valid: true
       }
     ]
-  }))
+  }));
 }
 
 function checkAvailabilityValidations(
   offers: MarketOffer[],
-  _results: ContractCallResults
-): MulticallValidation {
-  const { results } = _results;
+  cancelledOrFulfilledResults: any,
+  noncesResults: any
+): any {
 
-  return Object.fromEntries(offers.map((offer) => {
-    const { maker, salt } = offer;
-    const _salt = salt.toString();
+  return Object.fromEntries(
+    offers.map((offer, index) => {
+      const { salt, nonce } = offer;
+      const _salt = salt.toString();
 
-    const cancelledOrFulfilled = results["kettle-availability"]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === `${maker}-${salt}`.toLowerCase()
-        && callReturn.methodName === "cancelledOrFulfilled"
-      )
-    )?.returnValues[0];
+      // Get the corresponding results by index
+      const cancelledOrFulfilled = cancelledOrFulfilledResults[index];
+      const currentNonce = noncesResults[index];
 
-    const nonce = results["kettle-availability"]?.callsReturnContext?.find(
-      (callReturn) => equalAddresses(callReturn.reference, maker) && callReturn.methodName === "nonces"
-    )?.returnValues[0];
-
-    if (!cancelledOrFulfilled || !nonce) return [
-      _salt,
-      {
-        check: "validation",
-        reason: "Availability Validation failed",
-        valid: false
+      // Check for errors in the multicall results
+      if (
+        cancelledOrFulfilled.status !== "success" ||
+        currentNonce.status !== "success"
+      ) {
+        return [
+          _salt,
+          {
+            check: "validation",
+            reason: "Availability validation failed: Error in multicall",
+            valid: false
+          }
+        ];
       }
-    ];
 
-    if (BigNumber.from(cancelledOrFulfilled).eq(1)) return [
-      _salt,
-      {
-        check: "cancelled",
-        reason: "Offer cancelled or fulfilled",
-        valid: false
+      // Check if the offer was cancelled or fulfilled
+      if (cancelledOrFulfilled.result === 1n) {
+        return [
+          _salt,
+          {
+            check: "cancelled",
+            reason: "Offer cancelled or fulfilled",
+            valid: false
+          }
+        ];
       }
-    ];
 
-    if (!BigNumber.from(nonce).eq(offer.nonce)) return [
-      _salt,
-      {
-        check: "nonce",
-        reason: "Invalid nonce",
-        valid: false
-      }
-    ];
+      // Check if the nonce is valid - convert both to strings for comparison
+      const resultNonce = currentNonce.result?.toString() || "";
+      const offerNonce = nonce?.toString() || "";
 
-    return [
-      _salt,
-      {
-        valid: true
+      if (resultNonce !== offerNonce) {
+        return [
+          _salt,
+          {
+            check: "nonce",
+            reason: "Invalid nonce",
+            valid: false
+          }
+        ];
       }
-    ]
-  }));
+
+      // All checks passed
+      return [
+        _salt,
+        {
+          valid: true
+        }
+      ];
+    })
+  );
 }
 
 function checkCollateralValidations(
   offers: MarketOffer[],
-  _results: ContractCallResults
+  ownerOfResults: MulticallResults,
+  isApprovedForAllResults: MulticallResults
 ): MulticallValidation {
-  const { results } = _results;
 
-  return Object.fromEntries(offers.filter(({ side, soft }) => side == Side.ASK && !soft).map((offer) => {
-    const { salt, maker, collateral } = offer;
-    const { identifier, collection } = collateral;
+  return Object.fromEntries(offers.map((offer, index) => {
+    const { salt, maker } = offer;
 
     const _salt = salt.toString();
 
-    const approved = results[collection]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === maker.toLowerCase()
-        && callReturn.methodName === "isApprovedForAll"
-      )
-    )?.returnValues[0] ?? null;
+    const approved = isApprovedForAllResults[index]
 
-    const owner = results[collection]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === identifier.toString()
-        && callReturn.methodName === "ownerOf"
-      )
-    )?.returnValues[0] ?? null;
+    const owner = ownerOfResults[index]
 
-    if (approved === null || owner === null) return [
+    if (approved.status !== "success" || owner.status !== "success") return [
       _salt,
       {
         check: "validation",
@@ -268,7 +271,7 @@ function checkCollateralValidations(
       }
     ];
 
-    if (!approved) return [
+    if (!approved.result) return [
       _salt,
       {
         check: "approval",
@@ -277,7 +280,7 @@ function checkCollateralValidations(
       }
     ];
 
-    if (!equalAddresses(owner, maker)) return [
+    if (!equalAddresses(owner.result as string, maker)) return [
       _salt,
       {
         check: "ownership",
@@ -296,94 +299,72 @@ function checkCollateralValidations(
 }
 
 function checkSoftCollateralValidations(
-  offers: MarketOffer[],
-  _results: ContractCallResults
+  offers: OfferWithHash[],
+  whitelistedAskMakersResults: MulticallResults,
+  escrowedTokensResults: MulticallResults
 ): MulticallValidation {
-  const { results } = _results;
 
-  return Object.fromEntries(offers.filter(({ side, soft }) => side == Side.ASK && soft).map((offer) => {
-    const { salt, maker, collateral } = offer;
-    const { identifier, collection } = collateral;
+  return Object.fromEntries(
+    offers.map((offer, index) => {
+      const { salt, maker, collateral } = offer;
+      const { identifier, collection } = collateral;
+      const whitelisted = whitelistedAskMakersResults[index];
+      const escrowed = escrowedTokensResults[index];
 
-    const _salt = salt.toString();
+      const _salt = salt.toString();
 
-    const whitelisted = results["kettle-soft-offer"]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === maker.toLowerCase()
-        && callReturn.methodName === "whitelistedAskMakers"
-      )
-    )?.returnValues[0] ?? null;
+      if (whitelisted.status !== "success" || escrowed.status !== "success") return [
+        _salt,
+        {
+          check: "validation",
+          reason: "Soft Collateral Validation failed",
+          valid: false
+        }
+      ];
 
-    const escrowed = results["kettle-soft-offer"]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === identifier.toString().toLowerCase()
-        && callReturn.methodName === "escrowedTokens"
-      )
-    )?.returnValues[0] ?? null;
+      if (!whitelisted.result) return [
+        _salt,
+        {
+          check: "whitelisted",
+          reason: "Ask maker is not whitelisted",
+          valid: false
+        }
+      ];
 
-    if (whitelisted === null || escrowed === null) return [
-      _salt,
-      {
-        check: "validation",
-        reason: "Soft Collateral Validation failed",
-        valid: false
-      }
-    ];
+      if (escrowed.result) return [
+        _salt,
+        {
+          check: "already-escrowed",
+          reason: "Collateral is already escrowed",
+          valid: false
+        }
+      ];
 
-    if (!whitelisted) return [
-      _salt,
-      {
-        check: "whitelisted",
-        reason: "Ask maker is not whitelisted",
-        valid: false
-      }
-    ];
-
-    if (escrowed) return [
-      _salt,
-      {
-        check: "already-escrowed",
-        reason: "Collateral is already escrowed",
-        valid: false
-      }
-    ];
-
-    return [
-      _salt,
-      {
-        valid: true
-      }
-    ]
-  }));
+      return [
+        _salt,
+        {
+          valid: true
+        }
+      ]
+    }));
 }
 
 function checkTermsValidations(
   offers: MarketOffer[],
-  _results: ContractCallResults
+  allowResults: MulticallResults,
+  balanceOfResults: MulticallResults
 ): MulticallValidation {
-  const { results } = _results;
 
-  return Object.fromEntries(offers.filter(({ side }) => side == Side.BID).map((offer) => {
+  return Object.fromEntries(offers.map((offer, index) => {
     const { salt, maker, terms } = offer;
     const { currency, amount } = terms;
 
     const _salt = salt.toString();
 
-    const allowance = results[currency]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === maker.toLowerCase()
-        && callReturn.methodName === "allowance"
-      )
-    )?.returnValues[0] ?? null;
+    const allowance = allowResults[index];
+    const balance = balanceOfResults[index];
 
-    const balance = results[currency]?.callsReturnContext?.find(
-      (callReturn) => (
-        callReturn.reference === maker.toLowerCase()
-        && callReturn.methodName === "balanceOf"
-      )
-    )?.returnValues[0] ?? null;
-
-    if (allowance === null || balance === null) return [
+    if (allowance.status !== "success" || balance.status !== "success") return [
       offer.salt,
       {
         check: "validation",
@@ -392,7 +373,7 @@ function checkTermsValidations(
       }
     ];
 
-    if (BigNumber.from(allowance).lt(amount)) return [
+    if (BigNumber.from(allowance.result).lt(amount)) return [
       _salt,
       {
         check: "allowance",
@@ -401,7 +382,7 @@ function checkTermsValidations(
       }
     ];
 
-    if (BigNumber.from(balance).lt(amount)) return [
+    if (BigNumber.from(balance.result).lt(amount)) return [
       _salt,
       {
         check: "balance",
