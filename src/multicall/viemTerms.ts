@@ -1,4 +1,4 @@
-import { LoanOffer, LoanOfferTerms, MarketOffer, Numberish, OfferKind } from "../types";
+import { LoanOffer, MarketOffer } from "../types";
 import { Abi, ContractFunctionParameters } from "viem";
 
 interface TermsContextResult {
@@ -6,45 +6,10 @@ interface TermsContextResult {
   allowanceCalls: ContractFunctionParameters[];
 }
 
-interface TermsMapValue {
-  maker: string;
-  amount: Numberish;
-}
-
-interface TermsMap {
-  [currency: string]: TermsMapValue[];
-}
-
 export function buildViemTermsValidationsContext(
   offers: (MarketOffer | LoanOffer)[],
   operator: string
 ): TermsContextResult {
-
-  const currencies = offers.reduce(
-    (acc: TermsMap, offer) => {
-      const { kind, maker, terms } = offer;
-      const { currency } = terms;
-
-      if (!acc[currency]) {
-        acc[currency] = [];
-      }
-
-      if (kind === OfferKind.LOAN) {
-        acc[currency].push({
-          maker,
-          amount: (terms as LoanOfferTerms).maxAmount
-        });
-      } else {
-        acc[currency].push({
-          maker,
-          amount: terms.amount
-        });
-      }
-
-      return acc;
-    },
-    {}
-  );
 
   const abi: Abi = [
     {
@@ -68,22 +33,21 @@ export function buildViemTermsValidationsContext(
     allowanceCalls: []
   }
 
-  Object.entries(currencies).map(([currency, terms]) => {
-    return terms.map(({ maker }) => {
-      result.balanceOfCalls.push({
-        address: currency as `0x${string}`,
-        abi,
-        functionName: "balanceOf",
-        args: [maker]
-      })
-      result.allowanceCalls.push({
-        address: currency as `0x${string}`,
-        abi,
-        functionName: "allowance",
-        args: [maker, operator]
-      })
+  offers.reduce<TermsContextResult>((acc, offer) => {
+    acc.balanceOfCalls.push({
+      address: offer.terms.currency as `0x${string}`,
+      abi,
+      functionName: "balanceOf",
+      args: [offer.maker]
     })
-  })
+    acc.allowanceCalls.push({
+      address: offer.terms.currency as `0x${string}`,
+      abi,
+      functionName: "allowance",
+      args: [offer.maker, operator]
+    })
+    return acc;
+  }, result)
 
   return result
 }
