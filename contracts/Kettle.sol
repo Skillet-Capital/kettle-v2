@@ -163,6 +163,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         if (offer.soft) revert BidMustBeHard();
 
         _takeMarketOffer(
+            false,
             tokenId,
             msg.sender,
             offer,
@@ -182,6 +183,33 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             offer
         );
     }
+
+    function fulfillBidWithEscrow(
+        uint256 placeholder,
+        MarketOffer calldata offer,
+        bytes calldata signature,
+        bytes32[] calldata proof
+    ) external requireMarketOffer(offer.kind) nonReentrant {
+        if (offer.side != Side.BID) revert SideMustBeBid();
+
+        _takeMarketOffer(
+            true,
+            placeholder,
+            msg.sender,
+            offer,
+            signature,
+            proof
+        );
+
+        _escrowPayments(
+            placeholder,
+            offer.maker,
+            msg.sender,
+            bytes32(0),
+            0,
+            offer
+        );
+    }
     
     function fulfillAsk(
         uint256 tokenId,
@@ -193,10 +221,11 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         if (offer.side != Side.ASK) revert SideMustBeAsk();
 
         address _taker = (taker == address(0)) ? msg.sender : taker;
-        _takeMarketOffer(tokenId, _taker, offer, signature, proof);
+        _takeMarketOffer(false, tokenId, _taker, offer, signature, proof);
 
         if (offer.soft) {
             _escrowPayments(
+                offer.collateral.identifier,
                 _taker, 
                 offer.maker, 
                 bytes32(0), 
@@ -232,7 +261,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         if (redemption.currency != offer.terms.currency) revert RedemptionCurrencyMismatch();
 
         address _taker = (taker == address(0)) ? msg.sender : taker;
-        _takeMarketOffer(tokenId, _taker, offer, signature, proof);
+        _takeMarketOffer(false, tokenId, _taker, offer, signature, proof);
 
         bytes32 redemptionHash = _verifyRedemptionCharge(
             redemptionAdmin,
@@ -245,6 +274,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         if (offer.soft) {
             _escrowPayments(
+                offer.collateral.identifier,
                 _taker,
                 offer.maker,
                 redemptionHash,
@@ -297,6 +327,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
     }
 
     function _escrowPayments(
+        uint256 placeholder,
         address buyer,
         address seller,
         bytes32 redemptionHash,
@@ -307,7 +338,11 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             revert SellerCannotEscrowAsk();
         }
 
-        if (escrowedTokens[offer.collateral.identifier]) {
+        if (offer.side == Side.BID && !whitelistedBidTakers[buyer]) {
+            revert SellerCannotEscrowBid();
+        }
+
+        if (escrowedTokens[placeholder]) {
             revert TokenAlreadyEscrowed();
         }
 
@@ -318,7 +353,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
             buyer: buyer,
             seller: seller,
             collection: offer.collateral.collection,
-            placeholder: offer.collateral.identifier,
+            placeholder: placeholder,
             currency: offer.terms.currency,
             amount: offer.terms.amount,
             rebate: rebate,
@@ -347,7 +382,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
         // transfer redemption charge from buyer (msg.sender)
         if (redemptionCharge > 0) {
             offer.terms.currency.safeTransferFrom(
-                msg.sender,
+                offer.side == Side.BID ? offer.maker : msg.sender,
                 address(this),
                 redemptionCharge
             );
@@ -355,7 +390,7 @@ contract Kettle is IKettle, Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         // transfer offer amount from buyer (msg.sender)
         offer.terms.currency.safeTransferFrom(
-            msg.sender,
+            offer.side == Side.BID ? offer.maker : msg.sender,
             address(this),
             offer.terms.amount
         );

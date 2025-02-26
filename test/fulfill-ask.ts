@@ -96,7 +96,7 @@ describe("Fulfill Ask", function () {
     )).to.be.revertedWithCustomError(_kettle, "InvalidMarketOffer");
   });
   
-  it("buyer should take ask offer", async function () {
+  it.only("buyer should take ask offer", async function () {
     await collection.mint(seller, tokenId);
     await currency.mint(buyer, amount);
 

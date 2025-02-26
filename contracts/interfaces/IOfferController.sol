@@ -28,6 +28,13 @@ interface IOfferController {
         MarketOffer offer
     );
 
+    event MarketOfferTaken2(
+        uint256 indexed tokenId,
+        address indexed taker,
+        MarketOffer offer,
+        bool soft
+    );
+
     event LoanOfferTaken(
         uint256 indexed tokenId,
         address indexed taker,

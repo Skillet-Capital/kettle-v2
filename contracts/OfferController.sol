@@ -34,6 +34,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
     }
 
     function _takeMarketOffer(
+        bool takingBidWithSoftItem,
         uint256 tokenId,
         address taker,
         MarketOffer calldata offer,
@@ -44,7 +45,7 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
             revert InvalidTaker();
         }
 
-        if (!offer.soft) {
+        if (!offer.soft && takingBidWithSoftItem) {
              _verifyCollateral(
                 offer.collateral.criteria,
                 offer.collateral.identifier,
@@ -62,6 +63,13 @@ contract OfferController is IOfferController, OwnableUpgradeable, Signatures {
             tokenId: tokenId,
             taker: taker,
             offer: offer
+        });
+
+        emit MarketOfferTaken2({
+            tokenId: tokenId,
+            taker: taker,
+            offer: offer,
+            soft: offer.soft || takingBidWithSoftItem
         });
     }
 
