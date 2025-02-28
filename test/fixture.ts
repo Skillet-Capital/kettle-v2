@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 
 import { ethers, upgrades } from "hardhat";
-import { Kettle__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
+import { KettleV2__factory as Kettle__factory, TestERC20__factory, TestERC721__factory } from "../typechain-types";
 
 export async function deployKettle() {
   const [owner, recipient, tokenSupplier, redemptionAdmin, redemptionWallet, escrowSettler, offerManager, ...accounts] = await ethers.getSigners();
@@ -18,6 +18,9 @@ export async function deployKettle() {
     await escrowSettler.getAddress(),
     await offerManager.getAddress()
   ], { initializer: "__Kettle_init" });
+
+  const KettleV2 = await ethers.getContractFactory("KettleV2");
+  const _kettleV2 = await upgrades.upgradeProxy(await _kettle.getAddress(), KettleV2);
 
   // // initialize signers
   // await _kettle.setTokenSupplier(tokenSupplier);
@@ -37,10 +40,10 @@ export async function deployKettle() {
   const collection = TestERC721__factory.connect(await _collection.getAddress(), owner);
   const collection2 = TestERC721__factory.connect(await _collection2.getAddress(), owner);
 
-  const kettle = Kettle__factory.connect(await _kettle.getAddress(), owner);
+  const kettle = Kettle__factory.connect(await _kettleV2.getAddress(), owner);
 
-  await collection.connect(tokenSupplier).setApprovalForAll(_kettle, true);
-  await collection2.connect(tokenSupplier).setApprovalForAll(_kettle, true);
+  await collection.connect(tokenSupplier).setApprovalForAll(_kettleV2, true);
+  await collection2.connect(tokenSupplier).setApprovalForAll(_kettleV2, true);
 
   return { owner, accounts, recipient, kettle, currency, currency2, collection, collection2, redemptionAdmin, redemptionWallet, tokenSupplier };
 }

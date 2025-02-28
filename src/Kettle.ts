@@ -262,7 +262,18 @@ export class Kettle {
     const takeOfferAction: SendStep = {
       action: StepAction.SEND,
       type: "take-market-offer",
-      userOp: (input.offer.side === Side.BID) ? {
+      userOp: (input.offer.side === Side.BID && input.softBid) ? {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillBidWithEscrow"),
+          [
+            input.tokenId,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      } : (input.offer.side === Side.BID) ? {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
           this.kettleInterface.getFunction("fulfillBid"),
@@ -303,7 +314,14 @@ export class Kettle {
       send: async (signer: Signer | JsonRpcSigner) => {
         let txn;
 
-        if (input.offer.side === Side.BID) {
+        if (input.offer.side === Side.BID && input.softBid) {
+          txn = await this.contract.connect(signer).fulfillBidWithEscrow(
+            input.tokenId!,
+            input.offer as MarketOffer,
+            input.signature,
+            input.proof ?? []
+          );
+        } else if (input.offer.side === Side.BID) {
           txn = await this.contract.connect(signer).fulfillBid(
             input.tokenId!,
             input.offer as MarketOffer,
@@ -918,7 +936,7 @@ export class Kettle {
         approvalActions.push(..._approvalActions);
       }
 
-      if (offer.kind == OfferKind.MARKET && offer.terms.rebate && BigInt(offer.terms.rebate) > 0) {
+      if (offer.kind == OfferKind.MARKET && offer.side === Side.ASK && offer.terms.rebate && BigInt(offer.terms.rebate) > 0) {
         const rebateAmount = this.mulFee(offer.terms.amount, offer.terms.rebate);
         const _approvalActions = await this._erc20Approvals(
           maker,
@@ -955,6 +973,16 @@ export class Kettle {
     const approvalActions: SendStep[] = [];
 
     if (input.offer.side === Side.BID) {
+
+      if ((input.offer as MarketOffer).terms.rebate && BigInt((input.offer as MarketOffer).terms.rebate) > 0) {
+        const rebateAmount = this.mulFee(input.offer.terms.amount, (input.offer as MarketOffer).terms.rebate);
+        const _approvalActions = await this._erc20Approvals(
+          taker,
+          input.offer.terms.currency,
+          rebateAmount
+        );
+        approvalActions.push(..._approvalActions);
+      }
 
       // not in lien or is hard , need to approve collateral
       if (!(input.lien && input.lienId)) {

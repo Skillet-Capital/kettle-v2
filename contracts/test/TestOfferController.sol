@@ -23,6 +23,6 @@ contract TestOfferController is Initializable, OwnableUpgradeable, OfferControll
         bytes calldata signature,
         bytes32[] calldata proof
     ) public returns (bytes32) {
-        return _takeMarketOffer(false, tokenId, msg.sender, offer, signature, proof);
+        return _takeMarketOffer(tokenId, msg.sender, offer, signature, proof);
     }  
 }

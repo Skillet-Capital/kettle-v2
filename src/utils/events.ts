@@ -90,6 +90,41 @@ export function parseEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
   }
 }
 
+export function parseBidEscrowOpenedLog(receipt: TransactionReceipt): EscrowLog {
+  const iface = Kettle__factory.createInterface();
+
+  const logs = receipt.logs
+    .map((log: Log) => iface.parseLog(log))
+    .filter((log: LogDescription | null) => log !== null) as LogDescription[];
+
+  const escrowLog = logs
+    .find((log: LogDescription) => log.name === "BidEscrowOpened") as LogDescription;
+
+  if (!escrowLog) {
+    throw new Error("No BidEscrowOpened log found");
+  }
+
+  return {
+    escrowId: escrowLog.args.escrowId,
+    escrow: {
+      side: escrowLog.args.escrow.side,
+      buyer: escrowLog.args.escrow.buyer,
+      seller: escrowLog.args.escrow.seller,
+      collection: escrowLog.args.escrow.collection,
+      placeholder: escrowLog.args.escrow.placeholder,
+      currency: escrowLog.args.escrow.currency,
+      amount: escrowLog.args.escrow.amount,
+      fee: escrowLog.args.escrow.fee,
+      recipient: escrowLog.args.escrow.recipient,
+      rebate: escrowLog.args.escrow.rebate,
+      redemptionHash: escrowLog.args.escrow.redemptionHash,
+      redemptionCharge: escrowLog.args.escrow.redemptionCharge,
+      timestamp: escrowLog.args.escrow.timestamp,
+      lockTime: escrowLog.args.escrow.lockTime,
+    }
+  }
+}
+
 // interface LienLog {
 //   lienId: Numberish;
 //   lien: Lien;

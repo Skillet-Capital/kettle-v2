@@ -1,8 +1,8 @@
 import { Addressable, Signer, JsonRpcSigner, TypedDataField } from "ethers";
 
 import { 
-  Kettle as KettleContract,
-  Kettle__factory,
+  KettleV2 as KettleContract,
+  KettleV2__factory,
   TestERC20__factory,
   TestERC721__factory,
 } from "../typechain-types";
@@ -15,7 +15,7 @@ export type {
 };
 
 export {
-  Kettle__factory,
+  KettleV2__factory as Kettle__factory,
   TestERC20__factory,
   TestERC721__factory
 };
@@ -197,6 +197,7 @@ export type CreateLoanOfferInput = {
 }
 
 export type TakeOfferInput = {
+  softBid?: boolean;
   tokenId?: Numberish;
   taker?: string;
   amount?: Numberish;
