@@ -42,7 +42,8 @@ const KettleModule = buildModule("kettle_dev", (m) => {
 
   return { 
     kettle, 
-    kettleProxyAdmin 
+    kettleProxy,
+    kettleProxyAdmin,
   };
 });
 

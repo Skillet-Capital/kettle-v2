@@ -72,3 +72,5 @@ error SellerCannotEscrowAsk();
 
 error OnlyEscrowSettlerOrOwner();
 error OnlyOfferManagerOrOwner();
+
+error InvalidPlaceholder();

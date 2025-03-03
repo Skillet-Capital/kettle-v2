@@ -27,6 +27,8 @@ dataSources:
           handler: handleMarketOfferTaken
         - event: EscrowOpened(indexed uint256,(uint8,address,uint256,address,address,address,uint256,uint256,address,uint256,bytes32,uint256,uint256,uint256))          
           handler: handleEscrowOpened
+        - event: BidEscrowOpened(indexed uint256,(uint8,address,uint256,address,address,address,uint256,uint256,address,uint256,bytes32,uint256,uint256,uint256),uint256,uint8)          
+          handler: handleEscrowOpened
         - event: EscrowRejected(indexed uint256,indexed bool)
           handler: handleEscrowRejected
         - event: EscrowSettled(indexed uint256,indexed uint256)

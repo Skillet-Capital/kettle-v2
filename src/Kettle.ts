@@ -262,7 +262,18 @@ export class Kettle {
     const takeOfferAction: SendStep = {
       action: StepAction.SEND,
       type: "take-market-offer",
-      userOp: (input.offer.side === Side.BID) ? {
+      userOp: (input.offer.side === Side.BID && input.softBid) ? {
+        to: this.contractAddress,
+        data: this.kettleInterface.encodeFunctionData(
+          this.kettleInterface.getFunction("fulfillBidWithEscrow"),
+          [
+            input.tokenId,
+            input.offer,
+            input.signature,
+            input.proof ?? []
+          ]
+        )
+      } : (input.offer.side === Side.BID) ? {
         to: this.contractAddress,
         data: this.kettleInterface.encodeFunctionData(
           this.kettleInterface.getFunction("fulfillBid"),
@@ -303,7 +314,14 @@ export class Kettle {
       send: async (signer: Signer | JsonRpcSigner) => {
         let txn;
 
-        if (input.offer.side === Side.BID) {
+        if (input.offer.side === Side.BID && input.softBid) {
+          txn = await this.contract.connect(signer).fulfillBidWithEscrow(
+            input.tokenId!,
+            input.offer as MarketOffer,
+            input.signature,
+            input.proof ?? []
+          );
+        } else if (input.offer.side === Side.BID) {
           txn = await this.contract.connect(signer).fulfillBid(
             input.tokenId!,
             input.offer as MarketOffer,
@@ -657,7 +675,7 @@ export class Kettle {
 
     const validationPromises: Promise<Validation>[] = [];
 
-    if (input.offer.side === Side.BID) {
+    if (input.offer.side === Side.BID && !input.softBid) {
       validationPromises.push(
         TestERC721__factory.connect(input.offer.collateral.collection, this.provider)
           .ownerOf(input.tokenId)
@@ -667,6 +685,27 @@ export class Kettle {
             reason: "Taker not owner of token"
           }))
       );
+
+      if (input.softBid) {
+        validationPromises.push(
+          this.contract.whitelistedBidTakers(input.offer.maker)
+            .then((whitelisted) => ({
+              check: "whitelisted-bid-taker",
+              valid: whitelisted,
+              reason: "Taker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(input.tokenId)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
+            }) as Validation
+          )
+        )
+      }
 
       if (input.offer.soft) {
         throw new Error("Cannot take soft offer as bid");
@@ -918,7 +957,7 @@ export class Kettle {
         approvalActions.push(..._approvalActions);
       }
 
-      if (offer.kind == OfferKind.MARKET && offer.terms.rebate && BigInt(offer.terms.rebate) > 0) {
+      if (offer.kind == OfferKind.MARKET && offer.side === Side.ASK && offer.terms.rebate && BigInt(offer.terms.rebate) > 0) {
         const rebateAmount = this.mulFee(offer.terms.amount, offer.terms.rebate);
         const _approvalActions = await this._erc20Approvals(
           maker,
@@ -956,8 +995,18 @@ export class Kettle {
 
     if (input.offer.side === Side.BID) {
 
+      if ((input.offer as MarketOffer).terms.rebate && BigInt((input.offer as MarketOffer).terms.rebate) > 0) {
+        const rebateAmount = this.mulFee(input.offer.terms.amount, (input.offer as MarketOffer).terms.rebate);
+        const _approvalActions = await this._erc20Approvals(
+          taker,
+          input.offer.terms.currency,
+          rebateAmount
+        );
+        approvalActions.push(..._approvalActions);
+      }
+
       // not in lien or is hard , need to approve collateral
-      if (!(input.lien && input.lienId)) {
+      if (!input.softBid) {
         const _approvalActions = await this._erc721Approvals(
           taker,
           input.offer.collateral.collection

@@ -69,6 +69,8 @@ type Escrow @entity {
   timestamp: BigInt!
   settlementTimestamp: BigInt
   status: String!
+  bidIdentifier: Bytes
+  criteria: BigInt
 }
 
 type Redemption @entity {
