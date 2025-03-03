@@ -211,6 +211,7 @@ export type TakeOfferInput = {
 }
 
 export type ValidateTakeOfferInput = {
+  softBid?: boolean;
   tokenId: Numberish;
   amount?: Numberish;
   offer: MarketOffer | LoanOffer;

@@ -675,7 +675,7 @@ export class Kettle {
 
     const validationPromises: Promise<Validation>[] = [];
 
-    if (input.offer.side === Side.BID) {
+    if (input.offer.side === Side.BID && !input.softBid) {
       validationPromises.push(
         TestERC721__factory.connect(input.offer.collateral.collection, this.provider)
           .ownerOf(input.tokenId)
