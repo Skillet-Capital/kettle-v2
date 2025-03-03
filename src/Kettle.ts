@@ -985,7 +985,7 @@ export class Kettle {
       }
 
       // not in lien or is hard , need to approve collateral
-      if (!(input.lien && input.lienId)) {
+      if (!input.softBid) {
         const _approvalActions = await this._erc721Approvals(
           taker,
           input.offer.collateral.collection

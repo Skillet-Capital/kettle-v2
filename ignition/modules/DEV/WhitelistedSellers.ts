@@ -12,6 +12,8 @@ const WhitelistSellers = buildModule("whitelist_sellers_dev", (m) => {
 
   m.call(kettle, "whitelistAskMaker", ["0xc15937B5D8fA57C71BCdad2b8cB2825E75AeD0fD", true], { id: "test_1" });
 
+  m.call(kettle, "whitelistBidTaker", ["0x11d351894506e13587d4e479b6c38e68891f1492", true], { id: "whitelist_me_6" });
+
   return { kettle };
 });
 
