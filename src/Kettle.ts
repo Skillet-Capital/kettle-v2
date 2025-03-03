@@ -686,6 +686,27 @@ export class Kettle {
           }))
       );
 
+      if (input.softBid) {
+        validationPromises.push(
+          this.contract.whitelistedBidTakers(input.offer.maker)
+            .then((whitelisted) => ({
+              check: "whitelisted-bid-taker",
+              valid: whitelisted,
+              reason: "Taker is not whitelisted"
+            }) as Validation
+          )
+        ),
+        validationPromises.push(
+          this.contract.escrowedTokens(input.tokenId)
+            .then((escrowed) => ({
+              check: "escrow-exists",
+              valid: !escrowed,
+              reason: "Token is already escrowed"
+            }) as Validation
+          )
+        )
+      }
+
       if (input.offer.soft) {
         throw new Error("Cannot take soft offer as bid");
       }
